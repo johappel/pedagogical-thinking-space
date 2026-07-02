@@ -168,6 +168,24 @@ without changing its educational meaning.
 
 ---
 
+# Rendering Specifications
+
+Renderers never improvise target formats.
+
+Every target format must be described by a rendering specification in `specs/`.
+
+The Renderer checks the relevant specification before producing output.
+
+If no specification exists, the Renderer asks the Critical Friend to create one and request teacher approval.
+
+The rendering specification defines how the Learning Design is expressed in a particular format.
+
+It does not change the Learning Design.
+
+It only defines the rules for representation.
+
+---
+
 # Examples
 
 One Learning Design

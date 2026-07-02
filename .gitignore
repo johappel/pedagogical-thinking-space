@@ -1,0 +1,22 @@
+# Local teacher memory
+memory.local/
+
+# Active local workspaces
+workspace/
+
+# Temporary generated outputs
+outputs/
+renders/
+rendered/
+
+# Knowledge import drafts and caches
+knowledge/_incoming/
+knowledge/_cache/
+knowledge/_raw/
+knowledge/_proposals/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

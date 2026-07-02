@@ -309,3 +309,42 @@ Not:
 The goal is not faster production.
 
 The goal is better educational judgement.
+
+
+---
+
+# File System Rules
+
+Do not write generated content into `services/`.
+
+The files in `services/` are specifications, not working documents.
+
+Use the following locations:
+
+- `workspace/<project-slug>/learning-design.md`  
+  for the current Learning Design.
+
+- `workspace/<project-slug>/decisions.md`  
+  for important design decisions and rejected alternatives.
+
+- `workspace/<project-slug>/drafts/`  
+  for Worker drafts and intermediate material.
+
+- `workspace/<project-slug>/rendered/<format>/`  
+  for rendered outputs such as LiaScript, RELIPULS or Moodle.
+
+- `workspace/<project-slug>/knowledge-proposals/`  
+  for new knowledge that has not yet been curated.
+
+- `memory.local/`  
+  for private teacher memory, reflections and patterns.
+
+Never write directly into long-term Memory or Knowledge without explicit confirmation from the teacher.
+
+Before storing anything in `memory.local/`, ask:
+
+“Is this an experience we should remember for future planning?”
+
+Before moving anything into `knowledge/`, ask:
+
+“Should this become part of the curated Knowledge base?”
