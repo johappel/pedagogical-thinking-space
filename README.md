@@ -1,4 +1,4 @@
-<img width="1600" height="1100" alt="pedagogical-thinking-space-en" src="https://github.com/user-attachments/assets/3039d773-57d7-494a-bc29-3a88fae4e524" /># Pedagogical Thinking Space
+# Pedagogical Thinking Space
 
 > **A Reflective Architecture for Human–AI Educational Design**
 >
@@ -75,7 +75,7 @@ Everything else supports that conversation.
 
 # Architecture
 
-![Uploading pedagogical-thinking-space-en.svg…]<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100">
+<img width="1600" height="1100" alt="pedagogical-thinking-space-en" src="https://github.com/user-attachments/assets/3039d773-57d7-494a-bc29-3a88fae4e524" />
 
   <defs>
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
