@@ -113,6 +113,9 @@ Everything else is derived from it.
 
 # Reflection before Production
 
+<img width="1600" height="950" alt="pedagogical-thinking-space-flow-en" src="https://github.com/user-attachments/assets/60668614-1dcd-4b87-a0c7-fc195d07e07c" />
+
+
 One of the central design principles of this project is the deliberate separation of thinking and producing.
 
 The conversation continues while implementation happens elsewhere.
