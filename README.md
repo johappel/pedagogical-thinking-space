@@ -76,27 +76,6 @@ Everything else supports that conversation.
 # Architecture
 <img width="1600" height="1100" alt="pedagogical-thinking-space-en" src="https://github.com/user-attachments/assets/23b00ebb-f57e-4395-b092-9f9879db3079" />
 
-```text
-Teacher
-      │
-      ▼
-Critical Friend
-      │
-      ▼
-Learning Design
-      │
-      ▼
-ORCHESTRATION
-      │
-      ▼
-core/
-│
-├── MEMORY
-├── KNOWLEDGE
-├── WORKER
-└── RENDERER
-```
-
 The Critical Friend is the only visible conversation partner.
 
 Everything else operates quietly in the background.
