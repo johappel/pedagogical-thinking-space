@@ -328,3 +328,10 @@ If successful,
 the result is not simply better teaching materials.
 
 The result is better professional judgement.
+
+# Get starded
+
+You do not need an agent harness to understand or try Pedagogical Thinking Space.
+Agent harnesses are only needed when you want file-based workflows, background workers or automated rendering.
+
+read **core/GET_STARTED.md** and follow the instructions
