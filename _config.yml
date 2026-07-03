@@ -1,0 +1,32 @@
+# Jekyll configuration for GitHub Pages
+
+title: Pedagogical Thinking Space
+description: >-
+  A reflective thinking space for pedagogical design —
+  supporting teachers through structured dialogue
+  rather than automated content generation.
+
+url: "https://johappel.github.io"
+baseurl: "/pedagogical-thinking-space"
+
+# Build settings
+theme: minima
+markdown: kramdown
+
+kramdown:
+  input: GFM
+
+# Exclude files that should not be part of the published site
+exclude:
+  - ".github/"
+  - "memory.local/"
+  - "workspace/"
+  - "outputs/"
+  - "renders/"
+  - "rendered/"
+  - "knowledge/_incoming/"
+  - "knowledge/_cache/"
+  - "knowledge/_raw/"
+  - "knowledge/_proposals/"
+  - "Gemfile"
+  - "Gemfile.lock"
