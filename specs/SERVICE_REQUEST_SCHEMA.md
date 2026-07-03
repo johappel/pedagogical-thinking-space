@@ -535,6 +535,14 @@ priority: normal
 model_hint: cheap_fast
 requires_approval: true
 
+source_policy:
+  required: true
+  allowed_sources:
+    - provided_sources
+    - knowledge_service
+  model_internal_knowledge: not_allowed
+  missing_sources_behavior: ask_for_source
+
 review:
   required: true
   reviewer: critical_friend
@@ -589,6 +597,13 @@ constraints:
     - present unverified claims as fact
     - change the Learning Design
 
+source_policy:
+  required: true
+  model_internal_knowledge: not_allowed
+  missing_sources_behavior: >
+    Mark missing sources explicitly.
+    Do not invent curriculum, license or research claims.
+    
 return_to: critical_friend
 
 priority: high
@@ -730,6 +745,7 @@ assumptions:
 
 risks:
   - Interactive LiaScript features may tempt the renderer to add activities not present in the Learning Design.
+
 ```
 
 ---

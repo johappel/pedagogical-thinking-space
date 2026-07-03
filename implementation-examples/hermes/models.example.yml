@@ -1,0 +1,27 @@
+# Example only.
+# This file is not part of the framework contract.
+# Concrete model selection belongs to the runtime.
+# Do not treat these assignments as pedagogical recommendations.
+
+roles:
+  critical_friend:
+    capability_profile: reflective_reasoning
+    example_model: qwen3-max
+
+  worker:
+    capability_profile: cheap_fast_drafting
+    example_model: deepseek-v4-flash
+
+  knowledge:
+    capability_profile: source_grounded_synthesis
+    example_model: gpt-5.5
+    warning: "Only with retrieval/provided sources. Do not rely on model memory."
+
+  renderer:
+    capability_profile: format_conversion
+    example_model: deepseek-v4-flash
+
+  reviewer:
+    capability_profile: strict_alignment_review
+    example_model: claude-sonnet-5
+    warning: "Use for critical reviews only if cost is justified."
