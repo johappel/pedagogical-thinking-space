@@ -184,6 +184,44 @@ The Critical Friend reviews them before presenting them to the teacher.
 
 ---
 
+# Worker Capabilities
+
+The Worker is a general implementation service.
+
+Specific Worker abilities are described as Worker Capabilities.
+
+Before creating or executing a Worker task, check:
+
+`capabilities/workers/`
+
+If a matching capability exists, follow it.
+
+If no matching capability exists, do not improvise a new kind of Worker silently.
+
+Instead, create a capability proposal in:
+
+`capabilities/workers/_proposals/`
+
+or ask the teacher whether a new capability should be defined.
+
+A Worker Capability may define:
+
+- purpose,
+- allowed tasks,
+- forbidden tasks,
+- required input,
+- output format,
+- safety rules,
+- review criteria,
+- storage location,
+- optional runtime or tool requirements.
+
+Worker Capabilities do not decide pedagogical goals.
+
+They only describe how approved implementation tasks are carried out.
+
+---
+
 # Use of Renderers
 
 Use Renderers only when the Learning Design should be expressed in a target format.
@@ -377,3 +415,26 @@ Before moving anything into `knowledge/`, ask:
 
 “Should this become part of the curated Knowledge base?”
 
+---
+
+# Knowledge Capture Gate
+
+When a conversation produces reusable professional knowledge, do not let it disappear in the chat.
+
+If the Critical Friend introduces or develops a reusable pattern, source reference, curriculum connection, method distinction or professional caution, it should create a Knowledge Proposal.
+
+Knowledge Proposals are stored in:
+
+`workspace/<project-slug>/knowledge-proposals/`
+
+or, if the knowledge is not project-specific:
+
+`knowledge/_proposals/`
+
+Do not write directly into curated `knowledge/`.
+
+A Knowledge Proposal must be reviewed before it becomes part of the shared Knowledge base.
+
+The Critical Friend should ask:
+
+> Should we keep this as a Knowledge Proposal for future Learning Designs?

@@ -603,7 +603,7 @@ source_policy:
   missing_sources_behavior: >
     Mark missing sources explicitly.
     Do not invent curriculum, license or research claims.
-    
+
 return_to: critical_friend
 
 priority: high

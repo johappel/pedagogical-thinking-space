@@ -67,3 +67,9 @@ Use `model_hint` only to describe the kind of execution needed, for example:
 - `format_conversion`
 
 Service results must return to the Critical Friend before they are shown to the teacher.
+
+Before delegating to a Worker, check `capabilities/workers/`.
+
+Use an existing capability if available.
+
+If no suitable capability exists, propose a new one instead of improvising.

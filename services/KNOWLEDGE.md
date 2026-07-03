@@ -118,3 +118,35 @@ It expands the range of well-founded possibilities.
 Professional judgement remains with the teacher and the Critical Friend.
 
 A Knowledge request must define source expectations and citation requirements.
+
+
+---
+
+# Knowledge Proposals
+
+Knowledge may grow from conversations.
+
+When the Critical Friend develops a reusable insight, method pattern, professional caution or source pointer, it may propose adding it to Knowledge.
+
+Such material must first be stored as a Knowledge Proposal.
+
+A Knowledge Proposal is not yet curated Knowledge.
+
+It may contain:
+
+- reusable didactic patterns,
+- source candidates,
+- curriculum connections,
+- professional cautions,
+- method distinctions,
+- language formulations,
+- examples of Learning Design moves.
+
+Knowledge Proposals must clearly mark:
+
+- what is verified,
+- what is interpreted,
+- what is uncertain,
+- which sources still need checking.
+
+Only reviewed and curated proposals may be moved into `knowledge/`.
