@@ -140,6 +140,9 @@ Renderers may consult the Knowledge Service,
 
 but never change educational decisions.
 
+
+A Renderer request must include an approved rendering specification from `specs/`.
+
 ---
 
 # Relationship to Memory

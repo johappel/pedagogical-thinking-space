@@ -262,3 +262,137 @@ The Critical Friend does not orchestrate services.
 The Critical Friend orchestrates the teacher's thinking.
 
 Services exist only to support that process.
+
+---
+
+# Service Requests
+
+The Critical Friend does not directly call models, tools or APIs.
+
+When the Critical Friend decides that a service is needed, it creates a Service Request.
+
+All Service Requests must follow:
+
+`specs/SERVICE_REQUEST_SCHEMA.md`
+
+A Service Request describes the needed support, but not the technical execution.
+
+The Critical Friend decides that a service is needed.
+
+The harness or application decides how the request is routed and executed.
+
+The technical routing is handled outside this document.
+
+A Service Request may target one of these services:
+
+- Memory
+- Knowledge
+- Worker
+- Renderer
+- Review
+
+Example:
+
+```yaml
+service: worker
+mode: draft
+task: create_student_instruction
+reason: A design decision has been approved and now needs implementation.
+input:
+  learning_design: workspace/<project-slug>/learning-design.md
+  related_decision: Decision 2
+expected_output:
+  type: student_instruction
+  location: workspace/<project-slug>/drafts/student-instruction.md
+constraints:
+  language: de
+  audience: grade 9
+  max_length: 1 page
+return_to: critical_friend
+```
+---
+
+# Model Routing
+
+Model routing is not part of pedagogical orchestration.
+
+ORCHESTRATION.md decides *what kind of service is needed*.
+
+A separate routing configuration decides *which model or tool executes it*.
+
+Possible routing configuration:
+
+```text
+config/models.yml
+```
+The Critical Friend must not hard-code model names into the conversation.
+It should request a service.
+
+The harness or application decides which model executes that service.
+
+**Example:**
+
+```yaml
+# config/models.yml
+
+roles:
+  critical_friend:
+    model: gemma-4
+    purpose: reflective conversation
+    temperature: 0.4
+
+  knowledge:
+    model: gemma-4
+    purpose: careful interpretation of sources
+    temperature: 0.2
+
+  worker_fast:
+    model: deepseek-v4-flash
+    purpose: cheap drafting and routine production
+    temperature: 0.3
+
+  renderer:
+    model: deepseek-v4-flash
+    purpose: format conversion
+    temperature: 0.2
+
+  reviewer:
+    model: gemma-4
+    purpose: alignment and quality review
+    temperature: 0.1
+```
+---
+
+# Execution Levels
+
+The Pedagogical Thinking Space can run on different technical levels.
+
+## Level 1: Prompt-only
+
+One model plays all roles.
+
+Services are conceptual.
+
+This is suitable for ChatGPT Free or simple chat interfaces.
+
+## Level 2: File-based Agent Harness
+
+An agent reads the repository files and writes outputs into the workspace.
+
+Services are represented by files, folders and explicit tasks.
+
+This is suitable for Codex, Claude Code, Hermes, Cursor or similar systems.
+
+## Level 3: Multi-model Orchestration
+
+Different services may be executed by different models or tools.
+
+Example:
+
+- Critical Friend: stronger reflective model
+- Worker: cheaper drafting model
+- Renderer: cheap format-conversion model
+- Reviewer: stronger checking model
+- Knowledge: retrieval or curated wiki
+
+This requires a technical router or application layer.

@@ -44,6 +44,9 @@ Before working with the teacher, read the repository in this order:
 8. `services/RENDERER.md`
    Understand how Learning Designs are expressed in different formats.
 
+9. `specs/SERVICE_REQUEST_SCHEMA.md`  
+   Understand how the Critical Friend requests services without executing them directly.
+
 If a referenced file is missing, continue with the available files and inform the teacher which part of the system is not yet specified.
 
 ---
@@ -204,6 +207,31 @@ If rendering reveals a contradiction in the Learning Design, return to reflectio
 
 ---
 
+# Service Request Discipline
+
+Do not silently switch into Memory, Knowledge, Worker, Renderer or Review mode.
+
+When service work is needed, create a structured Service Request according to:
+
+`specs/SERVICE_REQUEST_SCHEMA.md`
+
+The Critical Friend requests services.
+
+The harness, application or workflow routes and executes them.
+
+Do not hard-code model names in Service Requests.
+
+Use `model_hint` only to describe the kind of execution needed, for example:
+
+- `cheap_fast`
+- `careful_reasoning`
+- `source_grounded`
+- `format_conversion`
+
+Service results must return to the Critical Friend before they are shown to the teacher.
+
+---
+
 # Protect Against Overthinking
 
 Reflection is valuable.
@@ -348,3 +376,4 @@ Before storing anything in `memory.local/`, ask:
 Before moving anything into `knowledge/`, ask:
 
 “Should this become part of the curated Knowledge base?”
+

@@ -6,7 +6,7 @@
 
 # Purpose
 
-Knowledge provides access to the shared knowledge of the educational profession.
+Knowledge provides access to the shared knowledge of the educational profession. 
 
 Unlike Memory,
 
@@ -116,3 +116,5 @@ Knowledge does not tell teachers what to do.
 It expands the range of well-founded possibilities.
 
 Professional judgement remains with the teacher and the Critical Friend.
+
+A Knowledge request must define source expectations and citation requirements.

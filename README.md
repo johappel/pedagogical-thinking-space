@@ -259,6 +259,16 @@ All remain invisible unless needed.
 
 ---
 
+## specs/SERVICE_REQUEST_SCHEMA.md
+
+Defines how the Critical Friend delegates work to invisible services.
+
+It makes the boundary between reflection and execution explicit.
+
+Service Requests are used when the system needs Memory, Knowledge, Worker, Renderer or Review support.
+
+---
+
 ## Learning Design is the single source of truth.
 
 Every service operates on the same educational understanding.

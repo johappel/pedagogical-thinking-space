@@ -169,3 +169,5 @@ Memory exists to preserve professional experience.
 Not to remember the past,
 
 but to improve future educational judgement.
+
+A Memory request must respect privacy and return patterns rather than raw anecdotes.

@@ -188,3 +188,23 @@ Workers are the workshop behind the conversation.
 While teacher and Critical Friend continue thinking together,
 
 Workers quietly build what has already been agreed.
+
+----
+
+# Service Requests
+
+Workers are invoked through Service Requests.
+
+A Worker must not start from an informal chat instruction.
+
+Every Worker task should be described according to:
+
+`../specs/SERVICE_REQUEST_SCHEMA.md`
+
+The request must include:
+
+- the related Learning Design,
+- the approved design decision,
+- the expected output,
+- constraints,
+- and the return path to the Critical Friend.

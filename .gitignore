@@ -20,3 +20,4 @@ knowledge/_proposals/
 Thumbs.db
 .vscode/
 .idea/
+config/models.yml
