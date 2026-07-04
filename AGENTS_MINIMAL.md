@@ -72,4 +72,6 @@ Before delegating to a Worker, check `capabilities/workers/`.
 
 Use an existing capability if available.
 
+If a matching capability exists, include it in the Worker Service Request.
+
 If no suitable capability exists, propose a new one instead of improvising.

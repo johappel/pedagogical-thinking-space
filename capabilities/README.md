@@ -31,11 +31,11 @@ Example:
 
 ```text
 Worker
-  ├── Image Generation
-  ├── Diagram Creation
-  ├── Metrics Analysis
-  ├── Worksheet Drafting
-  └── Quiz Drafting
+  |- Image Generation
+  |- Diagram Creation
+  |- Metrics Analysis
+  |- Worksheet Drafting
+  `- Quiz Drafting
 ```
 
 ---
@@ -165,6 +165,8 @@ capability: capabilities/workers/IMAGE_GENERATION.md
 The Service Request defines the task.
 
 The Capability defines how that kind of task should be handled.
+
+Worker Service Requests should include a capability path when a matching capability exists.
 
 The service result returns to the Critical Friend before it becomes teacher-facing.
 

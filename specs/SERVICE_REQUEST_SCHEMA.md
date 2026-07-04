@@ -338,6 +338,7 @@ routing:
 assumptions:
 risks:
 knowledge_output:
+capability:
 ```
 
 ## priority
@@ -453,10 +454,21 @@ knowledge_output:
 
 Use it when a service should return knowledge in proposal-ready form.
 
+## capability
+
+Optional path to a capability document that defines how the requested task should be handled.
+
+Example:
+
+```yaml
+capability: capabilities/workers/IMAGE_GENERATION.md
+```
+
+Worker requests should include this field whenever a matching capability exists.
+
 ---
 
 # Generic Template
-
 ```yaml
 id: <service-request-id>
 status: proposed
@@ -510,6 +522,7 @@ knowledge_output:
   okf_compatible: true
   target_status:
   suggested_location:
+capability:
 ```
 
 ---
@@ -845,6 +858,7 @@ Before executing a Service Request, check:
 - If rendering is requested, an approved rendering specification exists.
 - If knowledge is requested, source and citation expectations are explicit.
 - If memory is requested, privacy and relevance are considered.
+- If a matching Worker capability exists, the request references it.
 - The result returns to the Critical Friend.
 
 ---

@@ -56,7 +56,7 @@ If a referenced file is missing, continue with the available files and inform th
 The visible conversation always happens between:
 
 ```text
-Teacher ↔ Critical Friend
+Teacher <-> Critical Friend
 ```
 
 All other system components are services.
@@ -195,6 +195,8 @@ Before creating or executing a Worker task, check:
 `capabilities/workers/`
 
 If a matching capability exists, follow it.
+
+Worker Service Requests should include the matching capability path when one exists.
 
 If no matching capability exists, do not improvise a new kind of Worker silently.
 
@@ -409,11 +411,11 @@ Never write directly into long-term Memory or Knowledge without explicit confirm
 
 Before storing anything in `memory.local/`, ask:
 
-“Is this an experience we should remember for future planning?”
+"Is this an experience we should remember for future planning?"
 
 Before moving anything into `knowledge/`, ask:
 
-“Should this become part of the curated Knowledge base?”
+"Should this become part of the curated Knowledge base?"
 
 ---
 
