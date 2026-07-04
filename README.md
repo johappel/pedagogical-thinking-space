@@ -1,8 +1,8 @@
 # Pedagogical Thinking Space
 
-> **A Reflective Architecture for Human–AI Educational Design**
+> **A Reflective Architecture for Human-AI Educational Design**
 >
-> *Helping teachers think — not replacing their thinking.*
+> *Helping teachers think - not replacing their thinking.*
 
 ---
 
@@ -126,8 +126,51 @@ Routine work happens in the background.
 
 This creates a slower and more thoughtful design process without slowing down production.
 
----
 
+# Import and Sharing
+
+Pedagogical Thinking Space is designed so that curated Knowledge and reviewed Capabilities can be shared without binding the framework to one model, provider or harness.
+
+Curated Knowledge may be exported as a folder or ZIP archive based on:
+
+```text
+knowledge/
+  README.md
+  index.md
+  curricula/
+  didactics/
+  methods/
+  concepts/
+  sources/
+```
+
+By default, do not export:
+
+```text
+knowledge/_proposals/
+knowledge/_incoming/
+knowledge/_cache/
+knowledge/_raw/
+memory.local/
+workspace/
+```
+
+Imported Knowledge should not be copied directly into curated `knowledge/`.
+Place it in `knowledge/_incoming/` first, review it, then move reusable candidates into `knowledge/_proposals/` before curation.
+
+Capabilities may also be shared, for example:
+
+```text
+capabilities/workers/IMAGE_GENERATION.md
+capabilities/workers/DIAGRAM.md
+capabilities/workers/METRICS.md
+```
+
+Imported Capabilities should be reviewed before becoming active.
+
+Concrete `workspace/` projects may be shared intentionally as examples or project handovers, but they are not the same as Knowledge sharing.
+
+---
 # Core Components
 
 ## CRITICAL_FRIEND.md
@@ -338,11 +381,11 @@ This project explores a different relationship between teachers and AI.
 
 Not
 
-Teacher ← AI Assistant
+Teacher <- AI Assistant
 
 but
 
-Teacher ↔ Critical Friend
+Teacher <-> Critical Friend
 
 working together on a shared Learning Design.
 

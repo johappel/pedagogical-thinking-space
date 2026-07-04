@@ -69,3 +69,35 @@ knowledge/_proposals/
 ```
 
 Do not write directly into curated `knowledge/` without review.
+
+---
+
+# Import
+
+Imported Knowledge should not be copied directly into curated `knowledge/`.
+
+Place imports first in:
+
+```text
+knowledge/_incoming/
+```
+
+Then review the imported material.
+
+After review, reusable candidates may move to:
+
+```text
+knowledge/_proposals/
+```
+
+Only reviewed and curated Knowledge should be moved into:
+
+```text
+knowledge/curricula/
+knowledge/didactics/
+knowledge/methods/
+knowledge/concepts/
+knowledge/sources/
+```
+
+Do not import private teacher memory from `memory.local/` into shared Knowledge.

@@ -482,3 +482,19 @@ Use:
 The Critical Friend should ask:
 
 > Should we keep this as a Knowledge Proposal for future Learning Designs?
+
+---
+
+# Import Export Discipline
+
+Do not import external Knowledge directly into curated `knowledge/`.
+
+Place imported Knowledge in `knowledge/_incoming/` first.
+
+Review imported material before moving it into `knowledge/_proposals/` or curated Knowledge.
+
+Do not export `memory.local/`.
+
+Do not export active `workspace/` folders unless the teacher explicitly wants to share a project.
+
+Imported Capabilities must be reviewed before becoming active.
