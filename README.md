@@ -201,7 +201,7 @@ Describes how the Critical Friend decides
 
 ---
 
-## core/MEMORY.md
+## services/MEMORY.md
 
 Captures professional experience.
 
@@ -213,7 +213,7 @@ Educational patterns.
 
 ---
 
-## core/KNOWLEDGE.md
+## services/KNOWLEDGE.md
 
 Provides curated professional knowledge.
 
@@ -231,7 +231,7 @@ Professional practice.
 
 ---
 
-## core/WORKER.md
+## services/WORKER.md
 
 Transforms educational decisions into educational artefacts.
 
@@ -239,7 +239,7 @@ Workers never participate in educational reflection.
 
 ---
 
-## core/RENDERER.md
+## services/RENDERER.md
 
 Expresses one Learning Design through different educational formats.
 
@@ -395,9 +395,9 @@ the result is not simply better teaching materials.
 
 The result is better professional judgement.
 
-# Get starded
+# Get started
 
 You do not need an agent harness to understand or try Pedagogical Thinking Space.
 Agent harnesses are only needed when you want file-based workflows, background workers or automated rendering.
 
-read **core/GET_STARTED.md** and follow the instructions
+read **GET_STARTED.md** and follow the instructions
