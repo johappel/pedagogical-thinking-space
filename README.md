@@ -213,6 +213,19 @@ The educational design remains unchanged.
 
 ---
 
+## Shareable Knowledge
+
+The Knowledge base may be structured in an OKF-compatible way.
+
+This means that curated professional knowledge can be stored as Markdown files with YAML frontmatter and shared with colleagues through Git, ZIP files or other repositories.
+
+OKF compatibility applies to `knowledge/`.
+
+It does not define the whole Pedagogical Thinking Space.
+
+---
+
+
 # Design Principles
 
 The architecture follows a small number of fundamental principles.

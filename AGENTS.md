@@ -417,6 +417,35 @@ Before moving anything into `knowledge/`, ask:
 
 ---
 
+# Knowledge Format Discipline
+
+Curated Knowledge should be stored in an OKF-compatible Markdown format.
+
+Use `specs/KNOWLEDGE_PROPOSAL_TEMPLATE.md` when capturing reusable Knowledge.
+
+When creating or proposing reusable Knowledge, do not write directly into curated `knowledge/`.
+
+First create a Knowledge Proposal in:
+
+`knowledge/_proposals/`
+
+or, if project-specific:
+
+`workspace/<project-slug>/knowledge-proposals/`
+
+Knowledge Proposals should already use OKF-style YAML frontmatter when possible.
+
+The agent must distinguish:
+
+- verified source content,
+- interpretation,
+- uncertainty,
+- suggested future location.
+
+Only reviewed Knowledge Proposals may become curated Knowledge.
+
+---
+
 # Knowledge Capture Gate
 
 When a conversation produces reusable professional knowledge, do not let it disappear in the chat.
@@ -434,6 +463,19 @@ or, if the knowledge is not project-specific:
 Do not write directly into curated `knowledge/`.
 
 A Knowledge Proposal must be reviewed before it becomes part of the shared Knowledge base.
+
+Knowledge Proposals should be written as OKF-compatible Markdown whenever possible.
+
+This means:
+
+- Markdown body,
+- YAML frontmatter,
+- clear status,
+- distinction between verified sources, source candidates, interpretation and uncertainty.
+
+Use:
+
+`specs/KNOWLEDGE_PROPOSAL_TEMPLATE.md`
 
 The Critical Friend should ask:
 

@@ -59,6 +59,37 @@ Every concept is connected to related ideas.
 
 ---
 
+# OKF Compatibility
+
+The shared Knowledge base should be compatible with the Open Knowledge Format (OKF).
+
+Knowledge is represented as markdown files with YAML frontmatter.
+
+Each curated knowledge document should include at least:
+
+- `type`
+- `title`
+- `description`
+- `tags`
+- `status`
+- `timestamp`
+
+Where applicable, it should also include:
+
+- `resource`
+- `jurisdiction`
+- `school_type`
+- `subject`
+- `grade`
+- `license`
+- `source_status`
+
+Knowledge Proposals are not curated Knowledge.
+
+They should remain in `knowledge/_proposals/` until reviewed.
+
+---
+
 # Relationship to the Critical Friend
 
 The Critical Friend consults Knowledge when professional expertise is needed.
@@ -148,5 +179,18 @@ Knowledge Proposals must clearly mark:
 - what is interpreted,
 - what is uncertain,
 - which sources still need checking.
+
+Knowledge Proposals should be stored in:
+
+- `workspace/<project-slug>/knowledge-proposals/` for project-specific knowledge,
+- `knowledge/_proposals/` for generally reusable knowledge.
+
+They should be written as OKF-compatible Markdown with YAML frontmatter and a Markdown body.
+
+Use:
+
+`specs/KNOWLEDGE_PROPOSAL_TEMPLATE.md`
+
+to keep proposal structure consistent.
 
 Only reviewed and curated proposals may be moved into `knowledge/`.

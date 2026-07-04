@@ -212,6 +212,18 @@ Das pädagogische Design bleibt unverändert.
 
 ---
 
+## Teilbares Wissen
+
+Die Knowledge Base kann OKF-kompatibel strukturiert werden.
+
+Das bedeutet: Kuratiertes professionelles Wissen wird als Markdown-Datei mit YAML-Frontmatter abgelegt und kann mit Kolleg:innen über Git, ZIP-Dateien oder andere Repositorien geteilt werden.
+
+OKF-Kompatibilität betrifft vor allem `knowledge/`.
+
+Sie definiert nicht den gesamten Pedagogical Thinking Space.
+
+---
+
 # Designprinzipien
 
 Die Architektur folgt einer kleinen Anzahl grundlegender Prinzipien.

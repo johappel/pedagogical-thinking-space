@@ -337,6 +337,7 @@ review:
 routing:
 assumptions:
 risks:
+knowledge_output:
 ```
 
 ## priority
@@ -433,6 +434,25 @@ Assumptions made by the Critical Friend or service.
 
 Known risks or uncertainties.
 
+## knowledge_output
+
+Optional metadata for requests that should produce a Knowledge Proposal or another knowledge artefact.
+
+This field does not replace `expected_output`.
+
+It clarifies the intended knowledge form and review state.
+
+Example:
+
+```yaml
+knowledge_output:
+  okf_compatible: true
+  target_status: proposal
+  suggested_location: knowledge/_proposals/
+```
+
+Use it when a service should return knowledge in proposal-ready form.
+
 ---
 
 # Generic Template
@@ -486,6 +506,10 @@ review:
 assumptions: []
 
 risks: []
+knowledge_output:
+  okf_compatible: true
+  target_status:
+  suggested_location:
 ```
 
 ---
@@ -604,11 +628,16 @@ source_policy:
     Mark missing sources explicitly.
     Do not invent curriculum, license or research claims.
 
+
 return_to: critical_friend
 
 priority: high
 model_hint: source_grounded
 requires_approval: false
+knowledge_output:
+  okf_compatible: true
+  target_status: proposal
+  suggested_location: workspace/ki-verantwortlich-nutzen/knowledge-proposals/
 
 review:
   required: true
@@ -849,3 +878,4 @@ It marks the moment when reflective conversation pauses one kind of work
 and delegates another,
 
 without losing pedagogical responsibility.
+
