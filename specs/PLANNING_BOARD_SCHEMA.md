@@ -17,6 +17,17 @@ Materials
 
 A planned lesson or learning node is not automatically a Planning Board item.
 
+## Teacher-facing Translation: “Nächste Schritte”
+
+“**Nächste Schritte**” is the compact, teacher-facing entry point to the Planning Board. It does **not** mean the next lesson, the next learner activity, or the next node in a learning landscape.
+
+- The sidebar shows at most one recommended, actionable Board item (and optionally a count of further items).
+- Selecting it opens the Planning Board in the planning modal, focused on that card.
+- A Board item may represent an approved Service Request, but the Service Request remains an internal implementation detail.
+- Legacy `service-requests/` are rendered as transitional Board items; the app must not invent a second, competing task list.
+
+This preserves the existing pedagogical term while giving it an explicit, inspectable home.
+
 ## Canonical File
 
 ```text
