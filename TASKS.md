@@ -33,6 +33,10 @@ This file turns the reference architecture into small, testable work packages. I
 - [ ] Require a proposal preview for every AI landscape change.
 - [ ] Forbid silent node deletion, goal changes, temporal replanning and material release.
 - [ ] Define one-at-a-time Planning Board proposal behaviour.
+- [ ] Define contextual Critical-Friend behaviour for a focused learning moment, transition, Board item or material.
+- [ ] Require the focused conversation to remain part of the same PlanningSpace conversation; it must not create a second, isolated chat.
+- [ ] Define the return action from focused context to overall planning context.
+- [ ] Forbid focused conversation or a Board move from silently starting a Worker; only an explicit approved proposal may create a Service Request.
 - [ ] Add conversation examples for linear, stations, buffet, project and hybrid learning landscapes.
 
 **Done when:** the Critical Friend does not misuse “Nächste Schritte” for lessons or learning activities, and the term always points to an actionable Planning Board item.
