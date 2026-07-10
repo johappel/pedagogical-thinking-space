@@ -1,0 +1,37 @@
+# Model routing (Level 3 concept, shown here for reference).
+# The dispatcher reads model_hint from a Service Request and maps it to a role.
+# In a pure Level-2 setup, workers are local scripts; this file documents
+# which model *would* serve each role if a real router were wired in.
+
+roles:
+  critical_friend:
+    model: gemma-4
+    purpose: reflective conversation
+    temperature: 0.4
+
+  knowledge:
+    model: gemma-4
+    purpose: careful interpretation of sources
+    temperature: 0.2
+
+  worker_fast:
+    model: deepseek-v4-flash
+    purpose: cheap drafting and routine production
+    temperature: 0.3
+
+  renderer:
+    model: deepseek-v4-flash
+    purpose: format conversion
+    temperature: 0.2
+
+  reviewer:
+    model: gemma-4
+    purpose: alignment and quality review
+    temperature: 0.1
+
+# Maps a Service Request's model_hint to a role above.
+hints:
+  cheap_fast: worker_fast
+  careful_reasoning: critical_friend
+  source_grounded: knowledge
+  format_conversion: renderer

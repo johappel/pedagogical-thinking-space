@@ -1,0 +1,16 @@
+service: worker
+mode: draft
+task: create_student_instruction
+reason: Demo request to prove the dispatch loop works.
+input:
+  learning_design: workspace/demo/learning-design.md
+  related_decision: Decision 1
+expected_output:
+  type: student_instruction
+  location: workspace/demo/drafts/student-instruction.md
+constraints:
+  language: de
+  audience: grade 9
+  max_length: 1 page
+return_to: critical_friend
+model_hint: cheap_fast
