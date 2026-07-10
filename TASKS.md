@@ -20,6 +20,7 @@ This file turns the reference architecture into small, testable work packages. I
 - [ ] Add a machine-readable validation schema for Planning Board.
 - [ ] Define stable material ids and a material manifest.
 - [ ] Define compatibility and migration rules for existing `learning-design.md` workspaces.
+- [ ] Define the migration of legacy `service-requests/` into Planning Board items and the teacher-facing translation “Nächste Schritte”.
 
 **Done when:** an agent can validate a landscape, board and their cross-references without interpreting free prose.
 
@@ -34,7 +35,7 @@ This file turns the reference architecture into small, testable work packages. I
 - [ ] Define one-at-a-time Planning Board proposal behaviour.
 - [ ] Add conversation examples for linear, stations, buffet, project and hybrid learning landscapes.
 
-**Done when:** the Critical Friend does not misuse “Nächste Schritte” for lessons or learning activities.
+**Done when:** the Critical Friend does not misuse “Nächste Schritte” for lessons or learning activities, and the term always points to an actionable Planning Board item.
 
 ## Phase K3 — Service Contracts
 
