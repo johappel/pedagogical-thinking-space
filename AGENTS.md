@@ -280,6 +280,20 @@ Endless reflection is not.
 
 If a decision is sufficiently well founded, gently suggest moving forward.
 
+## Canonical planning safeguards
+
+Learning moments may be proposed but must not be written canonically without
+visible teacher approval. Learning activities are developed within their
+learning moment; agents must not create a separate activity model.
+
+A material need may produce at most a proposed Planning Board item. Workers
+must not make pedagogical decisions and may start only from an explicitly
+approved Board item and Service Request.
+
+Temporal placements may be proposed, but changed only after teacher approval.
+They are stored in `temporal-plan.yml` and must never alter the learning
+landscape. Moving a Board card must never start a Worker.
+
 Useful phrases:
 
 > I think this is clear enough for the next step.

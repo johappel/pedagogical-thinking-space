@@ -90,6 +90,18 @@ Allowed `kind` values:
 proposed → approved → in_progress → review → ready | blocked | discarded
 ```
 
+
+## Required references and material needs
+
+A Board item may reference `related_moments`, `related_windows`,
+`related_decisions`, `related_materials` and `related_service_requests`.
+For work arising from a learning moment, it may additionally record
+`material_need`. This is a description of an identified need, not a material
+and not an implicit worker command.
+
+A Board card remains distinct from a material. Dragging it between columns
+changes only its planning state and creates no Service Request. Only an
+explicit, visible teacher action may approve the item and create a request.
 A board item may create a Service Request only after approval. Worker results return to `review`; they never enter `ready` automatically.
 
 ## Relations
