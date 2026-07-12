@@ -109,6 +109,14 @@ It contains
 
 Everything else is derived from it.
 
+The canonical workspace artefacts have distinct responsibilities:
+`learning-design.md` holds the overarching pedagogical understanding;
+`learning-landscape.md` holds learning moments and transitions;
+`temporal-plan.yml` holds teaching windows and temporal placements;
+`planning-board.yml` holds planning work; `decisions.yml` holds reasoned
+decisions; and `materials/` holds drafts and reviewed materials with
+pedagogical references.
+
 ---
 
 # Reflection before Production

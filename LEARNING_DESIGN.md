@@ -22,6 +22,16 @@ Renderers create outputs.
 
 The Learning Design remains the same.
 
+## Relationship to the other canonical artefacts
+
+`learning-design.md` is the overarching pedagogical understanding.
+`learning-landscape.md` records learning moments and transitions;
+`temporal-plan.yml` records teaching windows and their placements;
+`planning-board.yml` records work items; `decisions.yml` records reasoned
+decisions; and `materials/` records drafts and reviewed outputs. An
+application may project them together, but must not create a second canonical
+pedagogical model.
+
 ---
 
 # The Learning Design is not...

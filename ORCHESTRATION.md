@@ -291,6 +291,17 @@ A Service Request may target one of these services:
 - Renderer
 - Review
 
+## Canonical workspace boundaries
+
+A Service Request may reference `learning-design.md`,
+`learning-landscape.md`, `temporal-plan.yml`, `planning-board.yml`,
+`decisions.yml` and `materials/`, but it must not merge their responsibilities.
+A board item is not material, a transition is not a learning moment, and a
+temporal placement does not change the learning landscape. Moving a Board card
+never starts a service: the teacher must visibly approve it first. Worker
+results return as drafts for review and never become classroom-ready
+automatically.
+
 Example:
 
 ```yaml
