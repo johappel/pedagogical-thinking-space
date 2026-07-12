@@ -1,7 +1,7 @@
 # Learning Landscape Schema
 
 > Canonical didactic topology for a planning space. See
-> [PEDAGOGICAL_MODEL.md](PEDAGOGICAL_MODEL.md) for the binding terms.
+> [PEDAGOGICAL_MODEL.md](specs/PEDAGOGICAL_MODEL.md) for the binding terms.
 
 ## Responsibility
 
