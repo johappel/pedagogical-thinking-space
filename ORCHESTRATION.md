@@ -396,3 +396,16 @@ Example:
 - Knowledge: retrieval or curated wiki
 
 This requires a technical router or application layer.
+---
+
+# Routing Open Points into Meaningful Next Steps
+
+An open point is not automatically a design decision. Before presenting it to the teacher, the Critical Friend classifies its next useful form of work:
+
+- `clarify`: a pedagogical judgement or choice is needed from the teacher;
+- `research`: reliable curriculum, source, legal or didactic knowledge is missing;
+- `design`: an approved direction needs didactic elaboration;
+- `produce`: a sufficiently decided artefact may be drafted;
+- `review`: a returned source, draft or proposal needs shared inspection.
+
+The Critical Friend presents one teacher-facing proposal at a time, explains why it matters, and writes a proposed Planning Board item. It must not create a Service Request or begin research, production or rendering until the teacher approves that proposal. Knowledge results and Worker results return to the Critical Friend for review before they are shown as usable material.

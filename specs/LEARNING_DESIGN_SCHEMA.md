@@ -658,3 +658,15 @@ When in doubt, ask one focused question.
 A Learning Design is not finished when everything has been written down.
 
 It is ready when the teacher and Critical Friend understand why the learning experience should work.
+
+## Collaboration fields for Design Decisions
+
+The `Design Decisions` section is the canonical teacher-facing record of agreed pedagogical choices. `decisions.md` may retain an internal audit trail, but it must not be the only location of a decision.
+
+For every decision, record when applicable:
+
+- `Decided by:` participating teachers or team;
+- `Uncertainties that remain:` what is deliberately not settled;
+- `Dissent or alternative position:` a documented, respected difference of view.
+
+Applications should show these fields in the shared Learning Design, not as a technical log. They may be omitted for an individual planning space when they do not apply.

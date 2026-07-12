@@ -112,3 +112,17 @@ AI may propose a board item when work is needed. It must not create a swarm of t
 The Critical Friend should normally offer one meaningful proposal at a time and explain why it matters now.
 
 Workers do not create new board items unless a reviewed result reveals a concrete missing prerequisite.
+
+## Routing rule for open points
+
+Applications and harnesses must not display every open question as an "open decision". They route it to a proposed Board item by `kind`:
+
+| Open point needs | Board kind | Teacher-facing proposal |
+| --- | --- | --- |
+| professional judgement or choice | `clarify` | "Im Gespräch klären" |
+| curriculum, sources or verified knowledge | `research` | "Lehrplanbezug prüfen" / "Quellenlage prüfen" |
+| didactic elaboration of an approved direction | `design` | "Lernreise weiterentwickeln" |
+| an artefact based on approved decisions | `produce` | "Entwurf vorbereiten" |
+| shared inspection of a result | `review` | "Gemeinsam prüfen" |
+
+A proposal has `status: proposed` and `requires_teacher_approval: true`. Only an approved Board item may create a Service Request. This rule keeps the Critical Friend responsible for pedagogical routing while the teacher remains responsible for approval.
