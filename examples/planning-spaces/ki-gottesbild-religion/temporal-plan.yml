@@ -1,0 +1,57 @@
+schema: ptspace.temporal-plan/v1
+title: Vier Stunden: KI, Menschenbild und Gottesbild
+landscape: learning-landscape.md
+windows:
+  - id: tw-01
+    title: Stunde 1 – Raum der Erfahrung
+    kind: lesson
+    duration_minutes: 45
+    note: ''
+  - id: tw-02
+    title: Stunde 2 – Raum der Analogie
+    kind: lesson
+    duration_minutes: 45
+    note: ''
+  - id: tw-03
+    title: Stunde 3 – Raum der Unterscheidung
+    kind: lesson
+    duration_minutes: 45
+    note: ''
+  - id: tw-04
+    title: Stunde 4 – Raum der Positionierung
+    kind: lesson
+    duration_minutes: 45
+    note: ''
+placements:
+  - id: tp-01
+    moment_id: lm-erfahrung
+    window_id: tw-01
+    start_minute: 0
+    duration_minutes: 40
+    dramaturgical_role: exploration
+    mode: common
+    note: ''
+  - id: tp-02
+    moment_id: lm-analogie
+    window_id: tw-02
+    start_minute: 0
+    duration_minutes: 40
+    dramaturgical_role: exploration
+    mode: common
+    note: ''
+  - id: tp-03
+    moment_id: lm-unterscheidung
+    window_id: tw-03
+    start_minute: 0
+    duration_minutes: 40
+    dramaturgical_role: deepening
+    mode: common
+    note: ''
+  - id: tp-04
+    moment_id: lm-positionierung
+    window_id: tw-04
+    start_minute: 0
+    duration_minutes: 40
+    dramaturgical_role: reflection
+    mode: common
+    note: ''

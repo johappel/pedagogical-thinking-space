@@ -1,0 +1,45 @@
+schema: ptspace.planning-board/v1
+items:
+  - id: pb-stunden-gewichtung
+    title: Gewichtung der vier Stunden prüfen – Dekonstruktion (Stunde 3) priorisieren?
+    kind: clarify
+    column: prepare
+    related_nodes: [lm-unterscheidung]
+    related_windows: [tw-03]
+    status: proposed
+    requires_teacher_approval: true
+  - id: pb-parallelführung-inszenierung
+    title: Methodische Inszenierung der Parallelführung ChatGPT ↔ Gebet entwickeln
+    kind: design
+    column: prepare
+    related_nodes: [lm-analogie]
+    related_windows: [tw-02]
+    status: proposed
+    requires_teacher_approval: true
+  - id: pb-biblische-texte
+    title: Biblische Ankertexte für den christologischen Kontrast auswählen
+    kind: research
+    column: clarify
+    related_nodes: [lm-unterscheidung]
+    related_windows: [tw-03]
+    status: proposed
+    requires_teacher_approval: true
+  - id: pb-kompetenzerwartungen
+    title: Kompetenzerwartungen aus IF1, IF5, IF6 für jede Stunde operationalisieren
+    kind: design
+    column: ready
+    related_nodes: [lm-erfahrung, lm-analogie, lm-unterscheidung, lm-positionierung]
+    status: review
+    requires_teacher_approval: true
+  - id: pb-lehrplan-verifizierung
+    title: Lehrplanverortung quellengeprüft vertiefen (KLP-PDF)
+    kind: research
+    column: prepare
+    status: proposed
+    requires_teacher_approval: true
+  - id: pb-konfessionell-kooperativ
+    title: Konfessionell-kooperative Akzente klären
+    kind: clarify
+    column: clarify
+    status: proposed
+    requires_teacher_approval: true
