@@ -92,7 +92,7 @@ def main() -> int:
         if not (ROOT / rel).exists():
             errors.append(f"Missing required file: {rel}")
 
-    markdown_files = sorted(ROOT.rglob("*.md"))
+    markdown_files = sorted(path for path in ROOT.rglob("*.md") if "node_modules" not in path.parts)
     for path in markdown_files:
         rel = path.relative_to(ROOT).as_posix()
         text = read_text(path)

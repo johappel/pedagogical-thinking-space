@@ -35,6 +35,10 @@ return_to: critical_friend   # results come back here first, never straight to t
 model_hint: cheap_fast       # kind of execution, NOT a model name
 ```
 
+## Knowledge output
+
+A Knowledge Service Request may declare knowledge_output in expected_output to state whether it returns a source note, a project-specific Knowledge Proposal or a reusable proposal. It must not write directly into curated Knowledge.
+
 ## Rules
 
 1. A Service Request describes work, never the technical execution.
