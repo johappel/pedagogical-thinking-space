@@ -308,6 +308,7 @@ Example:
 service: worker
 mode: draft
 task: create_student_instruction
+capability: capabilities/workers/CREATE_STUDENT_INSTRUCTION.md
 reason: A design decision has been approved and now needs implementation.
 input:
   learning_design: workspace/<project-slug>/learning-design.md
@@ -320,6 +321,7 @@ constraints:
   audience: grade 9
   max_length: 1 page
 return_to: critical_friend
+requires_approval: true
 ```
 ---
 

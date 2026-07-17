@@ -43,8 +43,10 @@ If required pedagogical decisions are missing, the Worker must return a blocked 
 ## Required Input
 
 - current `learning-design.md`,
+- approved Board item id and `input.related_nodes`,
+- `input.related_windows` when timing is relevant,
 - the board work item title and expected result,
-- the linked learning moment ids and their descriptions,
+- the linked learning moment snapshot with ids and descriptions,
 - target group,
 - language,
 - expected output location.
@@ -54,6 +56,8 @@ If required pedagogical decisions are missing, the Worker must return a blocked 
 Markdown document at the approved location, normally:
 
 `workspace/<project-slug>/materials/<board-item-id>.md`
+
+The Service Request records the corresponding stable material id as `expected_output.material_id`.
 
 Required structure:
 

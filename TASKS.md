@@ -43,8 +43,8 @@ This file turns the reference architecture into small, testable work packages. I
 
 ## Phase K3 — Service Contracts
 
-- [ ] Extend Service Request schema with `related_nodes`, `related_windows` and expected material ids.
-- [ ] Define Worker input snapshots for landscape-bound material tasks.
+- [x] Extend Service Request schema with `related_nodes`, `related_windows` and expected material ids.
+- [x] Define Worker input snapshots for landscape-bound material tasks.
 - [ ] Define Review criteria for changed nodes, transitions and time placements.
 - [ ] Define Knowledge result requirements: official sources, citation, retrieval date, uncertainty.
 - [ ] Define an explicit `landscape_change_proposal` artefact.

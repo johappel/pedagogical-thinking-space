@@ -31,3 +31,4 @@ or ask whether a new capability should be defined.
 - `IMAGE_GENERATION.md`
 - `DIAGRAM.md`
 - `METRICS.md`
+- `CREATE_BOARD_MATERIAL.md`
