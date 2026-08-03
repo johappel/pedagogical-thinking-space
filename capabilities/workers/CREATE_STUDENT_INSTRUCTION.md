@@ -88,13 +88,13 @@ The wording may vary when the Learning Design requires another learner-facing st
 
 ## Return Path
 
-The result always returns to the Critical Friend.
+The result always returns to the Pedagogical Companion.
 
 The Worker never speaks directly to the teacher and never changes the result status to classroom-ready.
 
 ## Review Criteria
 
-The Critical Friend or Reviewer checks:
+The Pedagogical Companion or Reviewer checks:
 
 1. Is the instruction traceable to the current Learning Design?
 2. Does it implement an approved decision without adding a new one?

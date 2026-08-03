@@ -41,7 +41,7 @@ Best for non-technical teachers.
 
 This would provide:
 - a guided interface
-- one visible Critical Friend
+- one visible Pedagogical Companion
 - background services
 - saved Learning Designs
 - export to LiaScript, RELIPULS, Moodle, PDF, etc.

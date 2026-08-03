@@ -73,10 +73,28 @@ Everything else supports that conversation.
 
 ---
 
+# The Companion's Stance
+
+The visible role is called the **Pedagogical Companion**.
+
+It works from a systemic-reflective stance:
+
+- teacher autonomy and authorship remain central;
+- observations, statements, interpretations and hypotheses remain distinct;
+- difficulties are considered in context and relationship rather than assigned prematurely to one person;
+- additional perspectives are offered as possibilities, not as claims about absent people;
+- the depth of reflection adapts to the teacher's available time and energy.
+
+Critical friendship remains one capability of the Companion: respectfully challenging an idea when that helps. It is not the Companion's permanent tone or public name.
+
+See `MANIFEST.md` and `SYSTEMIC_STANCE.md`.
+
+---
+
 # Architecture
 <img width="1600" height="1100" alt="pedagogical-thinking-space-en" src="https://github.com/user-attachments/assets/23b00ebb-f57e-4395-b092-9f9879db3079" />
 
-The Critical Friend is the only visible conversation partner.
+The Pedagogical Companion is the only visible conversation partner.
 
 Everything else operates quietly in the background.
 
@@ -95,7 +113,7 @@ It is neither
 
 Instead,
 
-it is the shared educational understanding developed by the teacher and the Critical Friend.
+it is the shared educational understanding developed by the teacher and the Pedagogical Companion.
 
 It contains
 
@@ -128,7 +146,7 @@ One of the central design principles of this project is the deliberate separatio
 
 The conversation continues while implementation happens elsewhere.
 
-Teacher and Critical Friend remain focused on educational reflection.
+Teacher and Pedagogical Companion remain focused on educational reflection.
 
 Routine work happens in the background.
 
@@ -181,11 +199,23 @@ Concrete `workspace/` projects may be shared intentionally as examples or projec
 ---
 # Core Components
 
+## MANIFEST.md
+
+Defines autonomy, multiperspectivity, non-knowing, workload-sensitive support, material use and feedback loops.
+
+---
+
+## SYSTEMIC_STANCE.md
+
+Defines the systemic-reflective stance, epistemic discipline, bounded background research and professional boundaries.
+
+---
+
 ## CRITICAL_FRIEND.md
 
 Defines the behaviour of the reflective conversation partner.
 
-The Critical Friend moderates the design process, asks questions, challenges assumptions and protects the teacher's thinking.
+The Pedagogical Companion moderates the design process, asks questions, challenges assumptions and protects the teacher's thinking.
 
 ---
 
@@ -199,7 +229,7 @@ It represents the evolving educational design.
 
 ## ORCHESTRATION.md
 
-Describes how the Critical Friend decides
+Describes how the Pedagogical Companion decides
 
 * when to reflect,
 * when to consult experience,
@@ -325,7 +355,7 @@ All remain invisible unless needed.
 
 ## specs/SERVICE_REQUEST_SCHEMA.md
 
-Defines how the Critical Friend delegates work to invisible services.
+Defines how the Pedagogical Companion delegates work to invisible services.
 
 It makes the boundary between reflection and execution explicit.
 
@@ -345,7 +375,7 @@ Teacher
 
 > "I'd like to start this lesson with a Position Line."
 
-Critical Friend
+Pedagogical Companion
 
 > "Before we decide on the method:
 >
@@ -359,7 +389,7 @@ a Worker quietly prepares a first draft of the Position Line activity.
 
 Later,
 
-the Critical Friend returns with
+the Pedagogical Companion returns with
 
 > "A draft is ready.
 >
@@ -375,7 +405,7 @@ Thinking and production become independent.
 
 Most AI teaching assistants optimise production.
 
-Critical Friend optimises educational thinking.
+Pedagogical Companion optimises educational thinking.
 
 The goal is not to create better prompts.
 
@@ -393,7 +423,7 @@ Teacher <- AI Assistant
 
 but
 
-Teacher <-> Critical Friend
+Teacher <-> Pedagogical Companion
 
 working together on a shared Learning Design.
 

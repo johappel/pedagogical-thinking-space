@@ -14,7 +14,7 @@ It is not a lesson plan.
 
 It is not a rendered output.
 
-It is the shared pedagogical thinking model developed by the teacher and the Critical Friend.
+It is the shared pedagogical thinking model developed by the teacher and the Pedagogical Companion.
 
 Every Worker and Renderer operates from this document.
 
@@ -60,7 +60,7 @@ The Learning Design has just started.
 
 ### in-reflection
 
-The teacher and Critical Friend are still clarifying the design.
+The teacher and Pedagogical Companion are still clarifying the design.
 
 ### decision-needed
 
@@ -657,7 +657,7 @@ When in doubt, ask one focused question.
 
 A Learning Design is not finished when everything has been written down.
 
-It is ready when the teacher and Critical Friend understand why the learning experience should work.
+It is ready when the teacher and Pedagogical Companion understand why the learning experience should work.
 
 ## Collaboration fields for Design Decisions
 

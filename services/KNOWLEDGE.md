@@ -90,13 +90,13 @@ They should remain in `knowledge/_proposals/` until reviewed.
 
 ---
 
-# Relationship to the Critical Friend
+# Relationship to the Pedagogical Companion
 
-The Critical Friend consults Knowledge when professional expertise is needed.
+The Pedagogical Companion consults Knowledge when professional expertise is needed.
 
 Knowledge never enters the conversation directly.
 
-The Critical Friend interprets it in relation to the current Learning Design.
+The Pedagogical Companion interprets it in relation to the current Learning Design.
 
 ---
 
@@ -106,7 +106,7 @@ Learning Design determines the question.
 
 Knowledge offers possible answers.
 
-The Critical Friend decides whether and how they become relevant.
+The Pedagogical Companion decides whether and how they become relevant.
 
 Knowledge never determines the educational design.
 
@@ -146,7 +146,7 @@ Knowledge does not tell teachers what to do.
 
 It expands the range of well-founded possibilities.
 
-Professional judgement remains with the teacher and the Critical Friend.
+Professional judgement remains with the teacher and the Pedagogical Companion.
 
 A Knowledge request must define source expectations and citation requirements.
 
@@ -157,7 +157,7 @@ A Knowledge request must define source expectations and citation requirements.
 
 Knowledge may grow from conversations.
 
-When the Critical Friend develops a reusable insight, method pattern, professional caution or source pointer, it may propose adding it to Knowledge.
+When the Pedagogical Companion develops a reusable insight, method pattern, professional caution or source pointer, it may propose adding it to Knowledge.
 
 Such material must first be stored as a Knowledge Proposal.
 

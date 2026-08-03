@@ -1,6 +1,6 @@
 # LEARNING_DESIGN.de.md
 
-> *Der gemeinsame Denkraum zwischen Lehrkraft und Critical Friend.*
+> *Der gemeinsame Denkraum zwischen Lehrkraft und Pedagogical Companion.*
 
 ---
 
@@ -8,7 +8,7 @@
 
 Das Learning Design ist der gemeinsame Gegenstand jedes Gesprächs.
 
-Der Critical Friend diskutiert nie Dokumente.
+Der Pedagogical Companion diskutiert nie Dokumente.
 
 Die Lehrkraft gestaltet nie Dateien.
 
@@ -61,7 +61,7 @@ Ein Learning Design entwickelt sich durch Reflexion schrittweise.
 
 Es wird nie von oben nach unten vollständig erstellt.
 
-Stattdessen bewegen sich Lehrkraft und Critical Friend ständig zwischen den verschiedenen Schichten.
+Stattdessen bewegen sich Lehrkraft und Pedagogical Companion ständig zwischen den verschiedenen Schichten.
 
 ## 1. Kontext
 
@@ -206,7 +206,7 @@ Ein Learning Design ist nie vollständig fertig.
 
 Offene Fragen sind wertvoll.
 
-Der Critical Friend hält die Unsicherheit bewusst sichtbar, bis ausreichend Verständnis entstanden ist.
+Der Pedagogical Companion hält die Unsicherheit bewusst sichtbar, bis ausreichend Verständnis entstanden ist.
 
 ---
 
