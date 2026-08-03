@@ -168,7 +168,7 @@ The Capability defines how that kind of task should be handled.
 
 Worker Service Requests should include a capability path when a matching capability exists.
 
-The service result returns to the Critical Friend before it becomes teacher-facing.
+The service result returns to the Pedagogical Companion before it becomes teacher-facing.
 
 ---
 
@@ -228,7 +228,7 @@ What must be prevented?
 
 ## Review Criteria
 
-How should the Critical Friend or Reviewer check the result?
+How should the Pedagogical Companion or Reviewer check the result?
 
 ## Status
 

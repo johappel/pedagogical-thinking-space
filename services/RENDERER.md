@@ -93,9 +93,9 @@ Renderers never modify it.
 
 If a renderer discovers inconsistencies,
 
-it reports them back to the Critical Friend.
+it reports them back to the Pedagogical Companion.
 
-Only the Critical Friend and the teacher may change the Learning Design.
+Only the Pedagogical Companion and the teacher may change the Learning Design.
 
 ---
 
@@ -179,7 +179,7 @@ Every target format must be described by a rendering specification in `specs/`.
 
 The Renderer checks the relevant specification before producing output.
 
-If no specification exists, the Renderer asks the Critical Friend to create one and request teacher approval.
+If no specification exists, the Renderer asks the Pedagogical Companion to create one and request teacher approval.
 
 The rendering specification defines how the Learning Design is expressed in a particular format.
 

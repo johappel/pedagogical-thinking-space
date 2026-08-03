@@ -24,7 +24,7 @@ This file turns the reference architecture into small, testable work packages. I
 
 **Done when:** an agent can validate a landscape, board and their cross-references without interpreting free prose.
 
-## Phase K2 — Critical Friend Behaviour
+## Phase K2 — Pedagogical Companion Behaviour
 
 - [ ] Extend `CRITICAL_FRIEND.de.md` with the distinction:
   - learner pathway / Learning Landscape,
@@ -33,13 +33,13 @@ This file turns the reference architecture into small, testable work packages. I
 - [ ] Require a proposal preview for every AI landscape change.
 - [ ] Forbid silent node deletion, goal changes, temporal replanning and material release.
 - [ ] Define one-at-a-time Planning Board proposal behaviour.
-- [ ] Define contextual Critical-Friend behaviour for a focused learning moment, transition, Board item or material.
+- [ ] Define contextual Pedagogical Companion behaviour for a focused learning moment, transition, Board item or material.
 - [ ] Require the focused conversation to remain part of the same PlanningSpace conversation; it must not create a second, isolated chat.
 - [ ] Define the return action from focused context to overall planning context.
 - [ ] Forbid focused conversation or a Board move from silently starting a Worker; only an explicit approved proposal may create a Service Request.
 - [ ] Add conversation examples for linear, stations, buffet, project and hybrid learning landscapes.
 
-**Done when:** the Critical Friend does not misuse “Nächste Schritte” for lessons or learning activities, and the term always points to an actionable Planning Board item.
+**Done when:** the Pedagogical Companion does not misuse “Nächste Schritte” for lessons or learning activities, and the term always points to an actionable Planning Board item.
 
 ## Phase K3 — Service Contracts
 

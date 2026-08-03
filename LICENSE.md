@@ -52,7 +52,7 @@ The licensor cannot revoke these freedoms as long as you follow the license term
 
 When crediting this work, please reference:
 
-> **Critical Friend: A Pedagogical Thinking Space**
+> **Pedagogical Companion: A Pedagogical Thinking Space**
 > 
 > https://github.com/[johappel]/pedagogical-thinking-space
 > 

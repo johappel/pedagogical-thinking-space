@@ -73,10 +73,28 @@ Alles andere unterstützt diese Unterhaltung.
 
 ---
 
+# Die Haltung des Companions
+
+Die sichtbare Rolle heißt **Pedagogical Companion** oder in der Oberfläche schlicht **Denkpartner**.
+
+Sie arbeitet aus einer systemisch-reflexiven Haltung:
+
+- Autonomie und Autorenschaft der Lehrkraft bleiben zentral;
+- Beobachtungen, Aussagen, Interpretationen und Hypothesen werden unterschieden;
+- Schwierigkeiten werden kontextuell und relational betrachtet, statt vorschnell einer Person zugeschrieben zu werden;
+- weitere Perspektiven erscheinen als Möglichkeiten, nicht als Behauptungen über Abwesende;
+- die Reflexionstiefe passt sich an verfügbare Zeit und Energie an.
+
+Critical Friendship bleibt eine Fähigkeit des Companions: eine Idee respektvoll zu prüfen, wenn dies hilfreich ist. Sie ist weder sein dauerhafter Ton noch sein öffentlicher Name.
+
+Siehe `MANIFEST.de.md` und `SYSTEMIC_STANCE.de.md`.
+
+---
+
 # Architektur
 <img width="1600" height="1100" alt="pedagogical-thinking-space-de" src="https://github.com/user-attachments/assets/23b00ebb-f57e-4395-b092-9f9879db3079" />
 
-Der Critical Friend ist der einzige sichtbare Gesprächspartner.
+Der Pedagogical Companion ist der einzige sichtbare Gesprächspartner.
 
 Alles andere arbeitet leise im Hintergrund.
 
@@ -95,7 +113,7 @@ Es ist weder
 
 Stattdessen
 
-ist es das gemeinsame pädagogische Verständnis, das von der Lehrkraft und dem Critical Friend entwickelt wird.
+ist es das gemeinsame pädagogische Verständnis, das von der Lehrkraft und dem Pedagogical Companion entwickelt wird.
 
 Es enthält
 
@@ -119,7 +137,7 @@ Ein zentrales Designprinzip dieses Projekts ist die bewusste Trennung von Denken
 
 Das Gespräch läuft weiter, während die Umsetzung an anderer Stelle stattfindet.
 
-Lehrkraft und Critical Friend bleiben auf pädagogische Reflexion konzentriert.
+Lehrkraft und Pedagogical Companion bleiben auf pädagogische Reflexion konzentriert.
 
 Routinearbeit findet im Hintergrund statt.
 
@@ -127,13 +145,33 @@ Dies schafft einen langsameren und nachdenklicheren Gestaltungsprozess, ohne die
 
 ---
 
+# Materialien als Perspektivressourcen
+
+Fremde Materialien gelten als situierte pädagogische Antworten, nicht als neutrale Bausteine. Mit sichtbarer Zustimmung kann ein Hintergrunddienst eine gut anschlussfähige und eine kontrastierende Alternative recherchieren. Der Companion bringt Annahmen, Quellenqualität, Integrationsaufwand und Folgewirkungen zurück - keinen ungefilterten Katalog.
+
+Ein Material kann Inspiration, Baustein oder Leitstruktur sein. Eine Leitstruktur erfordert eine bewusste Neukonzeption.
+
+---
+
 # Kernkomponenten
+
+## MANIFEST.de.md
+
+Definiert Autonomie, Mehrperspektivität, Nichtwissen, belastungssensible Unterstützung, Materialnutzung und Rückkopplung.
+
+---
+
+## SYSTEMIC_STANCE.de.md
+
+Definiert die systemisch-reflexive Haltung, epistemische Disziplin, begrenzte Hintergrundrecherche und professionelle Grenzen.
+
+---
 
 ## CRITICAL_FRIEND.de.md
 
 Definiert das Verhalten des reflektierenden Gesprächspartners.
 
-Der Critical Friend moderiert den Gestaltungsprozess, stellt Fragen, hinterfragt Annahmen und schützt das Denken der Lehrkraft.
+Der Pedagogical Companion moderiert den Gestaltungsprozess, stellt Fragen, hinterfragt Annahmen und schützt das Denken der Lehrkraft.
 
 ---
 
@@ -147,7 +185,7 @@ Er repräsentiert das sich entwickelnde pädagogische Design.
 
 ## ORCHESTRATION.md
 
-Beschreibt, wie der Critical Friend entscheidet
+Beschreibt, wie der Pedagogical Companion entscheidet
 
 * wann zu reflektieren,
 * wann professionelle Erfahrung zu nutzen,
@@ -282,7 +320,7 @@ Lehrkraft
 
 > "Ich möchte diese Stunde mit einer Positionslinie beginnen."
 
-Critical Friend
+Pedagogical Companion
 
 > "Bevor wir die Methode entscheiden:
 >
@@ -296,7 +334,7 @@ bereitet ein Worker einen ersten Entwurf der Positionslinie vor.
 
 Später
 
-kehrt der Critical Friend zurück mit
+kehrt der Pedagogical Companion zurück mit
 
 > "Ein Entwurf ist fertig.
 >
@@ -312,7 +350,7 @@ Denken und Produktion werden unabhängig.
 
 Die meisten KI-Unterrichtsassistenten optimieren die Produktion.
 
-Critical Friend optimiert pädagogisches Denken.
+Pedagogical Companion optimiert pädagogisches Denken.
 
 Das Ziel ist nicht, bessere Prompts zu erstellen.
 
@@ -330,7 +368,7 @@ Lehrkraft ← KI-Assistent
 
 sondern
 
-Lehrkraft ↔ Critical Friend
+Lehrkraft ↔ Pedagogical Companion
 
 arbeiten zusammen an einem gemeinsamen Learning Design.
 

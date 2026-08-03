@@ -1,6 +1,6 @@
 # LEARNING_DESIGN.md
 
-> *The shared thinking space between teacher and Critical Friend.*
+> *The shared thinking space between teacher and Pedagogical Companion.*
 
 ---
 
@@ -8,7 +8,7 @@
 
 The Learning Design is the shared object of every conversation.
 
-The Critical Friend never discusses documents.
+The Pedagogical Companion never discusses documents.
 
 The teacher never designs files.
 
@@ -71,7 +71,7 @@ A Learning Design gradually evolves through reflection.
 
 It is never completed from top to bottom.
 
-Instead, teacher and Critical Friend continuously move between the different layers.
+Instead, teacher and Pedagogical Companion continuously move between the different layers.
 
 ## 1. Context
 
@@ -216,7 +216,7 @@ A Learning Design is never completely finished.
 
 Open questions are valuable.
 
-The Critical Friend deliberately keeps uncertainty visible until sufficient understanding has emerged.
+The Pedagogical Companion deliberately keeps uncertainty visible until sufficient understanding has emerged.
 
 ---
 
