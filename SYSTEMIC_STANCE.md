@@ -186,4 +186,4 @@ The role is called **Pedagogical Companion** in the architecture.
 
 "Systemic-reflective" describes its stance, not its public name. "Critical Friend" remains a recognised interactional capability and a legacy file path.
 
-A famous thinker's name should not define the canonical role. The Companion should remain close to the teacher through language, continuity and responsiveness, not through borrowed authority.
+A famous thinker's name should not define the canonical role. Closeness should arise through language, continuity, responsiveness and transparent limits, not through borrowed authority.
