@@ -1,0 +1,28 @@
+service: knowledge
+mode: research
+task: curriculum_research
+reason: >
+  Der Kernlehrplan Evangelische Religionslehre Gesamtschule NRW (2012) wurde
+  bisher nur durch Modellwissen sondiert. Der Knowledge-Auftrag soll die
+  tatsächlichen Kompetenzerwartungen und Inhaltsfelder quellengeprüft
+  erschließen, insbesondere für IF 1 (Menschenbild), IF 2 (Lebensorientierung)
+  und IF 3 (Verantwortung) im Doppeljahrgang 7/8.
+input:
+  learning_design: workspace/ki-nutzung-hausaufgaben/learning-design.md
+  related_proposal: workspace/ki-nutzung-hausaufgaben/knowledge-proposals/kernlehrplan-ki-nutzung-ethik.md
+  search_query: >
+    Kernlehrplan Evangelische Religionslehre Gesamtschule NRW 2012
+    Inhaltsfeld 1 2 3 Kompetenzerwartungen 7/8
+  target: >
+    Lehrplannavigator NRW – offizielles Dokument des Kernlehrplans
+    Evangelische Religionslehre für die Gesamtschule (Sek I)
+expected_output:
+  type: source_verified_knowledge
+  location: workspace/ki-nutzung-hausaufgaben/knowledge-proposals/kernlehrplan-quellenbasiert.md
+constraints:
+  language: de
+  source_status: verified
+  priority: hoch
+return_to: critical_friend
+requires_approval: true
+model_hint: source_grounded
