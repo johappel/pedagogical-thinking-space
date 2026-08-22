@@ -7,31 +7,31 @@
     "worker-cheap": {
       "description": "Faster Worker für einfache Produktion (model_hint: cheap_fast)",
       "mode": "subagent",
-      "model": "opencode/deepseek-v4-flash-free",
+      "model": "poolside/laguna-s-2.1:free",
       "permission": { "edit": "allow", "bash": "allow", "read": "allow", "glob": "allow", "grep": "allow" }
     },
     "worker-cheap-alt": {
       "description": "Alternativer kostenloser Worker (model_hint: cheap_fast)",
       "mode": "subagent",
-      "model": "openrouter/poolside/laguna-xs-2.1:free",
+      "model": "openrouter/free",
       "permission": { "edit": "allow", "bash": "allow", "read": "allow", "glob": "allow", "grep": "allow" }
     },
     "worker-careful": {
       "description": "Sorgfältiger Worker für Reflexion und Memory (model_hint: careful_reasoning)",
       "mode": "subagent",
-      "model": "deepseek/deepseek-v4-pro",
+      "model": "z-ai/glm-5.2:free",
       "permission": { "edit": "allow", "bash": "allow", "read": "allow", "glob": "allow", "grep": "allow" }
     },
     "worker-research": {
       "description": "Worker für Recherche und Knowledge (model_hint: source_grounded)",
       "mode": "subagent",
-      "model": "openai/gpt-5.4",
+      "model": "z-ai/glm-5.2:free",
       "permission": { "edit": "allow", "bash": "allow", "read": "allow", "glob": "allow", "grep": "allow" }
     },
     "worker-render": {
       "description": "Worker für Format-Konvertierung (model_hint: format_conversion)",
       "mode": "subagent",
-      "model": "minimax/minimax-m3",
+      "model": "z-ai/glm-5.2:free",
       "permission": { "edit": "allow", "bash": "allow", "read": "allow", "glob": "allow", "grep": "allow" }
     }
   }
