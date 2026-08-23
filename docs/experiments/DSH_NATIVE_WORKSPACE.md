@@ -145,16 +145,17 @@ Die maximal drei nächsten Schritte sind:
 
 ## Ergebnis
 
-**PARTIAL**
+**PASS**
 
 DSH bietet einen nativen, echt separaten Delegationsmechanismus (das
 `subagent`-Werkzeug), der die PTS-Kette `Companion -> Service Request ->
 separater Dienst -> Ergebnis zurück` sehr direkt abbildet. Die Übersetzung
 braucht nur eine kleine, klar begrenzte Persona-/Instruktionsschicht, keinen
-Kernel-Umbau. Ein echter, autorisierter Modelllauf, der beweist, dass ein
-separater Subagent die bounded inquiry ausführt und der Hauptagent die Arbeit
-vermeidet, wurde – wie im Smoke-Test – wegen des Credential- und
-Datenschutz-Gates nicht erzwungen.
+Kernel-Umbau. Ein autorisierter Lauf (2026-08-23) hat den Nachweis erbracht:
+ein separater one-shot-Subagent führte die bounded inquiry aus, der Hauptagent
+(Companion) machte die Recherche nicht selbst, und das Ergebnis kehrte über den
+Subagent-Rückkanal zum Companion zurück, der daraus genau einen Impuls machte.
+Belege siehe Abschnitt „Ausgeführter autorisierter Lauf".
 
 ## Verwendeter DSH-Commit / Version
 
@@ -247,13 +248,18 @@ Zielkette:
 ```text
 Pedagogical Companion
   -> erzeugt gültigen PTS Service Request (service-requests/pb-alt-perspektiven.yml)
-  -> ruft DSH subagent-Werkzeug mit Persona + toolFilter auf
+  -> ruft DSH subagent-Werkzeug mit Persona-Prompt auf
   -> separater DSH-Child (spawn/one-shot) führt die bounded inquiry aus
-  -> Child schreibt drafts/pb-alt-perspektiven-alternatives.md und ruft report auf
-  -> report + Settlement-Notice kehren zum Companion zurück
+  -> Child schreibt drafts/pb-alt-perspektiven-alternatives.md
+  -> Child-Ergebnis kehrt als subagent-Tool-Result zum Companion zurück
   -> Companion prüft Quellqualität/Annahmen und verdichtet
   -> erst dann ein knapper Impuls im Gespräch
 ```
+
+Rückkanal-Hinweis: Ein **one-shot**-Subagent hat kein `report`-Werkzeug (das ist
+nur für **continuable** Children installiert). Sein Ergebnis kehrt synchron als
+`subagent`-Tool-Result zum Companion zurück. Der ausgeführte Lauf bestätigt genau
+das.
 
 ## 4. Korrekte Ablage des Service Requests
 
@@ -281,12 +287,8 @@ nahen und einen kontrastierenden Zugang mit Annahmen und Integrationskosten
 sichtbar machen. Der Companion soll danach keinen Recherchebericht dumpen,
 sondern höchstens einen Impuls zurückbringen.
 
-Ein echter Modelllauf des Subagenten wurde nicht erzwungen: Er würde – wie im
-Smoke-Test – mindestens Persona, Request und Workspace an den externen
-DeepSeek-Provider senden und traf im Smoke-Test das reproduzierbare
-`MISSING_CREDENTIAL`-Gate. Diese Nutzung war für das Experiment nicht ausdrücklich
-autorisiert. Damit bleibt der separate Ausführungsweg als DSH-Mechanik belegt,
-aber nicht als durchgeführter Lauf.
+Dieser Fall wurde am 2026-08-23 in einem ausdrücklich autorisierten Lauf
+tatsächlich delegiert und ausgeführt. Belege im folgenden Abschnitt.
 
 ## 6. Beobachtbare DSH-Stream-Events
 
@@ -306,11 +308,76 @@ Bewertung: Die Events tragen genug Semantik (`start` / `report` / `end` +
 übersetzen, statt technische `Read/Write/Task`-Details zu zeigen. Eine
 UI-Umsetzung ist ausdrücklich nicht Teil dieses Spikes.
 
+## 6a. Ausgeführter autorisierter Lauf (2026-08-23)
+
+Der Lauf wurde aus `cwd = workspace/dsh-native-smoke` mit
+`dsh --profile headless <task>` gestartet. Der Task wies den Hauptagenten an, die
+Recherche **nicht selbst** zu machen, sondern einmalig das `subagent`-Werkzeug
+mit der Forscher-Persona aufzurufen. Modell/Provider: DeepSeek (konfigurierte
+Credentials); Modell ist ein Testparameter, keine PTS-Anforderung.
+
+Belege aus den persistierten Session-Logs unter
+`~/.dsh/sessions/--F-code-pedagogical-thinking-space-workspace-dsh-native-smoke--/`
+(dekomprimiert aus `session.jsonl.zstd`):
+
+**Es lief ein separater Subagent.** Neben der Hauptagent-Session
+`bb503c9b-e021-45e3-af6e-cfbd6eb88cdc` entstand eine eigene Child-Session
+`af6537cd-04a2-41f5-97be-4ace46c08735` mit dem Descriptor-Event:
+
+```json
+{"type":"subagent/descriptor","data":{"version":2,"mode":"one-shot","provider":"spawn","label":"Research pedagogical alternatives brief"}}
+```
+
+**Der Companion hat die Worker-Arbeit nicht selbst übernommen.** Die
+Hauptagent-Session enthält genau vier Tool-Calls und **null** Websuchen:
+
+1. `read` – `service-requests/pb-alt-perspektiven.yml` (Service Request)
+2. `read` – die Forscher-Persona
+3. `subagent` – Delegation, `description: "Research pedagogical alternatives brief"`,
+   `prompt` = Inquiry-Worker-Persona
+4. `read` – `drafts/pb-alt-perspektiven-alternatives.md` (Ergebnis prüfen)
+
+Alle Recherche fand im Child statt: dessen 13 Tool-Calls umfassen
+`web_search` (3×, dahinter `web/deepseek-search-llm-request` 11×), `glob`, `read`
+und `write` (der Brief).
+
+**Das Ergebnis kam über den vorgesehenen Rückkanal zurück.** Der
+`subagent`-Tool-Call lieferte ein `tool/result` an den Companion, ausdrücklich
+als Report formuliert:
+
+```text
+Brief geschrieben unter `workspace/dsh-native-smoke/drafts/pb-alt-perspektiven-alternatives.md`.
+**Report an den Pedagogical Companion:** … Near-Fit-Ansatz … kontrastierender Ansatz …
+```
+
+**Der Companion verdichtete statt zu dumpen.** Seine finale Antwort gab genau
+einen Impuls, benannte die Quellengrenze (keine empirische Wirksamkeit für genau
+diese Situation) und kennzeichnete die Herkunft:
+
+> Hinweis aus der Recherche *(ausgeführt durch einen separaten Forschungs-Service,
+> nicht durch mich direkt)*: …
+
+Rohbelege im Repository: der erzeugte Brief
+`workspace/dsh-native-smoke/drafts/pb-alt-perspektiven-alternatives.md`, die
+finale Companion-Antwort `docs/experiments/dsh-native-workspace/run-stdout.txt`
+und das Dekodier-Skript `docs/experiments/dsh-native-workspace/decode_session.py`
+(liest die zstd-JSONL-Session-Logs).
+
+Einschränkung zur Reproduzierbarkeit: Die vollständigen Session-Logs liegen im
+lokalen `~/.dsh`-Home außerhalb des Repositories und enthalten Modellrohdaten;
+sie werden bewusst nicht eingecheckt.
+
 ## 7. Bekannte Brüche zur PTS-Semantik
 
 - **Selbstausführungs-Neigung:** Ohne die explizite Delegations-Instruktion neigt
   der Hauptagent dazu, die Recherche selbst zu erledigen. Die Persona allein
   erzwingt die Delegation nicht; die Instruktion muss den Werkzeugaufruf verlangen.
+  Im ausgeführten Lauf genügte eine explizite „Do not research yourself, delegate
+  once“-Regel im Task, damit der Companion tatsächlich delegierte.
+- **One-shot ohne `report`-Werkzeug:** Ein one-shot-Subagent besitzt kein
+  `report`-Werkzeug; sein Ergebnis kehrt als `subagent`-Tool-Result zurück. Das
+  `report`-Werkzeug und die Settlement-Notice gelten für **continuable** Children.
+  Der PTS-Rückkanal ist in beiden Varianten erfüllt.
 - **Rückgabeformat:** DSH liefert freie Assistenz-/Report-Texte. Die PTS-Grenze
   „Companion verdichtet, Lehrkraft bekommt höchstens einen Impuls“ ist eine
   Prompt-Konvention, keine erzwungene DSH-Mechanik. `outputSchema` kann die
@@ -324,23 +391,26 @@ UI-Umsetzung ist ausdrücklich nicht Teil dieses Spikes.
 
 - `workspace/dsh-native-smoke/service-requests/pb-alt-perspektiven.yml` — neu, kanonischer Request.
 - `workspace/dsh-native-smoke/drafts/pb-alt-perspektiven.md` — Inhalt durch Zeiger ersetzt (war fälschlich Request).
+- `workspace/dsh-native-smoke/drafts/pb-alt-perspektiven-alternatives.md` — neu, vom separaten Subagenten erzeugter Brief (Lauf-Beleg).
 - `docs/experiments/dsh-native-workspace/subagent-persona-research-alternatives.md` — neu, experimentelle Persona (dünnste Übersetzung).
+- `docs/experiments/dsh-native-workspace/run-stdout.txt` — finale Companion-Antwort des Laufs (Beleg).
+- `docs/experiments/dsh-native-workspace/decode_session.py` — Hilfsskript zum Dekodieren der zstd-Session-Logs.
 - `docs/experiments/DSH_NATIVE_WORKSPACE.md` — dieser Abschnitt.
 
 ## 9. Bewertung und nächste Schritte
 
-Ergebnis: **PARTIAL** — die Delegation funktioniert grundsätzlich über DSH-native
-Subagents und braucht nur eine klar begrenzte Persona-/Instruktionsschicht, kein
-Kernel-Redesign. Der echte separate Lauf ist als Mechanik belegt, aber nicht
-autorisiert ausgeführt.
+Ergebnis: **PASS** — ein separater DSH-Subagent hat den PTS-Service-Request
+sauber ausgeführt und das Ergebnis über den `subagent`-Rückkanal an den Companion
+zurückgegeben; der Companion machte die Recherche nicht selbst und verdichtete
+zu einem Impuls. Es war kein Kernel-Redesign nötig, nur eine Persona plus eine
+Delegations-Instruktion.
 
 Maximal drei nächste Schritte:
 
-1. Einen ausdrücklich autorisierten, datensensiblen DSH-Lauf durchführen und im
-   Trajektorien-/Job-Log prüfen, ob wirklich ein separater `subagent/start` →
-   `subagent/end` entsteht und der Hauptagent die Recherche vermeidet.
-2. Die Delegations-Instruktion minimal in der Companion-Boot-Kette verankern
+1. Die Delegations-Instruktion minimal in der Companion-Boot-Kette verankern
    (nur für `research_pedagogical_alternatives`), damit der Werkzeugaufruf statt
-   Selbstausführung erfolgt — ohne globale Routing-Architektur.
-3. Prüfen, ob `outputSchema` sinnvoll das `pedagogical_alternatives_brief`-Format
-   erzwingen kann, ohne die Companion-Zurückhaltung zu ersetzen.
+   Selbstausführung ohne Extra-Prompt erfolgt — ohne globale Routing-Architektur.
+2. Prüfen, ob `outputSchema` das `pedagogical_alternatives_brief`-Format erzwingen
+   kann, ohne die Companion-Zurückhaltung zu ersetzen.
+3. Optional die continuable Variante mit `report`-Werkzeug testen, um mehrstufige
+   Rückfragen zwischen Companion und laufendem Worker zu belegen.
