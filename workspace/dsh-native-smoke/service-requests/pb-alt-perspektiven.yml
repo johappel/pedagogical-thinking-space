@@ -1,0 +1,77 @@
+# Canonical Service Request: research_pedagogical_alternatives
+#
+# Kanonische Ablage laut harness/dispatcher.py und AGENTS.md:
+#   workspace/<project-slug>/service-requests/
+#
+# Der frühere Ort workspace/dsh-native-smoke/drafts/pb-alt-perspektiven.md
+# entsprach NICHT der kanonischen PTS-Semantik. drafts/ ist der Ort für das
+# Worker-ERGEBNIS (den Brief), nicht für den Request selbst.
+
+id: req-pb-alt-perspektiven
+status: approved
+
+service: worker
+mode: research
+task: research_pedagogical_alternatives
+capability: capabilities/workers/RESEARCH_PEDAGOGICAL_ALTERNATIVES.md
+reason: >
+  Der Lehrkraft ist die pädagogische Spannung klar: In der ersten Stunde hat ein Schüler
+  gesagt, Religion sei in der Schule überflüssig. Die Klasse 9 (Gesamtschule NRW) steht
+  unter Prüfungsdruck für die Realschulreife. Die Frage lautet: Wie lässt sich der
+  Religionsunterricht so beginnen, dass die Zweifel der Schüler ernst genommen werden,
+  ohne das Fach zu verteidigen – und zwar so, dass die Schüler selbst spüren, warum
+  das Fach für sie relevant sein könnte?
+mandate:
+  support_mode: explore
+  approved_goal: Zwei pädagogische Ansätze vergleichen, die den Einstieg in den
+    Religionsunterricht mit Zweifeln der Schüler aufnehmen – einer nah und einer
+    kontrastierend.
+  permission:
+    type: bounded_session
+    reference: teacher-requested-perspectives-2026-08-23
+input:
+  learning_design: workspace/dsh-native-smoke/learning-design.md
+  learning_landscape: workspace/dsh-native-smoke/learning-landscape.md
+  board_item_id: pb-alt-perspektiven
+  pedagogical_tension: >
+    Wie lässt sich der Religionsunterricht so beginnen, dass die Zweifel der Schüler
+    ernst genommen werden, ohne das Fach zu verteidigen – und zwar so, dass die Schüler
+    selbst spüren, warum das Fach für sie relevant sein könnte?
+  existing_approach: >
+    Die Lehrkraft überlegt, auf die Aussage "Religion ist überflüssig in der Schule"
+    einzugehen. Die konkrete Form ist noch offen. Die Herausforderung liegt darin, die
+    Frage "Was hat Religion mit meinem Leben zu tun?" so zu formulieren, dass sie für
+    14-jährige Schüler in der ersten Stunde relevant wird.
+  related_moments: []
+  research_scope:
+    near_fit: 1
+    contrast: 1
+    maximum_sources: 6
+    include_concrete_materials: true
+  source_requirements:
+    - identifiable professional source
+    - source date and access path
+    - licence or access information for concrete materials
+expected_output:
+  type: pedagogical_alternatives_brief
+  location: workspace/dsh-native-smoke/drafts/pb-alt-perspektiven-alternatives.md
+  required_sections:
+    - current approach
+    - near-fit alternative
+    - contrasting alternative
+    - embedded assumptions
+    - source quality and uncertainty
+    - integration costs
+    - ripple effects
+    - use classification
+constraints:
+  use_types: [inspiration, building_block, guiding_structure]
+  no_unfiltered_catalogue: true
+  do_not_modify_learning_design: true
+epistemic_requirements:
+  separate_observation_interpretation_hypothesis: true
+  mark_uncertainty: true
+  include_source_quality: true
+return_to: critical_friend
+requires_approval: false
+model_hint: source_grounded

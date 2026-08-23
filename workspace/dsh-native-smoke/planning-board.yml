@@ -1,0 +1,9 @@
+schema: ptspace.planning-board/v1
+items:
+  - id: pb-kontext-klaeren
+    title: Kontext und Unterstützungsbedarf der Lehrkraft klären
+    kind: clarify
+    column: clarify
+    related_moments: [lm-ausgangsfrage]
+    status: proposed
+    requires_teacher_approval: true

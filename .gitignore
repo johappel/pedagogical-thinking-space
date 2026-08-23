@@ -3,6 +3,9 @@ memory.local/
 
 # Active local workspaces
 workspace/
+!workspace/
+!workspace/dsh-native-smoke/
+!workspace/dsh-native-smoke/**
 
 # Temporary generated outputs
 outputs/
