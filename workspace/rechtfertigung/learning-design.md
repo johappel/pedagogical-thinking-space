@@ -3,8 +3,8 @@
 ## Metadata
 
 - Project slug: rechtfertigung
-- Created: 2026-08-24
-- Last updated: 2026-08-24
+- Created: 2026-08-25
+- Last updated: 2026-08-25
 - Subject: Noch nicht festgelegt
 - Grade / age group: Noch nicht festgelegt
 - Language: de
@@ -79,7 +79,7 @@ Keine freigegebene Darstellung.
 
 ## Change Log
 
-### 2026-08-24
+### 2026-08-25
 
 Changed: Denkraum mit minimaler gültiger Struktur angelegt.
 
