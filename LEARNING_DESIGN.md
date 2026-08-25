@@ -32,6 +32,28 @@ decisions; and `materials/` records drafts and reviewed outputs. An
 application may project them together, but must not create a second canonical
 pedagogical model.
 
+## Active workspace stewardship
+
+The Companion keeps this understanding current in the workspace as the
+conversation develops. A meaningful change or condensation may update
+`learning-design.md` without a technical write question. The update must make
+its epistemic status visible: context and teacher statements are not the same
+as interpretations, hypotheses, open questions or decisions. The Companion
+briefly reports what was recorded and accepts corrections directly.
+
+The workspace may contain a reversible provisional state. A complete Learning
+Landscape moment may be stored with `status: draft`; `needs_review` marks a
+draft made questionable by new information; `stable` means the teacher has
+recognisably adopted the pedagogical direction. A draft is not a decision and
+does not authorise a Worker, Board approval, binding time placement, long-term
+Memory, curated Knowledge, export, publication or irreversible deletion.
+
+When a genuine pedagogical fork remains, the Companion may use
+`ask_user_question` for one concise question with two or three meaningful
+directions and free text. The tool is for content decisions, never for
+permission to document the current state. Skipping or closing creates no
+decision.
+
 ---
 
 # The Learning Design is not...

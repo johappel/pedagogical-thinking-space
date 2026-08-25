@@ -102,7 +102,12 @@ A learning moment may additionally contain:
 | `observation_focus` | what the teacher intends to notice without collecting unnecessary personal data |
 | `feedback_to` | moment, Board item or decision that receives the later review |
 
-These fields are optional because not every lesson plan requires a systemic intervention. When present, they must be explicitly labelled as provisional and teacher-approved.
+These fields are optional because not every Learning Design requires a systemic
+intervention. When present in a `draft`, provisional interpretations and
+hypotheses must be explicitly labelled and remain revisable. An intervention
+relation still requires an approved or reviewable Planning Board item. Teacher
+approval is required before the moment becomes `stable`, not before a complete
+draft can be recorded.
 
 Example:
 
@@ -170,13 +175,23 @@ The material metadata remains in `materials/`; the landscape stores only the mat
 - An intervention reference points to an approved or reviewable Planning Board item.
 - Observation focuses avoid unnecessary personal data and diagnostic inference.
 - Feedback references resolve to an existing Board item, decision or learning moment.
-- A moment may be proposed by AI, but may enter the canonical landscape only after visible teacher approval.
+- A complete moment may enter the canonical landscape as a reversible `draft`
+  without a separate technical write approval.
+- `draft` is a provisional working state, `needs_review` marks a meaningful
+  uncertainty introduced or exposed by new information, and `stable` means the
+  teacher has recognisably adopted the pedagogical direction.
+- A draft must contain every required field and must not be represented as a
+  settled decision.
 
 ## Canvas and proposal rules
 
 Dragging a node changes only `learning-landscape.layout.json`.
 
-Creating, removing or changing a moment, transition, intervention relation or material relation changes `learning-landscape.md` only after approval.
+Creating or revising a complete draft changes `learning-landscape.md` as part
+of active workspace stewardship. Removing a moment, changing a stable moment,
+binding an intervention or changing a material/transition relation that alters
+the pedagogical direction requires recognisable teacher approval. Layout changes
+remain confined to `learning-landscape.layout.json`.
 
 A proposal must:
 

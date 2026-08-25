@@ -661,7 +661,9 @@ It is ready when the teacher and Pedagogical Companion understand why the learni
 
 ## Collaboration fields for Design Decisions
 
-The `Design Decisions` section is the canonical teacher-facing record of agreed pedagogical choices. `decisions.md` may retain an internal audit trail, but it must not be the only location of a decision.
+The `Design Decisions` section is the canonical teacher-facing record of
+agreed pedagogical choices. `decisions.yml` is the canonical structured
+decision record and must not be duplicated by a parallel `decisions.md`.
 
 For every decision, record when applicable:
 

@@ -302,3 +302,43 @@ Disziplinregeln §8 beherrschbar; solange es gilt, ist PARTIAL die ehrliche Note
 3. **pts-web produktiv ausbauen** auf dem etablierten Overlay-Muster (nächste
    PTS-Perspektiven als weitere Repo-Plugins + Rows in `profiles\pts-web\cordis.patch.yml`),
    inklusive kleinem Healthcheck im Startskript (Roster-/Port-Probe nach Boot).
+
+## 15. Verifikation der strukturierten Companion-Fragen (2026-08-25)
+
+Die installierte DSH-Version ist `0.1.1-rc.2`. Die tatsächlich verwendete
+Komposition des Profils `pts-web` besteht aus `dsh-base@0.1.1-rc.2`,
+`dsh-web-app@0.1.1-rc.2`, dem User-Preset `pts-companion` aus
+`$DSH_HOME/.agent-presets/pts-companion/agent.cordis.yml` und den vier
+PTS-Plugins aus `dsh-plugins/`.
+
+`@deepseek-ai/dsh-tool-ask-user@0.1.1-rc.2` ist im `pts-companion`-Preset als
+`tool-ask-user` aktiv. `@deepseek-ai/dsh-user-questions@0.1.1-rc.2` wird im
+unveränderten `dsh-base` geladen. Die unveränderte `dsh-web-app`-Komposition
+lädt `@deepseek-ai/dsh-client-ui-user-questions@0.1.1-rc.2`. Eine eigene
+PTS-Frageoberfläche oder eine `/plan`-Aktivierung ist deshalb nicht erforderlich.
+
+Der Profil-Patch musste dafür nicht erweitert werden. Vor einem Profilneustart
+ist weiterhin die Backup-Regel für `cordis.patch.yml` einzuhalten; shipped DSH-
+Dateien bleiben unangetastet.
+
+Nach dem Neustart des PTS-Web-Prozesses auf Port 3081 wurde mit Chrome-CDP
+folgender belastbarer Lauf durchgeführt:
+
+| Test | Ergebnis |
+|---|---|
+| PTS-Web/Standard-Web parallel | PASS, 3081/3080 antworten mit HTTP 200 |
+| PTS-Scope und Scaffold-Dialog | PASS, 10/10 im vorhandenen UI-Treiber |
+| Vorläufiger Denkstand ohne Schreibfrage | PASS, beide Denkstand-Dateien aktualisiert |
+| Lernmomentstatus | PASS, vorläufig als `draft`, kein `stable` |
+| Offene Schwerpunktfrage | PASS, echte `ask_user_question`-Karte sichtbar |
+| Auswahlmöglichkeiten | PASS, genau drei Optionen mit didaktischen Folgen |
+| Freitextfeld sichtbar | PASS, Feld in der echten Fragekarte vorhanden |
+| Auswahl `Motive verstehen` | PASS, Auswahl wurde per UI ausgelöst |
+| `decisions.yml` vor der Entscheidung | PASS, blieb leer |
+| Freitextantwort, Überspringen, Schließen | nicht belastbar abgeschlossen; das lokale Modell erzeugte in Wiederholungsläufen nicht reproduzierbar eine neue Fragekarte |
+
+Der erfolgreiche Test-Denkraum wurde nach `workspace/.trash/` verschoben. Sein
+Diff zeigt den dokumentierten Zwischenstand und die unveränderte leere
+`decisions.yml`; er ist für Nachprüfung recoverabel. Die Antwortpfade sollten
+mit einem stabilen tool-fähigen Modell noch einmal als vollständiger
+Abnahmelauf ausgeführt werden.

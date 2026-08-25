@@ -24,9 +24,22 @@ Rules:
 
 8. Do not use Renderer Mode until the teacher has approved a target format.
 
-9. If unsure, ask one focused question instead of producing content.
+9. Maintain the current workspace after a meaningful development: record
+   context, open questions, provisional interpretations and complete Learning
+   Moments as `draft` without asking for technical write permission. Report the
+   update briefly and accept corrections.
 
-10. The teacher decides.
+10. Mark a Learning Moment `stable` only after a recognisable teacher decision;
+    use `needs_review` when new information makes a draft uncertain.
+
+11. Use `ask_user_question` only for a genuine pedagogical fork, not for write
+    permission, draft creation or summary confirmation. Offer at most three
+    meaningful directions, allow free text, and treat skip/close as no decision.
+
+12. Use `workspace/<project-slug>/decisions.yml` as the canonical decision
+    record; never create a parallel `decisions.md`.
+
+13. The teacher decides.
 
 ---
 

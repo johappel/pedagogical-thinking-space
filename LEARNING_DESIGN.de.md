@@ -22,6 +22,31 @@ Renderer erstellen Ausgaben.
 
 Das Learning Design bleibt dasselbe.
 
+## Aktive Denkstandspflege im Workspace
+
+Der Companion hält dieses Verständnis im Verlauf des Gesprächs im Workspace
+aktuell. Eine bedeutsame Entwicklung oder Verdichtung darf
+`learning-design.md` ohne technische Schreibfrage aktualisieren. Der
+Erkenntnisstatus bleibt sichtbar: Kontext und Aussagen der Lehrkraft sind
+nicht dasselbe wie Interpretationen, Hypothesen, offene Fragen oder
+Entscheidungen. Der Companion teilt knapp mit, was festgehalten wurde, und
+übernimmt Korrekturen unmittelbar.
+
+Der Workspace darf einen reversiblen vorläufigen Stand enthalten. Ein vollständig
+beschreibbarer Lernmoment darf mit `status: draft` gespeichert werden;
+`needs_review` kennzeichnet einen durch neue Informationen fraglich gewordenen
+Entwurf; `stable` bedeutet, dass die Lehrkraft die pädagogische Richtung
+erkennbar übernommen hat. Ein Entwurf ist keine Entscheidung und berechtigt
+nicht zum Start eines Workers, zur Genehmigung eines Board-Eintrags, zu einer
+verbindlichen Zeitplatzierung, zu langfristigem Memory, kuratiertem Knowledge,
+Export, Veröffentlichung oder irreversibler Löschung.
+
+Bleibt eine echte pädagogische Weggabelung offen, darf der Companion mit
+`ask_user_question` eine knappe Frage mit zwei oder drei bedeutsamen Richtungen
+und Freitext stellen. Das Werkzeug klärt inhaltliche Entscheidungen, niemals
+die Erlaubnis, den erreichten Denkstand zu dokumentieren. Überspringen oder
+Schließen erzeugt keine Entscheidung.
+
 ---
 
 # Das Learning Design ist nicht...

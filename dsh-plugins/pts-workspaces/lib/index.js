@@ -112,7 +112,9 @@ Noch nicht festgelegt.
 
 ## Design Decisions
 
-Noch keine pädagogische Entscheidung genehmigt. Wichtige Entscheidungen und verworfene Alternativen werden zusätzlich in decisions.yml festgehalten.
+Noch keine pädagogische Entscheidung festgehalten. Vorläufige Denkstände und
+Lernmomente werden als Entwurf gekennzeichnet; erkennbare Entscheidungen der
+Lehrkraft werden in decisions.yml dokumentiert.
 
 ## Open Questions
 
@@ -170,7 +172,9 @@ structure: linear
 
 ## Lernmomente
 
-Noch keine Lernmomente festgelegt. Lernmomente entstehen im Gespräch mit der Lehrkraft und werden erst nach sichtbarer Zustimmung festgehalten.
+Noch keine Lernmomente festgehalten. Lernmomente entstehen im Gespräch. Ein
+vollständig beschreibbarer vorläufiger Lernmoment wird als draft, ein von der
+Lehrkraft erkennbar übernommener Lernmoment als stable gekennzeichnet.
 
 ## Übergänge
 
@@ -193,8 +197,8 @@ const PLANNING_BOARD_TEMPLATE = `schema: ptspace.planning-board/v1
 items: []
 `;
 
-/** Minimal decisions.yml: nothing approved yet. */
-const DECISIONS_TEMPLATE = `# Noch keine pädagogische Entscheidung wurde genehmigt.
+/** Minimal decisions.yml: no teacher-owned decision recorded yet. */
+const DECISIONS_TEMPLATE = `# Noch keine pädagogische Entscheidung festgehalten.
 decisions: []
 `;
 
