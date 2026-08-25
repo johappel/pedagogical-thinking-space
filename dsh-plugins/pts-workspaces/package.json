@@ -1,0 +1,20 @@
+{
+  "name": "pts-workspaces",
+  "description": "PTS Workspace-Scope für das pts-web-Profil: die Sidebar ('Arbeitsräume') und der Empty-State-Workspace-Picker zeigen ausschließlich Denkräume unter <PTS>/workspace/, 'Ordner +' wird zu 'Neuen Denkraum anlegen' (Name -> Slug -> minimale gültige PTS-Struktur, harte Pfadgrenze). Nur im pts-web-Profil gemountet.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [],
+      "platform": "web"
+    }
+  },
+  "license": "MIT"
+}
