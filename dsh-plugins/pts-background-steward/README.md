@@ -25,8 +25,11 @@ Teacher <-> Pedagogical Companion        (sichtbar, wartet nie)
   Denkstandspflege, darf aber keine Materialien produzieren, keine Recherche
   starten, keine pädagogische Richtung entscheiden, keinen Planning-Board-
   Eintrag freigeben und nicht in Memory oder kuratiertes Wissen schreiben.
-- Der bestehende dateibasierte Dispatcher (`harness/dispatcher.py`) bleibt für
-  explizite Servicearbeit unangetastet; das Plugin läuft bewusst nicht über ihn.
+- Der dateibasierte Python-Dispatcher (`harness/dispatcher.py`) ist eine
+  Legacy-/Alternative-Runtime (Level 2 ohne DSH), nicht der produktive Pfad. In
+  einem DSH-Deployment werden ausführbare Capabilities über
+  `capabilities/registry.yml` aufgelöst und an native DSH-Subagenten übergeben;
+  das Plugin läuft ohnehin nicht über den Python-Dispatcher.
 
 ## Aufbau
 

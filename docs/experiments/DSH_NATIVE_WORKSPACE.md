@@ -265,9 +265,11 @@ das.
 
 Prüfung von Task 4: Der bisherige Pfad
 `workspace/dsh-native-smoke/drafts/pb-alt-perspektiven.md` entsprach **nicht** der
-kanonischen PTS-Semantik. `harness/dispatcher.py` scannt Service Requests unter
-`workspace/<project-slug>/service-requests/*.yml`; `drafts/` ist laut Capability
-der Ort für das **Ergebnis** (`pedagogical_alternatives_brief`).
+kanonischen PTS-Semantik. Der kanonische Ort für Service Requests ist
+`workspace/<project-slug>/service-requests/*.yml` (der Legacy-Python-Dispatcher
+`harness/dispatcher.py` scannt denselben Ort; in einem DSH-Deployment löst der
+native Dispatch die Capability über `capabilities/registry.yml` auf). `drafts/`
+ist laut Capability der Ort für das **Ergebnis** (`pedagogical_alternatives_brief`).
 
 Korrigiert:
 

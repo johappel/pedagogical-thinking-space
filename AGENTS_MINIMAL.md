@@ -97,7 +97,9 @@ Use `model_hint` only to describe the kind of execution needed, for example:
 
 Service results must return to the Pedagogical Companion before they are shown to the teacher.
 
-Before delegating to a Worker, check `capabilities/workers/`.
+Before delegating to a Worker, resolve the task in the capability registry
+`capabilities/registry.yml` (from the PTS root) and read its capability document
+under `capabilities/workers/`.
 
 Use an existing capability if available.
 

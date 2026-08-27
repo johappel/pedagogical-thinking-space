@@ -1,9 +1,20 @@
 #!/usr/bin/env python3
 """
+LEGACY / ALTERNATIVE RUNTIME — not the productive DSH execution path.
+=====================================================================
+
+This file-based Python dispatcher is kept as a Level-2 reference / demo for
+running PTS Service Requests WITHOUT DSH. In a DSH deployment it is NOT the
+productive worker path: executable capabilities are resolved from
+`capabilities/registry.yml` and dispatched to a native DSH subagent (see
+`dsh-plugins/pts-background-steward/` and `docs/experiments/DSH_NATIVE_WORKSPACE.md`).
+Do not treat this dispatcher as the productive runtime and do not run it beside
+the DSH path against the same Denkraum.
+
 Level-2 File-based Harness Dispatcher
 =====================================
 
-This IS the "unsichtbare Hand". It is a plain background loop:
+This is a plain background loop:
 
    1. scan workspace/<project>/service-requests/ for *.yml Service Requests
    2. skip requests that are not yet approved (status / requires_approval)

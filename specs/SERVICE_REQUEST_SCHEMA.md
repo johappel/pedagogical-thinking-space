@@ -280,13 +280,41 @@ Temporary research output remains case-bound until it passes the Knowledge Captu
 11. A request in `stabilise` mode should minimise scope and avoid creating optional work for the teacher.
 12. A Service Request never makes a material classroom-ready by itself.
 
-## Lifecycle: file-based harness
+## Lifecycle: DSH dispatch (productive)
+
+In a DSH deployment an approved Service Request is resolved through the
+capability registry and run by a native DSH subagent:
+
+```text
+workspace/<slug>/service-requests/req-001.yaml   (status: authorized)
+        |
+        v
+capabilities/registry.yml   (resolve capability by task, from the PTS root)
+        |
+        v
+native DSH subagent   (capability instruction + tool filter + result schema)
+        |
+        v
+workspace/<slug>/drafts/ | knowledge-proposals/   (validated result)
+        |
+        v
+request status: completed  ->  Companion review  ->  teacher decision
+```
+
+Request lifecycle states: `proposed -> authorized -> running -> completed`,
+with `failed`, `invalid`, `cancelled` for error paths. A failed or invalid run
+remains repeatable; no permanent "done" marker is written before success.
+
+## Lifecycle: file-based harness (LEGACY / alternative runtime)
+
+> The Python dispatcher below is a Level-2 reference runtime **without** DSH.
+> It is not the productive path in a DSH deployment.
 
 ```text
 queue/req-001.yaml
         |
         v
-harness/dispatcher.py
+harness/dispatcher.py   (legacy / alternative runtime)
         |
         v
 workspace/<slug>/...

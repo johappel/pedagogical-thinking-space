@@ -1,0 +1,50 @@
+{
+  "$comment": "Result schema for verify_curriculum_alignment (ptspace.curriculum-alignment-brief/v2). Object-rooted JSON Schema in the dsh-tools enforced subset. Loaded at runtime by the generic dispatcher via capabilities/registry.yml (schema_file); it is NOT duplicated in JavaScript.",
+  "schema_version": "ptspace.curriculum-alignment-brief/v2",
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["schema", "task", "findings", "sources", "uncertainties"],
+    "properties": {
+      "schema": { "type": "string", "const": "ptspace.curriculum-alignment-brief/v2" },
+      "task": { "type": "string", "const": "verify_curriculum_alignment" },
+      "summary": { "type": "string", "description": "Ein bis zwei Sätze Gesamtbefund, quellenbasiert." },
+      "findings": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["denomination", "alignment", "statement", "source_ids"],
+          "properties": {
+            "denomination": { "type": "string", "description": "z. B. evangelisch, katholisch oder konfessionsübergreifend." },
+            "alignment": { "type": "string", "enum": ["yes", "partial", "no", "unclear"] },
+            "competence_areas": { "type": "string", "description": "Relevante Kompetenzbereiche / inhaltliche Schwerpunkte." },
+            "statement": { "type": "string", "description": "Kurze quellengebundene Aussage." },
+            "source_ids": { "type": "array", "description": "IDs der Quellen, die genau diesen Befund belegen.", "items": { "type": "string" } }
+          }
+        }
+      },
+      "sources": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "title", "publisher", "official", "validity"],
+          "properties": {
+            "id": { "type": "string", "description": "Kurze eindeutige Quellen-ID (z. B. s1), von findings.source_ids referenziert." },
+            "title": { "type": "string" },
+            "publisher": { "type": "string", "description": "Herausgebende Institution (Ministerium, Landesinstitut, …)." },
+            "official": { "type": "boolean", "description": "Offizielle Herausgeberschaft (nicht allein Modellbehauptung)." },
+            "url": { "type": "string", "description": "Direkte URL zum Dokument." },
+            "accessed": { "type": "string", "description": "Abrufdatum (ISO)." },
+            "version_date": { "type": "string", "description": "Veröffentlichungs- bzw. Fassungsdatum des Dokuments." },
+            "validity": { "type": "string", "enum": ["current", "archived", "superseded"], "description": "Aktuell gültig, archiviert oder abgelöst." },
+            "successor": { "type": "string", "description": "Bei superseded: Nachfolgedokument." },
+            "locus": { "type": "string", "description": "Genaue Fundstelle: Seite, Kapitel, Inhaltsfeld oder Kompetenzformulierung." }
+          }
+        }
+      },
+      "uncertainties": { "type": "array", "items": { "type": "string" } }
+    }
+  }
+}

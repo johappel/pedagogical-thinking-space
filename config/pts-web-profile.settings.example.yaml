@@ -1,0 +1,36 @@
+# Reproducible sections for ~/.dsh/profiles/pts-web/settings.yaml
+#
+# Merge these into the profile-local settings.yaml of the `pts-web` profile
+# (port 3081). Do NOT edit shipped DSH files. Model ids and providers below are
+# placeholders — adjust them to your available models. API keys live in the
+# shared ~/.dsh/.credentials.yaml and are never versioned here.
+
+# Default preset for new pts-web sessions: the visible Pedagogical Companion.
+agent-presets:
+  default: pts-companion
+
+# Base model target for the visible Companion (adjust to your models).
+agent-default-model:
+  provider: deepseek-official
+  model: deepseek-v4-flash
+  reasoningEffort: off
+
+# Background Steward model route (pts-background-steward plugin). The steward
+# runs read-only reflection; the SEPARATE research route is the only one with
+# web tools (web_search/web_fetch) for source-grounded knowledge checks.
+pts-background-steward:
+  provider: "ollama"
+  model: "qwen3.8:27b"
+  maxTokens: 64400
+  reasoningEffort: "low"
+  research:
+    provider: "openrouter"
+    model: "deepseek/deepseek-v4-flash"
+    maxTokens: 16000
+
+# Notes:
+# - The `pts-companion` preset persona/composition is provided by the deployment
+#   preset; its instruction context is THIS repository, loaded via the DSH boot
+#   chain (Denkraum cwd -> PTS root AGENTS.md -> role contracts).
+# - Executable capabilities are routed via capabilities/registry.yml, not from a
+#   preset allowlist.

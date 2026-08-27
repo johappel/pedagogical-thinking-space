@@ -240,6 +240,7 @@ function intentExpectation(overrides = {}) {
 		sessionId: 'session-123', turn: 42, hashes: HASHES,
 		messageIds: new Set(['m1', 'm2', 'm3']),
 		userMessageIds: new Set(['m2']),
+		allowedTasks: new Set(['verify_curriculum_alignment']),
 		...overrides,
 	};
 }

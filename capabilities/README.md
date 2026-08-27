@@ -83,6 +83,9 @@ the system keeps one Worker service and adds Worker Capabilities.
 ```text
 capabilities/
   README.md
+  registry.yml
+  knowledge/
+    VERIFY_CURRICULUM_ALIGNMENT.md
   workers/
     README.md
     IMAGE_GENERATION.md
@@ -101,6 +104,29 @@ capabilities/
 ```
 
 Do not create new capability areas unless there is a clear need.
+
+---
+
+# Capability Registry
+
+`capabilities/registry.yml` is the **single routing source** for executable
+capabilities. It is resolved from the **PTS root**, never by searching a
+Denkraum. For every capability it records:
+
+- a stable `task` id;
+- the owning service (`knowledge`, `worker`, `renderer`, `review`, `memory`);
+- the capability document;
+- a status: `contract-only`, `executable`, `experimental` or `deprecated`;
+- allowed authorization types;
+- required DSH tools;
+- the result schema;
+- the output handler and allowed output targets;
+- an optional `model_hint`.
+
+Only capabilities marked `executable` (or `experimental`) are dispatched to a
+DSH subagent. A capability without a DSH executor is listed honestly as
+`contract-only`: its contract is defined but it is not routed. There is no
+second task allowlist in code or in a prompt.
 
 ---
 

@@ -190,14 +190,22 @@ The verified result is then filed as a reviewable, not-yet-curated Knowledge
 Proposal under `knowledge-proposals/` without a second approval for the proposal
 creation; adoption into curated `knowledge/` remains a later, separate step.
 
-The Companion reviews the result before presenting it. It normally returns:
+The Companion reviews the result before presenting it. A **source-grounded
+knowledge check** (curriculum, law, standards — the `knowledge` service) returns
+a source-grounded brief, not a pedagogical comparison. It normally carries:
 
-- one near-fit perspective;
-- one contrasting perspective;
-- embedded pedagogical assumptions;
-- source quality and uncertainty;
-- integration costs and ripple effects;
-- a recommendation to use, adapt, or retain only as a contrast.
+- the alignment finding per checked track (e.g. evangelisch and katholisch);
+- the relevant competence areas or inhaltliche Schwerpunkte;
+- the **source quality and validity**: issuing institution, official status,
+  direct URL, access date, version/publication date, whether the source is
+  currently valid, archived or superseded, and the exact locus;
+- named uncertainties.
+
+The **near-fit / contrasting-perspective** return shape belongs to a
+*pedagogical-alternatives* research, which is an **Inquiry Worker** capability
+(`capabilities/workers/RESEARCH_PEDAGOGICAL_ALTERNATIVES.md`), not to a
+curriculum knowledge check. Do not mix the two: curriculum/law/standards checks
+are `knowledge`; comparing pedagogical approaches is `worker`.
 
 The teacher does not receive an unfiltered catalogue.
 

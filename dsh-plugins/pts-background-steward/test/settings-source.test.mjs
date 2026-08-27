@@ -265,20 +265,20 @@ test('resolveResearchConfig: Settings-research gewinnt; leere Werte erben Stewar
 	assert.equal(withSettings.model, 'perplexity/sonar');
 	assert.equal(withSettings.maxTokens, 4096);
 	assert.equal(withSettings.source, 'settings');
-	assert.ok(withSettings.allowedTools.includes('web'));
+	assert.ok(withSettings.allowedTools.includes('web_search'));
 
 	// Ohne research-Settings und ohne Patch-Row-research erbt es das Steward-Modell.
 	const inherited = resolveResearchConfig(config, stewardModel, null);
 	assert.equal(inherited.provider, 'lmstudio');
 	assert.equal(inherited.model, 'ornith');
-	assert.ok(inherited.allowedTools.includes('web'), 'Web-Allowlist bleibt trotz geerbtem Modell');
+	assert.ok(inherited.allowedTools.includes('web_search'), 'Web-Allowlist bleibt trotz geerbtem Modell');
 });
 
 test('resolveResearchConfig: web/edit werden aus einer Settings-Allowlist nie freigegeben', () => {
 	const { config } = normalizeConfig(undefined);
 	const stewardModel = { provider: '', model: '', maxTokens: 8192, reasoningEffort: '', source: 'patch-row' };
-	const out = resolveResearchConfig(config, stewardModel, { research: { allowedTools: ['read', 'web', 'write', 'edit'] } });
-	assert.ok(out.allowedTools.includes('web'));
+	const out = resolveResearchConfig(config, stewardModel, { research: { allowedTools: ['read', 'web_search', 'write', 'edit'] } });
+	assert.ok(out.allowedTools.includes('web_search'));
 	assert.ok(!out.allowedTools.includes('write'));
 	assert.ok(!out.allowedTools.includes('edit'));
 });

@@ -1,0 +1,159 @@
+# Capability Registry — the derivable catalogue of currently known capability
+# versions. It is the single routing SOURCE for the generic DSH dispatcher, but
+# it is NOT a hand-maintained closed gate: the real sources are the versioned
+# capability documents and their machine-readable metadata (instruction + schema
+# files). A capability is never impossible merely because its task id is absent
+# from a JavaScript allowlist — there is no such allowlist. New capabilities are
+# proposed by the capability builder under capabilities/_proposals/<service>/,
+# tried, reviewed and only then activated here.
+#
+# Runtime loader + validator: dsh-plugins/pts-background-steward/lib/registry.js
+# Generic dispatcher: dsh-plugins/pts-background-steward/lib/dispatcher.js
+# It loads each capability's instruction_file + schema_file and passes them,
+# with the declared DSH tool filter and model hint, to a native DSH subagent.
+
+version: 1
+
+# Capability lifecycle status vocabulary:
+#   proposed         — derived from a concrete need, not yet tried
+#   trial            — allowed only for a single bounded, traceable trial run
+#   active           — reviewed and available for matching service requests
+#   revision-needed  — a result or contract was insufficient
+#   deprecated       — replaced by a newer capability version
+#   rejected         — violates service, security or quality rules
+# Only `active` and `trial` are dispatchable.
+
+capabilities:
+  - task: verify_curriculum_alignment
+    capability_version: 2
+    service: knowledge
+    mode: research
+    status: active
+    capability_file: capabilities/knowledge/VERIFY_CURRICULUM_ALIGNMENT.md
+    instruction_file: capabilities/knowledge/verify_curriculum_alignment.instruction.md
+    schema_file: capabilities/knowledge/verify_curriculum_alignment.schema.json
+    authorizations:
+      - board_item
+      - bounded_session
+      - implied_bounded_request
+    # Real DSH model-facing tool names (verified in @deepseek-ai/dsh-tool-web).
+    dsh_tools:
+      - web_search
+      - web_fetch
+    result_schema: ptspace.curriculum-alignment-brief/v2
+    output_handler: curriculum_alignment
+    # draft under drafts/ by default; knowledge_proposal under knowledge-proposals/
+    # only when the teacher explicitly asked to store it in Knowledge.
+    output_targets:
+      - draft
+      - knowledge_proposal
+    model_hint: source_grounded
+    provenance: kernel initial capability
+
+  - task: research_pedagogical_alternatives
+    capability_version: 1
+    service: worker
+    mode: research
+    status: proposed
+    capability_file: capabilities/workers/RESEARCH_PEDAGOGICAL_ALTERNATIVES.md
+    authorizations:
+      - board_item
+      - bounded_session
+    dsh_tools:
+      - web_search
+      - web_fetch
+    result_schema: ptspace.pedagogical-alternatives-brief/v1
+    output_handler: draft
+    output_targets:
+      - draft
+    model_hint: careful_reasoning
+    provenance: contract documented, no executor yet
+
+  - task: create_board_material
+    capability_version: 1
+    service: worker
+    mode: draft
+    status: proposed
+    capability_file: capabilities/workers/CREATE_BOARD_MATERIAL.md
+    authorizations:
+      - board_item
+    dsh_tools:
+      - read
+      - glob
+      - grep
+    result_schema: ptspace.material-draft/v1
+    output_handler: draft
+    output_targets:
+      - draft
+    model_hint: cheap_fast
+    provenance: contract documented, no executor yet
+
+  - task: create_student_instruction
+    capability_version: 1
+    service: worker
+    mode: draft
+    status: proposed
+    capability_file: capabilities/workers/CREATE_STUDENT_INSTRUCTION.md
+    authorizations:
+      - board_item
+    dsh_tools:
+      - read
+      - glob
+      - grep
+    result_schema: ptspace.material-draft/v1
+    output_handler: draft
+    output_targets:
+      - draft
+    model_hint: cheap_fast
+    provenance: contract documented, no executor yet
+
+  - task: generate_diagram
+    capability_version: 1
+    service: worker
+    mode: draft
+    status: proposed
+    capability_file: capabilities/workers/DIAGRAM.md
+    authorizations:
+      - board_item
+    dsh_tools:
+      - read
+    result_schema: ptspace.material-draft/v1
+    output_handler: draft
+    output_targets:
+      - draft
+    model_hint: format_conversion
+    provenance: contract documented, no executor yet
+
+  - task: generate_image
+    capability_version: 1
+    service: worker
+    mode: draft
+    status: proposed
+    capability_file: capabilities/workers/IMAGE_GENERATION.md
+    authorizations:
+      - board_item
+    dsh_tools:
+      - read
+    result_schema: ptspace.material-draft/v1
+    output_handler: draft
+    output_targets:
+      - draft
+    model_hint: cheap_fast
+    provenance: contract documented, no executor yet
+
+  - task: analyse_metrics
+    capability_version: 1
+    service: worker
+    mode: review
+    status: proposed
+    capability_file: capabilities/workers/METRICS.md
+    authorizations:
+      - board_item
+    dsh_tools:
+      - read
+    result_schema: ptspace.material-draft/v1
+    output_handler: draft
+    output_targets:
+      - draft
+    model_hint: careful_reasoning
+    provenance: contract documented, no executor yet

@@ -84,6 +84,17 @@ Das Ergebnis der Recherche kehrt als Draft oder — bei ausdrücklichem
 Speicherauftrag — als Knowledge Proposal mit Quellen und Unsicherheiten zurück
 zum Companion; die Rohantwort des Subagenten erscheint nie direkt im Chat.
 
+Die Ausführung läuft über **einen generischen, registry-getriebenen Dispatcher**
+(kein capability-eigener JS-Pfad): Die Capability wird aus
+`capabilities/registry.yml` (vom PTS-Root) aufgelöst, Instruktion und Schema aus
+den Capability-Dateien geladen, die realen DSH-Werkzeuge (`web_search`,
+`web_fetch`) per Preflight geprüft. Der Auftrag entsteht als **kanonischer
+Service Request unter `workspace/<slug>/service-requests/`** mit Lebenszyklus
+`proposed → authorized → running → completed` bzw. `failed | invalid |
+cancelled`. Kein Request oder Marker liegt ersatzweise unter `drafts/`. Ein
+fehlgeschlagener oder ungültiger Lauf bleibt wiederholbar; ein dauerhafter
+„erledigt"-Zustand entsteht erst nach Erfolg.
+
 ## Erlaubte Workspace-Dateien
 
 Gelesen werden alle fünf kanonischen Dateien; geschrieben werden höchstens vier:
@@ -154,10 +165,16 @@ abgeschlossen dargestellt werden.
 
 ## Verhältnis zu anderen Diensten
 
-Der dateibasierte Dispatcher (`harness/dispatcher.py`) bleibt für explizite,
-genehmigte Service Requests verantwortlich (Worker, Recherche, Rendering).
-Die kontinuierliche Denkstandpflege läuft bewusst **nicht** durch ihn: Sie ist
-turngebunden, soll unmittelbar nach dem Gespräch anlaufen, erzeugt keine
+In einem DSH-Deployment ist der **produktive** Ausführungspfad für explizite,
+genehmigte Service Requests der native DSH-Dispatch: Die Capability wird aus
+`capabilities/registry.yml` (vom PTS-Root) aufgelöst und an einen DSH-Subagenten
+übergeben. Der dateibasierte Python-Dispatcher (`harness/dispatcher.py`) ist
+demgegenüber eine **Legacy-/Alternative-Runtime** (Level 2 ohne DSH) und kein
+produktiver Pfad neben DSH.
+
+Die kontinuierliche Denkstandpflege läuft bewusst **nicht** durch einen
+Dispatcher: Sie ist turngebunden, soll unmittelbar nach dem Gespräch anlaufen,
+erzeugt keine
 separate Prozess- und Polling-Latenz und braucht direkten Zugriff auf DSH-
 Session-Ereignisse.
 

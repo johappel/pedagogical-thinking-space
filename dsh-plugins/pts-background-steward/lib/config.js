@@ -60,10 +60,12 @@ export const DEFAULT_CONFIG = Object.freeze({
 		// Whole-job timeout for one research run.
 		runTimeoutMs: 240000,
 		// Tool allowlist for the research child. Unlike the steward it MAY reach
-		// the web, but it still never writes files: the coordinator writes the
-		// draft. The concrete web tool id depends on the DSH bundle; adjust here
-		// or via settings if the mounted bundle names it differently.
-		allowedTools: ['read', 'glob', 'grep', 'web'],
+		// the web, but it still never writes files: the dispatcher writes the
+		// result. These are the REAL DSH model-facing web tool ids
+		// (@deepseek-ai/dsh-tool-web registers `web_search` and `web_fetch`).
+		// The generic dispatcher additionally intersects this with the resolved
+		// capability's declared `dsh_tools` from capabilities/registry.yml.
+		allowedTools: ['read', 'glob', 'grep', 'web_search', 'web_fetch'],
 	}),
 });
 

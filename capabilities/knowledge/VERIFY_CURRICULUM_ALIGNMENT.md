@@ -1,5 +1,14 @@
 # Knowledge Capability: Verify Curriculum Alignment
 
+- **Capability id:** `verify_curriculum_alignment`
+- **Service:** `knowledge`
+- **Mode:** `research`
+- **Status:** `executable`
+- **Result schema:** `ptspace.curriculum-alignment-brief/v2`
+
+> Resolved through `capabilities/registry.yml` from the PTS root — never by
+> searching a Denkraum. The registry is the single routing source.
+
 ## Capability id
 
 `verify_curriculum_alignment`
@@ -79,7 +88,7 @@ return_to: critical_friend
 
 ## Output format
 
-A concise `curriculum_alignment_brief`:
+A concise `curriculum_alignment_brief` (schema `ptspace.curriculum-alignment-brief/v2`):
 
 ```markdown
 # Curriculum alignment brief
@@ -88,36 +97,65 @@ A concise `curriculum_alignment_brief`:
 - Jurisdiction, subject, phase, grade, topic (and denomination if given)
 
 ## Findings
-- For each checked denomination or track:
+- For each checked denomination or track (evangelisch and katholisch as
+  SEPARATE findings when the denomination is unknown):
   - alignment: yes | partial | no | unclear
   - relevant competence areas / inhaltliche Schwerpunkte
   - short source-grounded statement
+  - source_ids: which sources back exactly this finding
 
 ## Sources
-- Title, official (yes/no), access path/URL, access date
+- id, title, issuing institution (publisher), official (yes/no), direct URL,
+  access date, version/publication date, validity (current | archived |
+  superseded; successor when superseded), exact locus (page, chapter, content
+  field or competence formulation)
 
 ## Uncertainties
-- What could not be verified from official sources
+- What could not be verified from CURRENT official sources
 ```
+
+## Source-quality and validity gate
+
+A result may only be stored as `verified` or `partly-verified` when at least one
+**current official** source is fully evidenced: issuing institution, official
+status, direct URL, access date, version/publication date and an exact locus,
+referenced by the finding it backs.
+
+- An archived or superseded source may appear as a historical reference but
+  never verifies a CURRENT curriculum alignment.
+- `source_status` is COMPUTED from the sources and their finding mapping — it is
+  never derived from the model setting `official: true` alone.
+- When the denomination is unknown, evangelische **and** katholische
+  Religionslehre must be present as separate findings; a prompt alone is not
+  enough.
 
 ## Review criteria
 
 A satisfactory result:
 
-- checks official sources first and cites every claim;
+- checks current official sources first and cites every claim with an exact locus;
 - distinguishes verified statements from interpretation and uncertainty;
-- covers both denominations when the denomination was unknown;
+- covers both denominations as separate findings when the denomination was unknown;
+- does not treat an archived/superseded source as current verification;
 - does not make a pedagogical decision or recommend a design;
 - and can be summarised by the Companion in one short source-based contribution.
 
 ## Storage
 
-The draft is stored in:
+Without an explicit storage order the draft is stored in:
 
 ```text
 workspace/<project-slug>/drafts/curriculum-alignment-<scope-hash>.md
 ```
 
-It returns to the Companion and never becomes curated Knowledge or classroom
-material automatically. Reusable findings may later pass the Knowledge Capture
-Gate as a Knowledge Proposal.
+When the teacher explicitly asked to store the verified information in Knowledge
+(`expected_output.type: knowledge_proposal`), the result is stored instead as a
+reviewable, not-yet-curated OKF Knowledge Proposal in:
+
+```text
+workspace/<project-slug>/knowledge-proposals/curriculum-alignment-<scope-hash>.md
+```
+
+In both cases the result returns to the Companion and never becomes curated
+Knowledge or classroom material automatically. Adoption into curated `knowledge/`
+remains a later, separate decision after the result has returned.

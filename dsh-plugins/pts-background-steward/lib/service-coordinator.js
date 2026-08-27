@@ -1,24 +1,28 @@
-// pts-background-steward — service coordinator for bounded knowledge requests.
+// pts-background-steward — GENERIC capability dispatcher.
 //
 // The steward never researches itself. When a reflection run returns a
-// validated `service_intents` entry, this coordinator:
-//   1. deduplicates it (a duplicate turn must not start a second identical run
-//      — in-memory guard plus an on-disk request/draft marker across restarts);
-//   2. persists the authorized request for traceability;
-//   3. delegates execution to the separate web-enabled research subagent
-//      (`research-job.js`), which returns a draft and a Companion follow-up.
+// validated `service_intents` entry, this dispatcher runs it through ONE generic
+// path — there is no per-capability JavaScript route:
+//   1. resolve the capability from capabilities/registry.yml (single source);
+//   2. deduplicate (in-memory guard + the canonical request's on-disk lifecycle
+//      status — only a running/completed request blocks; failed/invalid retry);
+//   3. preflight the capability's declared DSH tools against the research route;
+//   4. load the capability INSTRUCTION and SCHEMA from files (never duplicated
+//      in JS) and interpolate the prompt from the request scope;
+//   5. write the canonical Service Request under service-requests/ and drive its
+//      lifecycle (authorized -> running -> completed | failed | invalid);
+//   6. delegate execution to the web-enabled research subagent seam;
+//   7. store the validated result and return a Companion follow-up.
 //
-// It owns no pedagogical judgement: it only routes an already-validated,
-// already-authorized intent to the research seam.
+// It owns no pedagogical judgement and no capability rules: those live in the
+// registry and the capability files.
 
 import { promises as fsp } from 'node:fs';
-import path from 'node:path';
 
 import { runResearch, scopeKey, outputTargetFor, wantsKnowledgeProposal } from './research-job.js';
-
-function requestPathFor(dir, intent) {
-	return path.join(dir, 'drafts', `curriculum-alignment-${scopeKey(intent)}.request.yaml`);
-}
+import { getCapability, isDispatchable } from './registry.js';
+import { loadCapabilityArtifacts, interpolatePrompt } from './capability-loader.js';
+import { requestPathFor, writeRequest, readRequestStatus, isBlocking } from './service-request.js';
 
 async function pathExists(p) {
 	try {
@@ -29,52 +33,29 @@ async function pathExists(p) {
 	}
 }
 
-function yamlScalar(value) {
-	const s = String(value ?? '');
-	return /[:#\-?{}\[\],&*!|>'"%@`\n]/.test(s) || s.trim() !== s || s === '' ? JSON.stringify(s) : s;
+function storageOf(intent) {
+	return wantsKnowledgeProposal(intent) ? 'knowledge_proposal' : 'draft';
 }
 
-/** Serialize the authorized request as a small, human-readable YAML record. */
-function serializeRequest(intent, meta) {
-	const s = intent.scope || {};
-	const storage = wantsKnowledgeProposal(intent) ? 'knowledge_proposal' : 'draft';
-	const location = storage === 'knowledge_proposal'
-		? (intent.expected_output && intent.expected_output.location) || 'knowledge-proposals/'
-		: undefined;
-	const lines = [
-		'service: knowledge',
-		'mode: research',
-		`task: ${yamlScalar(intent.task)}`,
-		`reason: ${yamlScalar(intent.reason)}`,
-		'authorization:',
-		`  type: ${yamlScalar(intent.authorization.type)}`,
-		`  evidence: ${yamlScalar(intent.authorization.evidence)}`,
-		'scope:',
-		`  jurisdiction: ${yamlScalar(s.jurisdiction)}`,
-		`  subject: ${yamlScalar(s.subject)}`,
-		`  phase: ${yamlScalar(s.phase)}`,
-		`  grade: ${yamlScalar(s.grade)}`,
-		`  topic: ${yamlScalar(s.topic)}`,
-		`  denomination: ${yamlScalar(s.denomination ?? 'unknown')}`,
-		'source_requirements:',
-		'  official_sources_first: true',
-		'  citations_required: true',
-		'expected_output:',
-		'  format: curriculum_alignment_brief',
-		`  storage: ${yamlScalar(storage)}`,
-		...(location ? [`  location: ${yamlScalar(location)}`] : []),
-		`return_to: ${yamlScalar(intent.return_to)}`,
-		`requested_by: pts-background-steward`,
-		`session_id: ${yamlScalar(meta.sessionId)}`,
-		`requested_at: ${new Date().toISOString()}`,
-		'status: authorized',
-		'',
-	];
-	return lines.join('\n');
+function buildRecord(intent, cap, sessionId, storage) {
+	return {
+		task: intent.task,
+		capability_version: cap.capability_version,
+		reason: intent.reason,
+		authorization: intent.authorization,
+		scope: intent.scope,
+		expected_output: storage === 'knowledge_proposal'
+			? { type: 'knowledge_proposal', location: (intent.expected_output && intent.expected_output.location) || 'knowledge-proposals/' }
+			: { type: 'draft' },
+		result_schema: cap.result_schema,
+		return_to: intent.return_to || 'critical_friend',
+		session_id: sessionId,
+		requested_at: new Date().toISOString(),
+	};
 }
 
 /**
- * Create the service coordinator.
+ * Create the generic capability dispatcher.
  * @param {object} ports
  * @param {object} ports.subagents - ctx.subagents
  * @param {object|undefined} ports.jobs - ctx.jobs (optional)
@@ -85,40 +66,68 @@ function serializeRequest(intent, meta) {
 export function createServiceCoordinator({ subagents, jobs, log = () => {}, logError = () => {}, externalSignal } = {}) {
 	// Dedup keys currently running (guards rapid duplicate turns within a run).
 	const active = new Set();
-	// Keys completed this process (belt-and-braces with the on-disk marker).
+	// Keys successfully completed this process (belt-and-braces with the on-disk
+	// lifecycle). A FAILED key is never added here, so it stays retryable.
 	const done = new Set();
 	let disposed = false;
 
 	async function runIntent(context, intent, researchConfig) {
-		const { dir, slug, sessionId, parentAgent, childSessionIds } = context;
-		const key = `${dir}::${scopeKey(intent)}`;
+		const { dir, slug, sessionId, parentAgent, childSessionIds, ptsRoot, registry } = context;
 
-		if (active.has(key)) {
-			log(`${slug}: identischer Knowledge-Request läuft bereits — kein doppelter Auftrag`);
+		const cap = registry ? getCapability(registry, intent.task) : undefined;
+		if (!cap || !isDispatchable(cap)) {
+			log(`${slug}: "${intent.task}" ist keine dispatchbare Capability im Katalog — kein Lauf`);
+			return { status: 'no-capability', key: `${dir}::${intent.task}` };
+		}
+
+		const storage = storageOf(intent);
+		const sk = scopeKey(intent);
+		const capVersion = Number(cap.capability_version) || 1;
+		// Dedup key includes storage target AND capability version: a draft run
+		// never blocks a later knowledge_proposal run, and a new capability
+		// version re-runs.
+		const key = `${dir}::${intent.task}::${sk}::${storage}::v${capVersion}`;
+		const reqFile = requestPathFor(dir, intent.task, `${sk}-${storage}-v${capVersion}`);
+		const record = buildRecord(intent, cap, sessionId, storage);
+
+		if (active.has(key) || done.has(key)) {
+			log(`${slug}: identischer Request läuft/erledigt — kein doppelter Auftrag`);
 			return { status: 'deduplicated', key };
 		}
-		if (done.has(key)) {
-			log(`${slug}: Knowledge-Request in dieser Sitzung bereits erledigt — übersprungen`);
-			return { status: 'deduplicated', key };
-		}
-		// Cross-restart dedup: an existing output or request marker means done.
-		if (await pathExists(outputTargetFor(dir, intent)) || await pathExists(requestPathFor(dir, intent))) {
+		// Cross-restart dedup: a completed output OR a running/completed request
+		// blocks; a failed/invalid/cancelled request is explicitly retryable.
+		const statusRec = await readRequestStatus(reqFile);
+		if (await pathExists(outputTargetFor(dir, intent)) || isBlocking(statusRec)) {
 			done.add(key);
-			log(`${slug}: Knowledge-Request bereits als Ergebnis/Marker vorhanden — kein doppelter Auftrag`);
+			log(`${slug}: Request bereits aktiv/erfolgreich (${statusRec ? statusRec.status : 'Ergebnis vorhanden'}) — kein doppelter Auftrag`);
 			return { status: 'deduplicated', key };
 		}
+		const attempts = (statusRec && statusRec.attempts) ? statusRec.attempts : 0;
 
 		if (!researchConfig || researchConfig.enabled === false) {
+			await writeRequest(reqFile, { ...record, status: 'proposed', attempts }).catch(() => {});
 			log(`${slug}: Recherche deaktiviert — Request bleibt proposed (kein Anlauf)`);
 			return { status: 'proposed', key };
 		}
 
+		// Tool preflight against the REAL DSH tool names declared by the capability.
+		const requiredTools = Array.isArray(cap.dsh_tools) ? cap.dsh_tools : [];
+		const available = new Set(researchConfig.allowedTools || []);
+		const missing = requiredTools.filter((t) => !available.has(t));
+		if (missing.length > 0) {
+			const detail = `Tool-Preflight fehlgeschlagen: ${missing.join(', ')} nicht in der Recherche-Allowlist (${[...available].join(', ') || 'leer'})`;
+			await writeRequest(reqFile, { ...record, status: 'failed', attempts, detail }).catch(() => {});
+			logError(`${slug}: ${detail}`);
+			return { status: 'failed', key, detail }; // retryable: not added to done
+		}
+
 		active.add(key);
 		try {
-			// Persist the authorized request first (also the dedup marker).
-			const reqPath = requestPathFor(dir, intent);
-			await fsp.mkdir(path.dirname(reqPath), { recursive: true });
-			await fsp.writeFile(reqPath, serializeRequest(intent, { sessionId }), 'utf8');
+			const art = await loadCapabilityArtifacts(ptsRoot, cap);
+			const promptText = interpolatePrompt(art.promptTemplate, intent.scope, intent.reason);
+			const toolAllow = requiredTools.filter((t) => available.has(t));
+			const nextAttempt = attempts + 1;
+			await writeRequest(reqFile, { ...record, status: 'running', attempts: nextAttempt });
 
 			const outcome = await runResearch({
 				subagents,
@@ -130,14 +139,28 @@ export function createServiceCoordinator({ subagents, jobs, log = () => {}, logE
 				parentAgent,
 				childSessionIds,
 				signal: externalSignal,
+				artifacts: { persona: art.persona, promptText, outputSchema: art.schema },
+				toolAllow,
 				log,
 				logError,
 			});
-			done.add(key);
+
+			if (outcome.status === 'completed-research') {
+				await writeRequest(reqFile, { ...record, status: 'completed', attempts: nextAttempt, result_location: outcome.outputRel });
+				done.add(key);
+			} else if (outcome.status === 'invalid') {
+				await writeRequest(reqFile, { ...record, status: 'invalid', attempts: nextAttempt, detail: outcome.detail });
+			} else if (outcome.status === 'aborted') {
+				await writeRequest(reqFile, { ...record, status: 'cancelled', attempts: nextAttempt, detail: outcome.detail });
+			} else {
+				await writeRequest(reqFile, { ...record, status: 'failed', attempts: nextAttempt, detail: outcome.detail });
+			}
 			return { status: outcome.status, key, outcome };
 		} catch (error) {
-			logError(`${slug}: Knowledge-Request fehlgeschlagen (betrifft nur den Hintergrund): ${String((error && error.stack) || error)}`);
-			return { status: 'failed', key, detail: String((error && error.message) || error) };
+			const detail = String((error && error.message) || error);
+			await writeRequest(reqFile, { ...record, status: 'failed', attempts: attempts + 1, detail }).catch(() => {});
+			logError(`${slug}: Request fehlgeschlagen (betrifft nur den Hintergrund): ${String((error && error.stack) || error)}`);
+			return { status: 'failed', key, detail };
 		} finally {
 			active.delete(key);
 		}
@@ -145,8 +168,8 @@ export function createServiceCoordinator({ subagents, jobs, log = () => {}, logE
 
 	return {
 		/**
-		 * Route validated, authorized intents to the research seam.
-		 * @param {object} context - { dir, slug, sessionId, parentAgent, intents, childSessionIds, researchConfig }
+		 * Route validated, authorized intents through the generic dispatcher.
+		 * @param {object} context - { dir, slug, sessionId, parentAgent, intents, childSessionIds, researchConfig, ptsRoot, registry }
 		 * @returns {Promise<object[]>} per-intent results
 		 */
 		async handle(context) {
@@ -158,7 +181,7 @@ export function createServiceCoordinator({ subagents, jobs, log = () => {}, logE
 				try {
 					results.push(await runIntent(context, intent, context.researchConfig));
 				} catch (error) {
-					logError(`${context.slug}: unerwarteter Coordinator-Fehler: ${String((error && error.stack) || error)}`);
+					logError(`${context.slug}: unerwarteter Dispatcher-Fehler: ${String((error && error.stack) || error)}`);
 					results.push({ status: 'failed', detail: String((error && error.message) || error) });
 				}
 			}

@@ -35,6 +35,7 @@ import { createReflectionRunner } from './reflection-job.js';
 import { createServiceCoordinator } from './service-coordinator.js';
 import { readStewardModelSettings, readProviderCatalog, writeStewardSettingsSection } from './settings-source.js';
 import { CANONICAL_FILES } from './workspace-state.js';
+import { loadRegistry, dispatchableTasksForService } from './registry.js';
 
 export const inject = ['sessions', 'agents', 'subagents'];
 
@@ -125,6 +126,23 @@ export function apply(ctx, rawConfig) {
 		const settingsModel = await readStewardModelSettings(settingsService);
 		const stewardModel = resolveModelConfig(config, settingsModel);
 		return resolveResearchConfig(config, stewardModel, settingsModel);
+	}
+
+	// Dispatchable knowledge capability task ids from capabilities/registry.yml
+	// (the single routing source). Cached; failures degrade to an empty catalogue
+	// (fail-closed: the steward then proposes no routable service intent).
+	let cachedRegistryPromise = null;
+	async function dispatchableKnowledgeTasks() {
+		try {
+			if (!cachedRegistryPromise) {
+				const root = await ptsRoot();
+				cachedRegistryPromise = root ? loadRegistry(root) : Promise.resolve({ capabilities: [] });
+			}
+			return dispatchableTasksForService(await cachedRegistryPromise, 'knowledge');
+		} catch (error) {
+			logError(`Capability-Registry nicht ladbar (${String((error && error.message) || error)}) — keine dispatchbaren Tasks`);
+			return [];
+		}
 	}
 
 	// Fiber-owned cancellation: plugin stop/update/unload aborts any active
@@ -221,6 +239,7 @@ export function apply(ctx, rawConfig) {
 			parentAgent: parent,
 			childSessionIds,
 			modelConfig: await effectiveModelConfig(),
+			allowedTasks: await dispatchableKnowledgeTasks(),
 		};
 		const outcome = await reflect(job);
 		lastOutcomeByDir.set(key, { at: Date.now(), outcome });
@@ -232,6 +251,8 @@ export function apply(ctx, rawConfig) {
 		const intents = Array.isArray(outcome && outcome.serviceIntents) ? outcome.serviceIntents : [];
 		if (intents.length > 0) {
 			const researchConfig = await effectiveResearchConfig();
+			const root = await ptsRoot();
+			const registry = root ? await cachedRegistryPromise : null;
 			coordinator.handle({
 				dir: key,
 				slug: path.basename(key),
@@ -240,6 +261,8 @@ export function apply(ctx, rawConfig) {
 				intents,
 				childSessionIds,
 				researchConfig,
+				ptsRoot: root,
+				registry,
 			}).catch((error) => logError(`${key}: Coordinator-Fehler: ${String((error && error.stack) || error)}`));
 		}
 	}

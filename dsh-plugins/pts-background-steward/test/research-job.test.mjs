@@ -6,11 +6,8 @@ import assert from 'node:assert/strict';
 
 import {
 	CURRICULUM_BRIEF_SCHEMA_VERSION,
-	CURRICULUM_BRIEF_SCHEMA,
 	validateResearchResult,
 	scopeKey,
-	buildResearchPrompt,
-	buildResearcherPersona,
 	formatBriefMarkdown,
 	formatProposalMarkdown,
 	buildFollowupBriefing,
@@ -18,21 +15,9 @@ import {
 	proposalPathFor,
 	outputTargetFor,
 	wantsKnowledgeProposal,
+	isVerifyingSource,
+	evaluateSourceStatus,
 } from '../lib/research-job.js';
-
-const ALLOWED_KEYWORDS = new Set(['type', 'oneOf', 'properties', 'required', 'additionalProperties', 'items', 'enum', 'const', 'description', 'title', 'default', 'examples']);
-const ALLOWED_TYPES = new Set(['object', 'array', 'string', 'number', 'integer', 'boolean', 'null']);
-
-function assertSubset(node, at) {
-	assert.equal(typeof node, 'object', `${at} ist kein Knoten`);
-	for (const key of Object.keys(node)) {
-		assert.ok(ALLOWED_KEYWORDS.has(key), `${at}: Schlüssel "${key}" außerhalb der Teilmenge`);
-	}
-	if (node.type !== undefined) assert.ok(ALLOWED_TYPES.has(node.type), `${at}: Typ "${node.type}" unzulässig`);
-	if (node.properties) for (const [name, child] of Object.entries(node.properties)) assertSubset(child, `${at}.${name}`);
-	if (node.items !== undefined) assertSubset(node.items, `${at}.items`);
-	if (node.additionalProperties !== undefined) assert.equal(typeof node.additionalProperties, 'boolean', `${at}: additionalProperties boolean`);
-}
 
 const intent = {
 	task: 'verify_curriculum_alignment',
@@ -48,20 +33,19 @@ function validBrief(overrides = {}) {
 		task: 'verify_curriculum_alignment',
 		summary: 'Das Thema ist in beiden Konfessionen anschlussfähig.',
 		findings: [
-			{ denomination: 'evangelisch', alignment: 'yes', competence_areas: 'Hoffnung/Eschatologie', statement: 'Passt zum inhaltlichen Schwerpunkt.' },
-			{ denomination: 'katholisch', alignment: 'partial', statement: 'Teilweise abgedeckt.' },
+			{ denomination: 'evangelisch', alignment: 'yes', competence_areas: 'Hoffnung/Eschatologie', statement: 'Passt zum inhaltlichen Schwerpunkt.', source_ids: ['s1'] },
+			{ denomination: 'katholisch', alignment: 'partial', statement: 'Teilweise abgedeckt.', source_ids: ['s1'] },
 		],
 		sources: [
-			{ title: 'Kernlehrplan Religionslehre NRW (SII)', url: 'https://example.gov', official: true, accessed: '2026-08-27' },
+			{ id: 's1', title: 'Kernlehrplan Religionslehre NRW (SII)', publisher: 'MSB NRW', url: 'https://example.gov', official: true, accessed: '2026-08-27', version_date: '2014', validity: 'current', locus: 'Inhaltsfeld 6, S. 27' },
 		],
 		uncertainties: ['Konkrete Jahrgangszuordnung schulintern.'],
 		...overrides,
 	};
 }
 
-test('CURRICULUM_BRIEF_SCHEMA bleibt in der erzwungenen Teilmenge', () => {
-	assert.equal(CURRICULUM_BRIEF_SCHEMA.type, 'object');
-	assertSubset(CURRICULUM_BRIEF_SCHEMA, '$');
+test('CURRICULUM_BRIEF_SCHEMA_VERSION ist v2', () => {
+	assert.equal(CURRICULUM_BRIEF_SCHEMA_VERSION, 'ptspace.curriculum-alignment-brief/v2');
 });
 
 test('vollständiger Brief besteht', () => {
@@ -91,23 +75,6 @@ test('scopeKey ist stabil und scope-abhängig (Dedup-Basis)', () => {
 	assert.equal(a, b);
 	const c = scopeKey({ ...intent, scope: { ...intent.scope, grade: '12' } });
 	assert.notEqual(a, c);
-});
-
-test('Prompt fordert bei unbekannter Konfession beide Konfessionen', () => {
-	const prompt = buildResearchPrompt(intent);
-	assert.match(prompt, /evangelische UND katholische/);
-	assert.match(prompt, /darf die Prüfung nicht blockieren/);
-});
-
-test('Prompt nennt bekannte Konfession direkt', () => {
-	const prompt = buildResearchPrompt({ ...intent, scope: { ...intent.scope, denomination: 'evangelisch' } });
-	assert.match(prompt, /Konfession: evangelisch/);
-});
-
-test('Persona verbietet Entscheidung und Material', () => {
-	const persona = buildResearcherPersona();
-	assert.match(persona, /KEINE pädagogische Entscheidung/);
-	assert.match(persona, /KEIN Unterrichtsmaterial/);
 });
 
 test('Brief-Markdown ist ein Draft mit Quellen', () => {
@@ -164,5 +131,59 @@ test('Follow-up-Briefing kennzeichnet ein Proposal als noch nicht kuratiert', ()
 	assert.match(briefing, /Knowledge Proposal/);
 	assert.match(briefing, /noch nicht kuratiert/);
 	assert.match(briefing, /späterer, getrennter Schritt/);
+});
+
+// ——— Quellenqualitäts-/Gültigkeits-Gate (verhindert den "Lehrplan-von-1999"-Fehler) ———
+
+test('vollständig belegter aktueller offizieller Befund ist verified', () => {
+	const gate = evaluateSourceStatus(validBrief());
+	assert.equal(gate.status, 'verified');
+});
+
+test('eine ausschließlich archivierte Quelle führt nicht zu verified', () => {
+	const brief = validBrief({
+		sources: [{ id: 's1', title: 'Alter Lehrplan 1999', publisher: 'MSW NRW', url: 'https://example.gov/1999', official: true, accessed: '2026-08-27', version_date: '1999', validity: 'archived', locus: 'S. 5' }],
+	});
+	assert.equal(isVerifyingSource(brief.sources[0]), false);
+	assert.notEqual(evaluateSourceStatus(brief).status, 'verified');
+});
+
+test('eine abgelöste Quelle ohne Nachfolger wird abgelehnt', () => {
+	const r = validateResearchResult(validBrief({
+		sources: [{ id: 's1', title: 'X', publisher: 'Y', url: 'https://x', official: true, accessed: '2026-08-27', version_date: '2005', validity: 'superseded', locus: 'S. 1' }],
+	}));
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('Nachfolgedokument')));
+});
+
+test('fehlende Fundstelle verhindert verified (keine aktuelle offizielle Quelle vollständig nachgewiesen)', () => {
+	const brief = validBrief({
+		sources: [{ id: 's1', title: 'KLP', publisher: 'MSB', url: 'https://x', official: true, accessed: '2026-08-27', version_date: '2014', validity: 'current' }],
+	});
+	assert.equal(isVerifyingSource(brief.sources[0]), false);
+	assert.notEqual(evaluateSourceStatus(brief).status, 'verified');
+});
+
+test('validateResearchResult: unbekannte Konfession verlangt evangelisch UND katholisch als getrennte Befunde', () => {
+	const onlyEv = validBrief({
+		findings: [{ denomination: 'evangelisch', alignment: 'yes', statement: 'ok', source_ids: ['s1'] }],
+	});
+	const r = validateResearchResult(onlyEv, { denomination: 'unknown' });
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('katholischer Befund fehlt')));
+});
+
+test('validateResearchResult: v2 liefert geprüften source_status', () => {
+	const r = validateResearchResult(validBrief(), { denomination: 'unknown' });
+	assert.equal(r.ok, true);
+	assert.equal(r.source_status, 'verified');
+});
+
+test('validateResearchResult: source_ids auf unbekannte Quelle wird abgelehnt', () => {
+	const r = validateResearchResult(validBrief({
+		findings: [{ denomination: 'evangelisch', alignment: 'yes', statement: 'ok', source_ids: ['sX'] }, { denomination: 'katholisch', alignment: 'partial', statement: 'ok', source_ids: ['s1'] }],
+	}), { denomination: 'unknown' });
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('unbekannte Quelle')));
 });
 

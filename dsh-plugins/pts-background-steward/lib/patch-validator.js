@@ -34,10 +34,11 @@ export const OPERATION_KINDS = Object.freeze([
 	'propose-board-item',
 ]);
 
-// Allowlist of bounded, source-grounded knowledge tasks the steward may propose
-// as a service intent. Deliberately narrow: only source-grounded knowledge, no
-// pedagogical comparison or material production.
-export const SERVICE_INTENT_TASKS = Object.freeze(['verify_curriculum_alignment']);
+// Bounded, source-grounded knowledge tasks a steward may propose as a service
+// intent are NOT a hardcoded allowlist here. The set of routable tasks is
+// derived at runtime from the capability registry (capabilities/registry.yml,
+// dispatchable knowledge capabilities) and injected as `expectation.allowedTasks`.
+// This keeps the registry the single routing source.
 
 // Only the sole authorization form that lets a steward-proposed knowledge
 // request start without a separate permission turn.
@@ -128,7 +129,7 @@ export const STEWARDSHIP_RESULT_SCHEMA = Object.freeze({
 				additionalProperties: false,
 				required: ['task', 'reason', 'authorization', 'scope', 'return_to'],
 				properties: {
-					task: { type: 'string', enum: [...SERVICE_INTENT_TASKS] },
+					task: { type: 'string', description: 'Stabile Capability-Task-ID; gegen den Capability-Katalog geprüft.' },
 					reason: { type: 'string' },
 					authorization: {
 						type: 'object',
@@ -215,6 +216,7 @@ function checkShape(result) {
  * @param {Record<string, string|null>} expectation.hashes - base hashes snapshot
  * @param {Set<string>} expectation.messageIds - dialogue ids offered to the child (m1, m2, …)
  * @param {Set<string>} [expectation.userMessageIds] - subset authored by the teacher (defaults to messageIds)
+ * @param {Set<string>} [expectation.allowedTasks] - dispatchable capability task ids from the registry
  * @returns {{ ok: true, result: object } | { ok: false, errors: string[] }}
  */
 export function validateResult(structured, expectation) {
@@ -226,6 +228,11 @@ export function validateResult(structured, expectation) {
 	const userMessageIds = expectation.userMessageIds instanceof Set
 		? expectation.userMessageIds
 		: expectation.messageIds;
+	// Routable tasks come from the capability registry (single source). Fail
+	// closed: without an injected catalogue, no service intent is routable.
+	const allowedTasks = expectation.allowedTasks instanceof Set
+		? expectation.allowedTasks
+		: new Set();
 
 	if (r.session_id !== expectation.sessionId) {
 		errors.push(`session_id "${r.session_id}" entspricht nicht der erwarteten Session ${expectation.sessionId}`);
@@ -332,8 +339,8 @@ export function validateResult(structured, expectation) {
 		siIdx += 1;
 		const label = `service_intents[${siIdx}]`;
 		if (!isPlainObject(si)) { errors.push(`${label} ist kein Objekt`); continue; }
-		if (!SERVICE_INTENT_TASKS.includes(si.task)) {
-			errors.push(`${label}.task ist nicht erlaubt (nur quellengebundenes Wissen: ${SERVICE_INTENT_TASKS.join(', ')})`);
+		if (!allowedTasks.has(si.task)) {
+			errors.push(`${label}.task "${String(si.task)}" ist keine dispatchbare Capability im Katalog (registry-getrieben)`);
 		}
 		if (typeof si.reason !== 'string' || si.reason.trim() === '') errors.push(`${label}.reason fehlt`);
 		if (si.return_to !== 'critical_friend') errors.push(`${label}.return_to muss critical_friend sein`);

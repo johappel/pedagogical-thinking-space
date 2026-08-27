@@ -223,11 +223,17 @@ The Worker is a general implementation service.
 
 Specific Worker abilities are described as Worker Capabilities.
 
-Before creating or executing a Worker task, check:
+Executable capabilities are resolved through the capability registry
+(`capabilities/registry.yml`) from the **PTS root** — never by searching the
+current Denkraum. The registry is the single routing source: it records each
+capability's stable `task` id, service, status, tools, result schema and output
+handler.
 
-`capabilities/workers/`
+Before delegating a Worker task, resolve it in `capabilities/registry.yml` and
+read its capability document under `capabilities/workers/`.
 
-If a matching capability exists, follow it.
+Only capabilities marked `executable` (or `experimental`) are dispatched; a
+`contract-only` capability is documented but not routed.
 
 Worker Service Requests should include the matching capability path when one exists.
 

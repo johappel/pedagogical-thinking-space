@@ -31,48 +31,60 @@ import { createHash } from 'node:crypto';
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 
-export const CURRICULUM_BRIEF_SCHEMA_VERSION = 'ptspace.curriculum-alignment-brief/v1';
+export const CURRICULUM_BRIEF_SCHEMA_VERSION = 'ptspace.curriculum-alignment-brief/v2';
 
-/** Object-rooted JSON Schema in the dsh-tools enforced subset. */
-export const CURRICULUM_BRIEF_SCHEMA = Object.freeze({
-	type: 'object',
-	additionalProperties: false,
-	required: ['schema', 'task', 'findings', 'sources', 'uncertainties'],
-	properties: {
-		schema: { const: CURRICULUM_BRIEF_SCHEMA_VERSION },
-		task: { const: 'verify_curriculum_alignment' },
-		summary: { type: 'string', description: 'Ein bis zwei Sätze Gesamtbefund, quellenbasiert.' },
-		findings: {
-			type: 'array',
-			items: {
-				type: 'object',
-				additionalProperties: false,
-				required: ['denomination', 'alignment', 'statement'],
-				properties: {
-					denomination: { type: 'string', description: 'z. B. evangelisch, katholisch oder konfessionsübergreifend.' },
-					alignment: { enum: ['yes', 'partial', 'no', 'unclear'] },
-					competence_areas: { type: 'string', description: 'Relevante Kompetenzbereiche / inhaltliche Schwerpunkte.' },
-					statement: { type: 'string', description: 'Kurze quellengebundene Aussage.' },
-				},
-			},
-		},
-		sources: {
-			type: 'array',
-			items: {
-				type: 'object',
-				additionalProperties: false,
-				required: ['title', 'official'],
-				properties: {
-					title: { type: 'string' },
-					url: { type: 'string' },
-					official: { type: 'boolean' },
-					accessed: { type: 'string' },
-				},
-			},
-		},
-		uncertainties: { type: 'array', items: { type: 'string' } },
-	},
-});
+// The result JSON Schema is NOT duplicated here: it is loaded at runtime from
+// capabilities/knowledge/verify_curriculum_alignment.schema.json via the
+// capability loader. This module keeps only the version id and the PTS-side
+// validation/quality gate below.
+
+// Source-status vocabulary. The status is COMPUTED by the gate below, never
+// trusted from the model's `official` flag alone.
+export const SOURCE_STATUSES = Object.freeze(['verified', 'partly-verified', 'source-candidates-unverified', 'unverified']);
+
+/**
+ * A source counts as CURRENT OFFICIAL EVIDENCE only when it is officially
+ * published, currently valid (not archived/superseded), and fully evidenced:
+ * a direct URL, an access date, a version/publication date and an exact locus.
+ * An archived or superseded source can never verify a CURRENT alignment.
+ */
+export function isVerifyingSource(src) {
+	if (!isPlainObject(src)) return false;
+	const nonEmpty = (v) => typeof v === 'string' && v.trim() !== '';
+	return src.official === true
+		&& src.validity === 'current'
+		&& nonEmpty(src.url)
+		&& nonEmpty(src.accessed)
+		&& nonEmpty(src.version_date)
+		&& nonEmpty(src.locus);
+}
+
+/**
+ * Compute the effective source_status from the actual sources and their
+ * mapping to findings. A result may only be stored as `verified` or
+ * `partly-verified` when at least one current official source is fully
+ * evidenced. Findings that only cite archived/superseded or non-official
+ * sources are not backed.
+ * @returns {{ status: string, reasons: string[] }}
+ */
+export function evaluateSourceStatus(result) {
+	const sources = Array.isArray(result?.sources) ? result.sources : [];
+	const findings = Array.isArray(result?.findings) ? result.findings : [];
+	const verifyingById = new Map();
+	for (const s of sources) if (isVerifyingSource(s)) verifyingById.set(String(s.id), s);
+	const anyVerifying = verifyingById.size > 0;
+	const positive = findings.filter((f) => isPlainObject(f) && (f.alignment === 'yes' || f.alignment === 'partial'));
+	const backed = (f) => Array.isArray(f.source_ids) && f.source_ids.some((id) => verifyingById.has(String(id)));
+	const reasons = [];
+	if (!anyVerifying) {
+		reasons.push('keine aktuelle offizielle Quelle mit vollständigem Nachweis (URL, Abrufdatum, Fassungsdatum, Fundstelle)');
+		// Distinguish "sources exist but none verify" from "no sources at all".
+		return { status: sources.length > 0 ? 'source-candidates-unverified' : 'unverified', reasons };
+	}
+	if (positive.length > 0 && positive.every(backed)) return { status: 'verified', reasons };
+	if (positive.length > 0) reasons.push('nicht jeder positive Befund ist an eine aktuelle offizielle Quelle gebunden');
+	return { status: 'partly-verified', reasons };
+}
 
 /** Stable dedup/draft key from the intent's public scope. */
 export function scopeKey(intent) {
@@ -107,49 +119,8 @@ export function outputTargetFor(dir, intent) {
 	return wantsKnowledgeProposal(intent) ? proposalPathFor(dir, intent) : draftPathFor(dir, intent);
 }
 
-export function buildResearcherPersona() {
-	return [
-		'Du bist ein quellengebundener Recherche-Subagent im Pedagogical Thinking Space.',
-		'Dein einziger Auftrag ist eine begrenzte Lehrplan-Zuordnung: prüfe anhand offizieller Quellen, ob ein Thema plausibel zu Jurisdiktion, Fach, Schulphase und Jahrgang passt.',
-		'Regeln:',
-		'- Nutze zuerst offizielle Quellen (Kernlehrpläne, Bildungspläne, Ministerien, Landesinstitute). Belege jede Aussage mit einer identifizierbaren Quelle.',
-		'- Triff KEINE pädagogische Entscheidung und gib keine Richtungs-, Methoden- oder Werteempfehlung.',
-		'- Produziere KEIN Unterrichtsmaterial und vergleiche keine pädagogischen Ansätze.',
-		'- Übertrage KEINE personenbezogenen Daten; nutze nur öffentliche, nicht personenbezogene Quellen.',
-		'- Erfinde nichts. Wenn eine Quelle fehlt, benenne die Unsicherheit ausdrücklich.',
-		'- Ist die Konfession unbekannt, prüfe evangelische UND katholische Religionslehre und berichte beide getrennt.',
-		'Antworte auf Deutsch. Beende deinen Lauf, indem du GENAU EINMAL das Tool structured_output mit dem curriculum_alignment_brief aufrufst.',
-	].join('\n');
-}
-
-export function buildResearchPrompt(intent) {
-	const s = (intent && intent.scope) || {};
-	const denom = String(s.denomination ?? '').trim().toLowerCase();
-	const denomKnown = denom !== '' && denom !== 'unknown' && denom !== 'unbekannt';
-	const denomLine = denomKnown
-		? `- Konfession: ${s.denomination}`
-		: '- Konfession: unbekannt — prüfe evangelische UND katholische Religionslehre und berichte beide getrennt. Das Fehlen der Konfession darf die Prüfung nicht blockieren.';
-	return `# Rechercheauftrag: Lehrplan-Zuordnung (quellengebunden)
-
-Prüfe anhand offizieller Quellen, ob das folgende Thema plausibel in den angegebenen Rahmen passt.
-
-## Rahmen
-- Jurisdiktion: ${s.jurisdiction ?? '(fehlt)'}
-- Fach: ${s.subject ?? '(fehlt)'}
-- Schulphase: ${s.phase ?? '(fehlt)'}
-- Jahrgang: ${s.grade ?? '(fehlt)'}
-- Thema: ${s.topic ?? '(fehlt)'}
-${denomLine}
-
-## Begründung des Bedarfs
-${intent?.reason ?? '(keine angegeben)'}
-
-## Regeln für dein Ergebnis
-1. Rufe am Ende GENAU EINMAL \`structured_output\` mit dem curriculum_alignment_brief auf. Kein freier Schlusssatz.
-2. \`findings\`: je geprüfter Konfession/Schiene ein Eintrag mit \`alignment\` (yes | partial | no | unclear), relevanten Kompetenzbereichen/inhaltlichen Schwerpunkten und einer kurzen quellengebundenen Aussage.
-3. \`sources\`: jede Quelle mit Titel, ob offiziell (\`official\`), möglichst URL und Zugriffsdatum. Offizielle Quellen zuerst.
-4. \`uncertainties\`: was du aus offiziellen Quellen NICHT belegen konntest.
-5. Keine pädagogische Entscheidung, kein Material, kein Ansatzvergleich.`;
+export function buildResearchPrompt() {
+	throw new Error('buildResearchPrompt wurde entfernt: die Instruktion wird aus der Capability geladen (capability-loader.js)');
 }
 
 function isPlainObject(v) {
@@ -158,15 +129,37 @@ function isPlainObject(v) {
 
 /**
  * Validate one captured curriculum_alignment_brief. Independent of any provider
- * enforcement: at least one source-grounded finding and one cited source.
+ * enforcement: at least one source-grounded finding and one cited source, plus
+ * the source-quality/validity gate.
+ * @param {unknown} structured - captured structured_output value
+ * @param {object} [options]
+ * @param {string} [options.denomination] - scope denomination; when unknown/empty,
+ *   both evangelisch and katholisch findings are required.
  * @returns {{ ok: true, result: object } | { ok: false, errors: string[] }}
  */
-export function validateResearchResult(structured) {
+export function validateResearchResult(structured, options = {}) {
 	const errors = [];
 	if (!isPlainObject(structured)) return { ok: false, errors: ['result ist kein Objekt'] };
 	const r = structured;
 	if (r.schema !== CURRICULUM_BRIEF_SCHEMA_VERSION) errors.push(`schema muss "${CURRICULUM_BRIEF_SCHEMA_VERSION}" sein`);
 	if (r.task !== 'verify_curriculum_alignment') errors.push('task muss verify_curriculum_alignment sein');
+	const sourceIds = new Set();
+	if (!Array.isArray(r.sources) || r.sources.length === 0) errors.push('sources fehlt oder ist leer (Recherche muss belegt sein)');
+	else {
+		r.sources.forEach((s, i) => {
+			if (!isPlainObject(s)) { errors.push(`sources[${i + 1}] ist kein Objekt`); return; }
+			if (typeof s.id !== 'string' || s.id.trim() === '') errors.push(`sources[${i + 1}].id fehlt`);
+			else if (sourceIds.has(s.id)) errors.push(`sources[${i + 1}].id "${s.id}" ist doppelt`);
+			else sourceIds.add(s.id);
+			if (typeof s.title !== 'string' || s.title.trim() === '') errors.push(`sources[${i + 1}].title fehlt`);
+			if (typeof s.publisher !== 'string' || s.publisher.trim() === '') errors.push(`sources[${i + 1}].publisher (Institution) fehlt`);
+			if (typeof s.official !== 'boolean') errors.push(`sources[${i + 1}].official fehlt`);
+			if (!['current', 'archived', 'superseded'].includes(s.validity)) errors.push(`sources[${i + 1}].validity muss current|archived|superseded sein`);
+			if (s.validity === 'superseded' && (typeof s.successor !== 'string' || s.successor.trim() === '')) {
+				errors.push(`sources[${i + 1}]: abgelöste Quelle braucht ein Nachfolgedokument (successor)`);
+			}
+		});
+	}
 	if (!Array.isArray(r.findings) || r.findings.length === 0) errors.push('findings fehlt oder ist leer');
 	else {
 		r.findings.forEach((f, i) => {
@@ -174,18 +167,25 @@ export function validateResearchResult(structured) {
 			if (typeof f.denomination !== 'string' || f.denomination.trim() === '') errors.push(`findings[${i + 1}].denomination fehlt`);
 			if (!['yes', 'partial', 'no', 'unclear'].includes(f.alignment)) errors.push(`findings[${i + 1}].alignment unzulässig`);
 			if (typeof f.statement !== 'string' || f.statement.trim() === '') errors.push(`findings[${i + 1}].statement fehlt`);
+			if (!Array.isArray(f.source_ids)) errors.push(`findings[${i + 1}].source_ids fehlt`);
+			else for (const id of f.source_ids) {
+				if (!sourceIds.has(String(id))) errors.push(`findings[${i + 1}].source_ids verweist auf unbekannte Quelle "${id}"`);
+			}
 		});
 	}
-	if (!Array.isArray(r.sources) || r.sources.length === 0) errors.push('sources fehlt oder ist leer (Recherche muss belegt sein)');
-	else {
-		r.sources.forEach((s, i) => {
-			if (!isPlainObject(s)) { errors.push(`sources[${i + 1}] ist kein Objekt`); return; }
-			if (typeof s.title !== 'string' || s.title.trim() === '') errors.push(`sources[${i + 1}].title fehlt`);
-		});
+	// Unknown denomination must produce SEPARATE evangelisch + katholisch findings —
+	// a prompt alone is not enough (acceptance requirement).
+	const denom = String(options.denomination ?? '').trim().toLowerCase();
+	const denomUnknown = denom === '' || denom === 'unknown' || denom === 'unbekannt';
+	if (denomUnknown && Array.isArray(r.findings)) {
+		const denoms = r.findings.map((f) => String(f?.denomination ?? '').toLowerCase());
+		if (!denoms.some((d) => d.includes('evangel'))) errors.push('unbekannte Konfession: evangelischer Befund fehlt');
+		if (!denoms.some((d) => d.includes('kathol'))) errors.push('unbekannte Konfession: katholischer Befund fehlt');
 	}
 	if (!Array.isArray(r.uncertainties)) errors.push('uncertainties muss ein Array sein');
 	if (errors.length > 0) return { ok: false, errors };
-	return { ok: true, result: r };
+	const gate = evaluateSourceStatus(r);
+	return { ok: true, result: r, source_status: gate.status, source_status_reasons: gate.reasons };
 }
 
 /** Render the validated brief as a reviewable draft markdown document. */
@@ -211,19 +211,26 @@ export function formatBriefMarkdown(result, intent, dateIso) {
 		lines.push(result.summary.trim());
 		lines.push('');
 	}
+	lines.push(`- Quellenstatus (geprüft): ${evaluateSourceStatus(result).status}`);
+	lines.push('');
 	lines.push('## Befunde');
 	for (const f of result.findings) {
 		lines.push(`### ${f.denomination} — ${f.alignment}`);
 		if (f.competence_areas) lines.push(`- Kompetenzbereiche / Schwerpunkte: ${f.competence_areas}`);
 		lines.push(`- ${f.statement}`);
+		if (Array.isArray(f.source_ids) && f.source_ids.length > 0) lines.push(`- Belege: ${f.source_ids.join(', ')}`);
 		lines.push('');
 	}
 	lines.push('## Quellen');
 	for (const src of result.sources) {
-		const mark = src.official ? 'offiziell' : 'weitere';
+		const mark = isVerifyingSource(src) ? 'aktuell offiziell' : (src.official ? 'offiziell' : 'weitere');
 		const url = src.url ? ` — ${src.url}` : '';
 		const accessed = src.accessed ? ` (Zugriff: ${src.accessed})` : '';
-		lines.push(`- [${mark}] ${src.title}${url}${accessed}`);
+		const version = src.version_date ? ` · Fassung: ${src.version_date}` : '';
+		const validity = src.validity ? ` · ${src.validity}` : '';
+		const locus = src.locus ? ` · Fundstelle: ${src.locus}` : '';
+		const successor = src.successor ? ` · Nachfolger: ${src.successor}` : '';
+		lines.push(`- [${src.id ?? '?'}][${mark}] ${src.title}${url}${version}${validity}${locus}${successor}${accessed}`);
 	}
 	lines.push('');
 	lines.push('## Unsicherheiten');
@@ -242,9 +249,9 @@ export function formatBriefMarkdown(result, intent, dateIso) {
  */
 export function formatProposalMarkdown(result, intent, dateIso, slug) {
 	const s = (intent && intent.scope) || {};
-	const officialSources = result.sources.filter((x) => x.official);
-	const candidateSources = result.sources.filter((x) => !x.official);
-	const sourceStatus = officialSources.length > 0 ? 'partly-verified' : 'source-candidates-unverified';
+	const verifyingSources = result.sources.filter((x) => isVerifyingSource(x));
+	const candidateSources = result.sources.filter((x) => !isVerifyingSource(x));
+	const sourceStatus = evaluateSourceStatus(result).status;
 	const topic = String(s.topic ?? '').trim() || 'Thema';
 	const subject = String(s.subject ?? '').trim();
 	const jurisdiction = String(s.jurisdiction ?? '').trim();
@@ -293,19 +300,23 @@ export function formatProposalMarkdown(result, intent, dateIso, slug) {
 	lines.push('');
 	lines.push('# Verified Sources');
 	lines.push('');
-	if (officialSources.length === 0) lines.push('Noch keine offiziell verifizierte Quelle.');
-	else for (const src of officialSources) {
+	if (verifyingSources.length === 0) lines.push('Noch keine aktuelle offizielle Quelle vollständig nachgewiesen.');
+	else for (const src of verifyingSources) {
 		const url = src.url ? ` — ${src.url}` : '';
 		const accessed = src.accessed ? ` (Zugriff: ${src.accessed})` : '';
-		lines.push(`- ${src.title}${url}${accessed}`);
+		const version = src.version_date ? ` · Fassung: ${src.version_date}` : '';
+		const locus = src.locus ? ` · Fundstelle: ${src.locus}` : '';
+		lines.push(`- [${src.id ?? '?'}] ${src.publisher ? `${src.publisher}: ` : ''}${src.title}${url}${version}${locus}${accessed}`);
 	}
 	lines.push('');
 	lines.push('# Source Candidates');
 	lines.push('');
-	if (candidateSources.length === 0) lines.push('Keine weiteren, noch ungeprüften Quellen benannt.');
+	if (candidateSources.length === 0) lines.push('Keine weiteren, noch ungeprüften oder nicht aktuellen Quellen benannt.');
 	else for (const src of candidateSources) {
 		const url = src.url ? ` — ${src.url}` : '';
-		lines.push(`- ${src.title}${url}`);
+		const validity = src.validity ? ` · ${src.validity}` : '';
+		const successor = src.successor ? ` · Nachfolger: ${src.successor}` : '';
+		lines.push(`- [${src.id ?? '?'}] ${src.title}${url}${validity}${successor}`);
 	}
 	lines.push('');
 	lines.push('# Interpretation');
@@ -401,24 +412,28 @@ async function writeArtifact(target, markdown) {
 export async function runResearch(ports) {
 	const {
 		subagents, jobs, researchConfig, intent, dir, slug,
-		parentAgent, childSessionIds, signal,
+		parentAgent, childSessionIds, signal, artifacts, toolAllow,
 		log = () => {}, logError = () => {},
 	} = ports;
 	const dateIso = new Date().toISOString().slice(0, 10);
+	if (!artifacts || typeof artifacts.persona !== 'string' || typeof artifacts.promptText !== 'string' || !artifacts.outputSchema) {
+		return { status: 'failed', detail: 'Capability-Artefakte (Persona/Prompt/Schema) fehlen — nicht aus JS dupliziert, aus der Capability zu laden' };
+	}
+	const allow = Array.isArray(toolAllow) && toolAllow.length > 0 ? toolAllow : [...researchConfig.allowedTools];
 
 	const doResearch = async (jobSignal) => {
 		const request = {
 			label: 'pts-steward-research',
-			prompt: [{ type: 'text', text: buildResearchPrompt(intent) }],
+			prompt: [{ type: 'text', text: artifacts.promptText }],
 			parent: parentAgent,
 			signal: jobSignal ?? signal,
 			agentOptions: agentOptionsFrom(researchConfig),
-			outputSchema: CURRICULUM_BRIEF_SCHEMA,
-			toolFilter: { allow: [...researchConfig.allowedTools] },
-			persona: buildResearcherPersona(),
+			outputSchema: artifacts.outputSchema,
+			toolFilter: { allow: [...allow] },
+			persona: artifacts.persona,
 		};
 		const modelRoute = `${researchConfig.provider || 'Eltern-Provider'}/${researchConfig.model || 'Eltern-Modell'}`;
-		log(`${slug}: Recherche-Subagent gestartet (${modelRoute}, Werkzeuge: ${researchConfig.allowedTools.join(', ')})`);
+		log(`${slug}: Recherche-Subagent gestartet (${modelRoute}, Werkzeuge: ${allow.join(', ')})`);
 		const childRun = await subagents.start('spawn', request);
 		if (childSessionIds) childSessionIds.add(childRun.id);
 		let result;
@@ -435,7 +450,7 @@ export async function runResearch(ports) {
 		if (!result || result.structured === undefined || result.structured === null) {
 			return { status: 'failed', detail: 'kein strukturiertes Rechercheergebnis erfasst' };
 		}
-		const checked = validateResearchResult(result.structured);
+		const checked = validateResearchResult(result.structured, { denomination: (intent && intent.scope && intent.scope.denomination) || '' });
 		if (!checked.ok) {
 			logError(`${slug}: Rechercheergebnis verworfen:\n- ${checked.errors.join('\n- ')}`);
 			return { status: 'invalid', detail: `${checked.errors.length} Verstoß gegen das Recherche-Schema`, errors: checked.errors };

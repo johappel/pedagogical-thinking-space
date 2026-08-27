@@ -55,7 +55,10 @@ function formatDialogue(dialogue) {
 }
 
 export function buildTaskPrompt(task) {
-	const { dir, sessionId, turn, hashes, files, dialogue } = task;
+	const { dir, sessionId, turn, hashes, files, dialogue, allowedTasks } = task;
+	const taskList = Array.isArray(allowedTasks) && allowedTasks.length > 0
+		? allowedTasks.join(', ')
+		: '(derzeit keine dispatchbare Knowledge-Capability im Katalog)';
 	const hashLines = Object.entries(hashes)
 		.map(([name, h]) => `- ${name}: ${h ?? '(nicht vorhanden)'}`)
 		.join('\n');
@@ -99,7 +102,7 @@ ${dialogueText}
 6. \`next_turn_hint\`: höchstens eine offene Frage, die sich aus dem Gespräch ergibt — oder null. Die Frage ist ein Angebot an den Begleiter, keine Vorgabe.
 7. \`forbidden_effects\`: liste hier auf, was du bewusst NICHT getan hast (z. B. "keine Entscheidung erkannt").
 8. \`service_intents\`: normalerweise leer. Nur wenn nach diesem Gesprächsschritt geprüftes externes Wissen fehlt (z. B. ob ein Thema in einen Lehrplan/Jahrgang passt) und die Lehrkraft selbst danach fragt oder einen direkten Auftrag gibt („Kannst du … verifizieren?", „Prüfe …", „Speichere das als Knowledge"), schlage GENAU EINEN begrenzten, quellengebundenen Request vor:
-   - \`task\`: \`verify_curriculum_alignment\` (derzeit einzige erlaubte Aufgabe).
+   - \`task\`: eine dispatchbare Capability aus dem Katalog. Aktuell verfügbar: ${taskList}. Nutze ausschließlich eine dieser Task-IDs.
    - \`authorization\`: \`{ type: implied_bounded_request, evidence: <Nachrichten-ID der Lehrkraft> }\`. Die Evidence MUSS eine Nachricht der Lehrkraft sein (nicht "context"). Ein direkter Arbeitsauftrag der Lehrkraft ist bereits die Autorisierung; verlange keine zweite Freigabe.
    - \`scope\`: nur öffentliche, nicht personenbezogene Felder — \`jurisdiction\`, \`subject\`, \`phase\`, \`grade\`, \`topic\` (Pflicht) und optional \`denomination\` (bei Unklarheit "unknown"; das blockiert die Prüfung nicht).
    - \`expected_output\`: OPTIONAL. Nur wenn die Lehrkraft ausdrücklich verlangt hat, das verifizierte Ergebnis im Knowledge zu speichern, setze \`{ type: knowledge_proposal, location: "knowledge-proposals/" }\`. Sonst weglassen (dann wird ein Draft abgelegt). Das Proposal bleibt überprüfbar und noch nicht kuratiert; niemals direkt in kuratiertes knowledge/.
@@ -167,6 +170,8 @@ export function createReflectionRunner({
 }) {
 	async function reflectOnce(job) {
 		const { key, dir, sessionId, turn, dialogue, messageIds, userMessageIds } = job;
+		const allowedTasks = Array.isArray(job.allowedTasks) ? job.allowedTasks : [];
+		const allowedTaskSet = new Set(allowedTasks);
 		// Effective model target resolved per job (settings block > patch row).
 		// reasoningEffort is deliberately NOT passed: the one-shot seam cannot
 		// route it to the child, so the child always runs with provider default.
@@ -181,7 +186,7 @@ export function createReflectionRunner({
 
 		// 2. Prompt material (truncated copies for context only).
 		const files = await readCanonicalFiles(dir, config.maxFileChars);
-		const prompt = buildTaskPrompt({ dir, sessionId, turn, hashes, files, dialogue });
+		const prompt = buildTaskPrompt({ dir, sessionId, turn, hashes, files, dialogue, allowedTasks });
 
 		// 3+4. Native one-shot child through the spawn provider.
 		const request = {
@@ -213,7 +218,7 @@ export function createReflectionRunner({
 		}
 
 		// 5. Validate against expectations + policy.
-		const checked = validateResult(result.structured, { sessionId, turn, hashes, messageIds, userMessageIds });
+		const checked = validateResult(result.structured, { sessionId, turn, hashes, messageIds, userMessageIds, allowedTasks: allowedTaskSet });
 		if (!checked.ok) {
 			logError(`${key}: Ergebnis verworfen — Validierung fehlgeschlagen:\n- ${checked.errors.join('\n- ')}`);
 			return { status: 'invalid', detail: `${checked.errors.length} Verstoß/Vorstöße gegen Schema oder Politik`, errors: checked.errors };
