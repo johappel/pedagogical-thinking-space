@@ -8,7 +8,7 @@
 
 The **Pedagogical Companion** is the only visible conversation partner. `CRITICAL_FRIEND.md` remains the legacy contract path for this role.
 
-Memory, Knowledge, Workers, Renderers and Review are background services.
+Memory, Knowledge, Workers, Renderers and Review are background services. The continuous maintenance of the Denkstand also runs in the background: the **Background Steward** (`services/STEWARDSHIP.md`) documents the shared thinking after completed dialog turns, never inside them.
 
 Orchestration decides:
 
@@ -257,6 +257,35 @@ Prefer:
 - one recommendation;
 - one contrasting alternative;
 - one next decision.
+
+---
+
+# The Background Steward
+
+The Denkstand of an open Denkraum is maintained continuously in the background:
+
+```text
+Teacher <-> Pedagogical Companion
+                  |
+                  v
+        Background Steward
+                  |
+                  v
+        validated workspace patch
+```
+
+After a dialog turn has durably ended, the steward reflects on the recent exchange and proposes reversible documentation of the current state. Its result passes schema validation, policy checks and hash revision protection before it is applied atomically to the canonical files.
+
+The steward is **not a Worker**:
+
+- it needs no approval for reversible Denkstand care;
+- it must not produce materials;
+- it must not start research or any other service;
+- it must not decide pedagogical direction;
+- it must not approve a Planning Board entry - proposals stay `proposed`;
+- it must not write into Memory or curated Knowledge.
+
+It has no user contact and is never visible in the conversation. Successful background maintenance does not need to be mentioned by the Companion.
 
 ---
 

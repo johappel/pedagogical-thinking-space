@@ -188,7 +188,9 @@ The material metadata remains in `materials/`; the landscape stores only the mat
 Dragging a node changes only `learning-landscape.layout.json`.
 
 Creating or revising a complete draft changes `learning-landscape.md` as part
-of active workspace stewardship. Removing a moment, changing a stable moment,
+of background workspace stewardship (`services/STEWARDSHIP.md`): complete
+draft moments may be recorded by the Background Steward after a dialog turn.
+Removing a moment, changing a stable moment,
 binding an intervention or changing a material/transition relation that alters
 the pedagogical direction requires recognisable teacher approval. Layout changes
 remain confined to `learning-landscape.layout.json`.

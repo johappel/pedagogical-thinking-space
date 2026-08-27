@@ -32,14 +32,15 @@ decisions; and `materials/` records drafts and reviewed outputs. An
 application may project them together, but must not create a second canonical
 pedagogical model.
 
-## Active workspace stewardship
+## Background workspace stewardship
 
-The Companion keeps this understanding current in the workspace as the
-conversation develops. A meaningful change or condensation may update
-`learning-design.md` without a technical write question. The update must make
-its epistemic status visible: context and teacher statements are not the same
-as interpretations, hypotheses, open questions or decisions. The Companion
-briefly reports what was recorded and accepts corrections directly.
+The Companion keeps this understanding alive in conversation; the invisible
+Background Steward (`services/STEWARDSHIP.md`) keeps it current in the
+workspace. After a dialog turn ends, the steward records meaningful change or
+condensation in `learning-design.md` under hash revision protection and policy
+validation - never inside the visible answer turn. Every update must make its
+epistemic status visible: context and teacher statements are not the same as
+interpretations, hypotheses, open questions or decisions.
 
 The workspace may contain a reversible provisional state. A complete Learning
 Landscape moment may be stored with `status: draft`; `needs_review` marks a

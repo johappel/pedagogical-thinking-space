@@ -113,6 +113,7 @@ Der Port ist bewusst **nicht hardcodiert**, sondern nur der *Fallback* dieser Eb
 | `pts-activity-stream` | 0.2.0 | Takeover `conversation.chat.node` Keys `tool-call`/`context` @ priority −1: technische Tool-Zeilen → teacher-facing Aktivitätseinheiten |
 | `pts-artifact-panel` | 0.1.0 | Takeover `details` + `conversation.details.tool` @ −1, Chain-Sitz `conversation.chat.turnTail` @ −1, Tab „Artefakte" (`conversation.view`), Host-Route `/artifacts/v2/*` |
 | `pts-web-brand` | 0.1.0 | **Neu (Spike §10):** `sidebar.brand.mark`/`sidebar.brand.name` @ −1 („P"-Kreis + „Pedagogical Thinking Space"), `document.title = "PTS · Denkraum"` (verzögert reassertet) |
+| `pts-background-steward` | 0.1.0 | **Neu:** Host-Ebene; nach `turn/end` (completed) native In-Process-Subagents mit eigenem Modellziel/Steward-Persona/Read-only-Filter und strukturiertem Ergebnis (`ptspace.stewardship-result/v1`); Hash-Revisionsprüfung + atomare Übernahme in die kanonischen Dateien; Status unter `/api/pts-background-steward/status`; Modellwahl über `conversation.view`-Tab „Steward" (`/config`); kein Chat-Eingriff |
 
 Keine doppelten Varianten: dieselben Slots werden nicht gleichzeitig durch ein
 dynamisches Prototyp-Plugin belegt.

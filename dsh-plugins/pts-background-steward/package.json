@@ -1,0 +1,23 @@
+{
+  "name": "pts-background-steward",
+  "description": "PTS Background-Steward für das pts-web-Profil: beobachtet abgeschlossene Nutzerdialog-Turns, startet danach verzögert einen nativen In-Process-Subagent (anderes Modell, Steward-Persona, restriktiver Werkzeugfilter, strukturiertes Ergebnis) und übernimmt nur revisionsgeprüfte, politikkonforme Änderungen atomar in die kanonischen Denkstand-Dateien. Host-Ebene plus dezenter 'Steward'-Tab für die Modellauswahl.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./lib/index.js",
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [],
+      "platform": "web"
+    }
+  },
+  "license": "MIT"
+}

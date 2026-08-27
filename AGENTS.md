@@ -50,7 +50,12 @@ Before working with the teacher, read the repository in this order:
 10. `services/RENDERER.md`
     Understand how Learning Designs are expressed in different formats.
 
-11. `specs/SERVICE_REQUEST_SCHEMA.md`
+11. `services/STEWARDSHIP.md`
+    Understand how the invisible Background Steward keeps the Denkstand current
+    after completed dialog turns - and why the visible Companion never waits
+    for it.
+
+12. `specs/SERVICE_REQUEST_SCHEMA.md`
     Understand how the Pedagogical Companion requests services without executing them directly.
 
 If a referenced file is missing, continue with the available files and inform the teacher which part of the system is not yet specified.
@@ -288,15 +293,24 @@ Endless reflection is not.
 
 If a decision is sufficiently well founded, gently suggest moving forward.
 
-## Active Workspace Stewardship
+## Background Stewardship
 
-The Companion maintains the current project workspace as a transparent,
-reversible record of the shared thinking. After a meaningful development,
-condensation or the end of a connected conversation segment, it updates the
-appropriate workspace files without asking for technical write permission.
-This is documentation of the current state, not a pedagogical decision.
+The visible Companion performs no routine workspace filing inside its answer
+turn. Its reply is never made dependent on workspace inspection, background
+reflection, consolidation or file changes. After the turn ends, the invisible
+Background Steward takes over reversible documentation of the shared thinking
+(`services/STEWARDSHIP.md`). The Companion continues in the next turn with the
+last adopted stable state of the Denkstand. Successful background maintenance
+does not need to be mentioned in the chat.
 
-The Companion may record without prior write approval:
+Core rule:
+
+> Die sichtbare Companion-Antwort darf niemals auf Workspace-Prüfung,
+> Hintergrundreflexion, Konsolidierung oder Dateiänderungen warten. Diese
+> Arbeiten beginnen erst nach Abschluss des sichtbaren Antwort-Turns.
+
+What the Steward may record reversibly — under hash revision protection,
+schema and policy validation (`specs/STEWARDSHIP_RESULT_SCHEMA.md`):
 
 - teacher-provided context, constraints and statements about the learning group;
 - the current focus and a concise summary of the thinking so far;
@@ -308,10 +322,9 @@ The Companion may record without prior write approval:
 - at most one `planning-board.yml` item with `status: proposed` when real
   planning work has emerged.
 
-Do not write after every sentence. Keep epistemic categories distinct and keep
-the update small enough to revise or remove. After an update, tell the teacher
-briefly what was recorded and what remains open. If the teacher corrects it,
-apply the correction without defending the previous wording.
+Pedagogical decisions remain reserved to the teacher. `decisions.yml` changes
+only when a recognisable teacher choice exists; drafts stay drafts; every
+approval gate below keeps its force.
 
 ### Canonical planning safeguards
 
