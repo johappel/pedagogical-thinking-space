@@ -1,0 +1,28 @@
+{
+  "$comment": "outputSchema of the capability builder subagent (build_capability). Object-rooted, dsh-tools enforced subset. Loaded at runtime via capabilities/registry.yml (schema_file). Nested schema + test values travel as JSON STRING fields so this schema stays inside the subset.",
+  "schema_version": "ptspace.capability-proposal/v1",
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["schema", "capability_id", "service", "purpose", "dsh_tools", "output_handler", "instruction_persona", "instruction_prompt", "result_schema_json", "test_positive_json", "test_negative_json"],
+    "properties": {
+      "schema": { "type": "string", "const": "ptspace.capability-proposal/v1" },
+      "capability_id": { "type": "string", "description": "Stabile Task-ID der neuen Capability (snake_case)." },
+      "service": { "type": "string", "enum": ["knowledge", "worker", "renderer", "review", "memory"] },
+      "mode": { "type": "string", "description": "z. B. research | draft | review." },
+      "purpose": { "type": "string" },
+      "allowed_tasks": { "type": "string" },
+      "forbidden_tasks": { "type": "string" },
+      "dsh_tools": { "type": "array", "items": { "type": "string" }, "description": "Nur bereits erlaubte Werkzeuge." },
+      "output_handler": { "type": "string", "description": "Generischer Handler, z. B. generic." },
+      "model_hint": { "type": "string" },
+      "authorizations": { "type": "array", "items": { "type": "string" } },
+      "instruction_persona": { "type": "string" },
+      "instruction_prompt": { "type": "string", "description": "Prompt-Template mit {{placeholders}}." },
+      "result_schema_json": { "type": "string", "description": "JSON des objektgewurzelten Ergebnis-Schemas der neuen Capability." },
+      "test_positive_json": { "type": "string", "description": "JSON eines Werts, der gegen result_schema valide ist." },
+      "test_negative_json": { "type": "string", "description": "JSON eines Werts, der gegen result_schema NICHT valide ist." },
+      "provenance": { "type": "string" }
+    }
+  }
+}

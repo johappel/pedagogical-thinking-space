@@ -20,9 +20,12 @@
 import { promises as fsp } from 'node:fs';
 
 import { runResearch, scopeKey, outputTargetFor, wantsKnowledgeProposal } from './research-job.js';
-import { getCapability, isDispatchable } from './registry.js';
+import { isDispatchable } from './registry.js';
+import { getCapability } from './capability-catalog.js';
 import { loadCapabilityArtifacts, interpolatePrompt } from './capability-loader.js';
 import { requestPathFor, writeRequest, readRequestStatus, isBlocking } from './service-request.js';
+import { getHandler } from './output-handlers.js';
+import { appendExecution } from './execution-log.js';
 
 async function pathExists(p) {
 	try {
@@ -123,6 +126,13 @@ export function createServiceCoordinator({ subagents, jobs, log = () => {}, logE
 
 		active.add(key);
 		try {
+			const handler = getHandler(cap.output_handler);
+			if (!handler) {
+				const detail = `kein Ergebnis-Handler für output_handler "${cap.output_handler}"`;
+				await writeRequest(reqFile, { ...record, status: 'failed', attempts, detail }).catch(() => {});
+				active.delete(key);
+				return { status: 'failed', key, detail };
+			}
 			const art = await loadCapabilityArtifacts(ptsRoot, cap);
 			const promptText = interpolatePrompt(art.promptTemplate, intent.scope, intent.reason);
 			const toolAllow = requiredTools.filter((t) => available.has(t));
@@ -141,8 +151,24 @@ export function createServiceCoordinator({ subagents, jobs, log = () => {}, logE
 				signal: externalSignal,
 				artifacts: { persona: art.persona, promptText, outputSchema: art.schema },
 				toolAllow,
+				handler,
+				capability: { task: cap.task, capability_version: capVersion },
+				ptsRoot,
 				log,
 				logError,
+			});
+
+			await appendExecution(dir, {
+				capability: cap.task,
+				capability_version: capVersion,
+				status: cap.status,
+				request_file: `service-requests/${intent.task}-${sk}-${storage}-v${capVersion}.yml`,
+				tools: toolAllow,
+				output_handler: cap.output_handler,
+				result_status: outcome.status,
+				result_location: outcome.outputRel || null,
+				validation: outcome.status === 'completed-research' ? 'passed' : (outcome.status === 'invalid' ? 'failed' : outcome.status),
+				revision_suggested: outcome.status === 'invalid',
 			});
 
 			if (outcome.status === 'completed-research') {

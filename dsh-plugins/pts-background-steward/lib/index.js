@@ -35,7 +35,7 @@ import { createReflectionRunner } from './reflection-job.js';
 import { createServiceCoordinator } from './service-coordinator.js';
 import { readStewardModelSettings, readProviderCatalog, writeStewardSettingsSection } from './settings-source.js';
 import { CANONICAL_FILES } from './workspace-state.js';
-import { loadRegistry, dispatchableTasksForService } from './registry.js';
+import { loadCatalog, dispatchableTasksForService } from './capability-catalog.js';
 
 export const inject = ['sessions', 'agents', 'subagents'];
 
@@ -128,19 +128,19 @@ export function apply(ctx, rawConfig) {
 		return resolveResearchConfig(config, stewardModel, settingsModel);
 	}
 
-	// Dispatchable knowledge capability task ids from capabilities/registry.yml
-	// (the single routing source). Cached; failures degrade to an empty catalogue
-	// (fail-closed: the steward then proposes no routable service intent).
+	// Dispatchable knowledge capability task ids from the DERIVED catalogue
+	// (capabilities/registry.yml + capabilities/_proposals). Cached; failures
+	// degrade to an empty catalogue (fail-closed: no routable service intent).
 	let cachedRegistryPromise = null;
 	async function dispatchableKnowledgeTasks() {
 		try {
 			if (!cachedRegistryPromise) {
 				const root = await ptsRoot();
-				cachedRegistryPromise = root ? loadRegistry(root) : Promise.resolve({ capabilities: [] });
+				cachedRegistryPromise = root ? loadCatalog(root) : Promise.resolve({ capabilities: [] });
 			}
 			return dispatchableTasksForService(await cachedRegistryPromise, 'knowledge');
 		} catch (error) {
-			logError(`Capability-Registry nicht ladbar (${String((error && error.message) || error)}) — keine dispatchbaren Tasks`);
+			logError(`Capability-Katalog nicht ladbar (${String((error && error.message) || error)}) — keine dispatchbaren Tasks`);
 			return [];
 		}
 	}

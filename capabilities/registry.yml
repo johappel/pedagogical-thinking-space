@@ -50,6 +50,28 @@ capabilities:
     model_hint: source_grounded
     provenance: kernel initial capability
 
+  - task: build_capability
+    capability_version: 1
+    service: worker
+    mode: draft
+    status: active
+    capability_file: capabilities/workers/README.md
+    instruction_file: capabilities/workers/build_capability.instruction.md
+    schema_file: capabilities/workers/build_capability.schema.json
+    authorizations:
+      - board_item
+      - bounded_session
+    # The builder only READS existing capabilities; it writes a proposal via the
+    # capability_proposal handler (no web, no new tools).
+    dsh_tools:
+      - read
+    result_schema: ptspace.capability-proposal/v1
+    output_handler: capability_proposal
+    output_targets:
+      - draft
+    model_hint: careful_reasoning
+    provenance: kernel meta-capability (capability builder)
+
   - task: research_pedagogical_alternatives
     capability_version: 1
     service: worker

@@ -42,6 +42,7 @@ export function denominationLine(denomination) {
 export function interpolatePrompt(template, scope, reason) {
 	const s = scope || {};
 	const values = {
+		// Curriculum defaults kept for back-compat.
 		jurisdiction: s.jurisdiction ?? '(fehlt)',
 		subject: s.subject ?? '(fehlt)',
 		phase: s.phase ?? '(fehlt)',
@@ -50,7 +51,9 @@ export function interpolatePrompt(template, scope, reason) {
 		denomination_line: denominationLine(s.denomination),
 		reason: reason ?? '(keine angegeben)',
 	};
-	return String(template).replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (m, key) => (key in values ? values[key] : m));
+	// Any scope field is available as a placeholder (generic capabilities).
+	for (const [k, v] of Object.entries(s)) values[k] = v;
+	return String(template).replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (m, key) => (key in values ? String(values[key]) : m));
 }
 
 /**

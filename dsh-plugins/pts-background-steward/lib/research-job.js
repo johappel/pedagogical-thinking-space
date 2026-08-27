@@ -377,7 +377,7 @@ function agentOptionsFrom(researchConfig) {
 	return Object.keys(options).length > 0 ? options : undefined;
 }
 
-async function writeArtifact(target, markdown) {
+export async function writeArtifact(target, markdown) {
 	await fsp.mkdir(path.dirname(target), { recursive: true });
 	const tmp = `${target}.research-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.tmp`;
 	await fsp.writeFile(tmp, markdown, 'utf8');
@@ -389,6 +389,27 @@ async function writeArtifact(target, markdown) {
 	}
 	return target;
 }
+
+// Default result handler: the curriculum source-quality gate. Handlers are
+// GENERIC building blocks selected by a capability's `output_handler`; they are
+// never a per-capability JS route.
+export const defaultCurriculumHandler = Object.freeze({
+	name: 'curriculum_alignment',
+	async process(structured, { intent, dir, slug, dateIso }) {
+		const checked = validateResearchResult(structured, { denomination: (intent && intent.scope && intent.scope.denomination) || '' });
+		if (!checked.ok) {
+			return { status: 'invalid', detail: `${checked.errors.length} Verstoß gegen das Recherche-Schema`, errors: checked.errors };
+		}
+		const asProposal = wantsKnowledgeProposal(intent);
+		const markdown = asProposal
+			? formatProposalMarkdown(checked.result, intent, dateIso, slug)
+			: formatBriefMarkdown(checked.result, intent, dateIso);
+		const outputPath = await writeArtifact(outputTargetFor(dir, intent), markdown);
+		const outputRel = path.relative(dir, outputPath).split(path.sep).join('/');
+		const briefing = buildFollowupBriefing(checked.result, intent, outputRel, asProposal);
+		return { status: 'completed-research', detail: briefing, outputPath, outputRel, isProposal: asProposal, briefing };
+	},
+});
 
 /**
  * Run one research request. Spawns the web-enabled research subagent, validates
@@ -450,20 +471,11 @@ export async function runResearch(ports) {
 		if (!result || result.structured === undefined || result.structured === null) {
 			return { status: 'failed', detail: 'kein strukturiertes Rechercheergebnis erfasst' };
 		}
-		const checked = validateResearchResult(result.structured, { denomination: (intent && intent.scope && intent.scope.denomination) || '' });
-		if (!checked.ok) {
-			logError(`${slug}: Rechercheergebnis verworfen:\n- ${checked.errors.join('\n- ')}`);
-			return { status: 'invalid', detail: `${checked.errors.length} Verstoß gegen das Recherche-Schema`, errors: checked.errors };
-		}
-		const asProposal = wantsKnowledgeProposal(intent);
-		const markdown = asProposal
-			? formatProposalMarkdown(checked.result, intent, dateIso, slug)
-			: formatBriefMarkdown(checked.result, intent, dateIso);
-		const outputPath = await writeArtifact(outputTargetFor(dir, intent), markdown);
-		const outputRel = path.relative(dir, outputPath).split(path.sep).join('/');
-		const briefing = buildFollowupBriefing(checked.result, intent, outputRel, asProposal);
-		log(`${slug}: Lehrplan-Recherche abgeschlossen → ${asProposal ? 'Knowledge Proposal' : 'Draft'} ${outputRel}`);
-		return { status: 'completed-research', detail: briefing, outputPath, outputRel, isProposal: asProposal, briefing };
+		// The result handler (validate + format + store + follow-up) is selected
+		// by the capability's `output_handler`; it is a GENERIC building block,
+		// not a per-capability JS route. Default: the curriculum source gate.
+		const activeHandler = (ports.handler && typeof ports.handler.process === 'function') ? ports.handler : defaultCurriculumHandler;
+		return activeHandler.process(result.structured, { intent, dir, slug, dateIso, schema: artifacts.outputSchema, capability: ports.capability, ptsRoot: ports.ptsRoot });
 	};
 
 	// Owned job path: completion produces a Companion follow-up. Falls back to a
