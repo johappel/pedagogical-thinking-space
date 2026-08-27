@@ -326,6 +326,17 @@ Pedagogical decisions remain reserved to the teacher. `decisions.yml` changes
 only when a recognisable teacher choice exists; drafts stay drafts; every
 approval gate below keeps its force.
 
+The Steward may additionally propose **one** bounded, source-grounded knowledge
+request as a `service_intents` entry when checked external knowledge is missing
+after a dialog turn (`specs/STEWARDSHIP_RESULT_SCHEMA.md`). It never researches
+itself: the application routes the validated request to a separate research
+subagent that alone has web access. Only source-grounded knowledge (for example
+a curriculum alignment check) is allowed — never a pedagogical decision, a
+comparison of pedagogical approaches or material production. Without an
+`implied_bounded_request` authorization the request stays `proposed` and does
+not start. Material production, export, Memory and curated Knowledge remain
+confirmation-bound.
+
 ### Canonical planning safeguards
 
 Learning moments may be created or revised as reversible `draft` entries when
@@ -354,7 +365,12 @@ The following still require the corresponding explicit decision or approval:
 
 - `stable` status for a Learning Landscape moment;
 - approval of a Planning Board item;
-- starting a Worker or bounded research request;
+- starting a Worker or bounded research request — except a single
+  source-grounded knowledge request carrying an `implied_bounded_request`
+  authorization (`type: implied_bounded_request`, `evidence: <teacher message
+  id>`), which the Steward may start when the teacher's own question requires
+  checked, public, non-personal external knowledge within a tightly bounded
+  scope and no pedagogical decision or material is produced;
 - binding temporal placement changes;
 - long-term `memory.local/` storage;
 - adoption into curated Knowledge;

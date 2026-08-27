@@ -17,6 +17,7 @@ import path from 'node:path';
 export const STEWARD_SETTINGS_NS = 'pts-background-steward';
 
 const KNOWN_KEYS = ['provider', 'model', 'maxTokens', 'reasoningEffort'];
+const RESEARCH_KEYS = ['provider', 'model', 'maxTokens'];
 
 /** Strip a YAML scalar: surrounding quotes and an inline ` # comment`. */
 function cleanScalar(raw) {
@@ -31,17 +32,22 @@ function cleanScalar(raw) {
 
 /**
  * Extract the `pts-background-steward:` block from a settings YAML document.
- * Supports a multiline map with 2-space-indented scalar keys:
+ * Supports a multiline map with 2-space-indented scalar keys and an optional
+ * nested `research:` sub-map (separate model route for the research subagent):
  *
  *   pts-background-steward:
  *     provider: lmstudio
  *     model: ornith-1.5-9b-mtp
  *     maxTokens: 8192
  *     reasoningEffort: low
+ *     research:
+ *       provider: openrouter
+ *       model: perplexity/sonar
+ *       maxTokens: 8192
  *
  * Unknown or malformed lines are ignored. Returns null when no section exists.
  * @param {string} text - raw settings document text.
- * @returns {{ provider?: string, model?: string, maxTokens?: number, reasoningEffort?: string } | null}
+ * @returns {{ provider?: string, model?: string, maxTokens?: number, reasoningEffort?: string, research?: object } | null}
  */
 export function parseStewardSettingsSection(text) {
 	if (typeof text !== 'string') return null;
@@ -53,25 +59,43 @@ export function parseStewardSettingsSection(text) {
 	if (start === -1) return null;
 	const out = {};
 	let sawValue = false;
+	let baseIndent = null;
+	let inResearch = false;
 	for (let i = start + 1; i < lines.length; i += 1) {
 		const line = lines[i];
 		if (line.trim() === '' || line.trim().startsWith('#')) continue;
 		// A non-indented line starts the next top-level key → block ended.
 		if (!/^[ \t]/.test(line)) break;
-		const m = /^[ \t]{2,}([A-Za-z0-9_-]+):\s*(.*)$/.exec(line);
+		const indent = (line.match(/^[ \t]*/) || [''])[0].length;
+		const m = /^[ \t]+([A-Za-z0-9_-]+):\s*(.*)$/.exec(line);
 		if (!m) break;
+		if (baseIndent === null) baseIndent = indent;
 		const key = m[1];
-		const raw = m[2];
-		if (!KNOWN_KEYS.includes(key)) continue;
-		const value = cleanScalar(raw);
-		if (value === '') continue;
+		const value = cleanScalar(m[2]);
+		// Children of a nested research: block live deeper than the base indent.
+		if (inResearch && indent > baseIndent) {
+			if (!RESEARCH_KEYS.includes(key) || value === '') continue;
+			out.research = out.research ?? {};
+			if (key === 'maxTokens') {
+				const n = Number(value);
+				if (Number.isFinite(n) && n >= 0) { out.research.maxTokens = Math.round(n); sawValue = true; }
+			} else {
+				out.research[key] = value;
+				sawValue = true;
+			}
+			continue;
+		}
+		if (indent !== baseIndent) break;
+		inResearch = false;
+		if (key === 'research') { inResearch = true; out.research = out.research ?? {}; continue; }
+		if (!KNOWN_KEYS.includes(key) || value === '') continue;
 		if (key === 'maxTokens') {
 			const n = Number(value);
-			if (Number.isFinite(n) && n >= 0) out.maxTokens = Math.round(n);
+			if (Number.isFinite(n) && n >= 0) { out.maxTokens = Math.round(n); sawValue = true; }
 		} else {
 			out[key] = value;
+			sawValue = true;
 		}
-		sawValue = true;
 	}
 	return sawValue ? out : null;
 }
@@ -188,6 +212,19 @@ export function buildStewardSection(values) {
 	lines.push(`  model: ${scalar(v.model ?? '')}`);
 	if (Number.isFinite(v.maxTokens)) lines.push(`  maxTokens: ${Math.round(v.maxTokens)}`);
 	if (v.reasoningEffort) lines.push(`  reasoningEffort: ${scalar(v.reasoningEffort)}`);
+	const research = v.research;
+	// Only emit research block if at least one non-empty value exists.
+	if (research && typeof research === 'object') {
+		const hasProvider = research.provider && typeof research.provider === 'string' && research.provider.trim() !== '';
+		const hasModel = research.model && typeof research.model === 'string' && research.model.trim() !== '';
+		const hasMaxTokens = Number.isFinite(research.maxTokens) && research.maxTokens > 0;
+		if (hasProvider || hasModel || hasMaxTokens) {
+			lines.push('  research:');
+			if (hasProvider) lines.push(`    provider: ${scalar(research.provider)}`);
+			if (hasModel) lines.push(`    model: ${scalar(research.model)}`);
+			if (hasMaxTokens) lines.push(`    maxTokens: ${Math.round(research.maxTokens)}`);
+		}
+	}
 	return lines.join('\n');
 }
 

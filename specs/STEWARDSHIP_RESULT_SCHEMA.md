@@ -51,6 +51,21 @@ teacher_decisions:
   - evidence: m7
     explicit: false
 
+service_intents:
+  - task: verify_curriculum_alignment
+    reason: Die Lehrkraft fragt, ob das Thema in die 11. Klasse in NRW passt.
+    authorization:
+      type: implied_bounded_request
+      evidence: m2
+    scope:
+      jurisdiction: NRW
+      subject: Religionslehre
+      phase: gymnasiale Oberstufe
+      grade: "11"
+      denomination: unknown
+      topic: Utopie und Hoffnung
+    return_to: critical_friend
+
 next_turn_hint:
   kind: open_question
   content: Was erzählt der Jugendliche seinen Eltern?
@@ -70,6 +85,7 @@ forbidden_effects:
 | `observations` | array | Epistemisch getrennte Feststellungen mit `type`, `evidence`, `content`. |
 | `operations` | array | Vorgeschlagene Änderungen (siehe unten); leer ist erlaubt und oft richtig. |
 | `teacher_decisions` | array | Erkannte Entscheidungen mit `evidence` und `explicit` (boolean). |
+| `service_intents` | array | Höchstens ein begrenzter, quellengebundener Knowledge-Request; leer ist der Normalfall (siehe unten). |
 | `next_turn_hint` | object/null | Höchstens eine offene Frage (`kind: none \| open_question`). Angebot, keine Vorgabe. |
 | `forbidden_effects` | array | Was bewusst unterlassen wurde; reine Protokollhilfe. |
 
@@ -99,6 +115,44 @@ Unabhängig davon gilt:
 - `board_kind` folgt `specs/PLANNING_BOARD_SCHEMA.md`;
 - `value` ist auf 4000 Zeichen begrenzt, Titel auf 200;
 - unbekannte Ziel-/Art-Kombinationen werden einzeln abgelehnt und protokolliert.
+
+## Service-Intents (begrenzter Knowledge-Request)
+
+Der Steward darf **höchstens einen** begrenzten, quellengebundenen
+Knowledge-Request vorschlagen (`services/STEWARDSHIP.md`). Er recherchiert nie
+selbst; die Anwendung übergibt den validierten Request an einen getrennten
+DSH-Recherche-Subagenten.
+
+| Feld | Typ | Bedeutung |
+|---|---|---|
+| `task` | const | Allowlist; derzeit ausschließlich `verify_curriculum_alignment`. |
+| `reason` | string | Kurzbegründung des Wissensbedarfs. |
+| `authorization.type` | const | Muss `implied_bounded_request` sein. |
+| `authorization.evidence` | string | Nachrichten-ID **der Lehrkraft** aus dem Gesprächsfenster. |
+| `scope` | object | Eng begrenzter, öffentlicher, nicht personenbezogener Umfang. |
+| `return_to` | const | Muss `critical_friend` sein. |
+
+`scope` bei `verify_curriculum_alignment` trägt nur öffentliche Felder:
+`jurisdiction`, `subject`, `phase`, `grade`, `topic` (Pflicht) sowie optional
+`denomination`. Eine unbekannte Konfession (`denomination: unknown` oder leer)
+blockiert die erste Prüfung nicht — der Dienst prüft dann evangelisch **und**
+katholisch.
+
+Die anwendungsseitige Politikprüfung **lehnt einen Service-Intent ab**, wenn:
+
+- kein belegter Nutzerauftrag existiert (`authorization.evidence` verweist nicht
+  auf eine Nachricht **der Lehrkraft** im Gesprächsfenster; `"context"` genügt
+  hier nicht);
+- der Scope offen oder unbegrenzt ist (Pflichtfelder fehlen oder fremde/leere
+  Felder erscheinen);
+- private oder personenbezogene Daten übertragen würden;
+- der Request eine pädagogische Entscheidung oder Materialproduktion enthält
+  (unzulässiger `task`, `authorization.type` ≠ `implied_bounded_request` oder
+  `return_to` ≠ `critical_friend`);
+- mehr als ein Service-Intent pro Lauf vorgeschlagen wird.
+
+Ohne gültige Autorisierung entsteht kein Anlaufen; der Request bleibt
+`proposed`.
 
 ## Annahmeprozess (anwendungsseitig)
 

@@ -35,9 +35,13 @@ Der Steward:
 - hat **keinen Nutzerkontakt** — er spricht nicht, fragt nicht, meldet sich nicht;
 - braucht **keine Zustimmung** für reversible Denkstandspflege;
 - darf **keine Materialien produzieren**;
-- darf **keine Recherche starten** und keine Worker, Renderer oder Dienste auslösen;
-- darf **keine pädagogische Richtung entscheiden** und keine Empfehlung über Ziele,
-  Methoden oder Werte geben;
+- darf **selbst niemals recherchieren** und keine Worker, Renderer oder sonstigen
+  Dienste ausführen;
+- darf **einen einzigen begrenzten, quellengebundenen Knowledge-Request anstoßen**,
+  wenn nach einem Gesprächsschritt geprüftes externes Wissen fehlt — er stößt ihn
+  an, führt ihn aber nie selbst aus (siehe „Begrenzter Knowledge-Request");
+- darf **keine pädagogische Entscheidung delegieren** und keine Empfehlung über
+  Ziele, Methoden oder Werte geben;
 - darf **keinen Planning-Board-Eintrag genehmigen** — Vorschläge tragen stets
   `status: proposed` mit `requires_teacher_approval: true`;
 - darf **nicht in Memory (`memory.local/`) oder kuratiertes Knowledge schreiben**;
@@ -45,6 +49,33 @@ Der Steward:
   bleiben der Lehrkraft vorbehalten;
 - schreibt **nie selbst Dateien**: Er liefert ein strukturiertes Ergebnis zurück;
   die Anwendung validiert es und wendet es atomar an.
+
+## Begrenzter Knowledge-Request
+
+Erkennt der Steward nach einem abgeschlossenen Turn, dass geprüftes externes
+Wissen fehlt, darf er **genau einen** begrenzten, quellengebundenen
+Knowledge-Request vorschlagen. Er trägt ihn als `service_intents`-Eintrag in
+sein Ergebnis ein (`specs/STEWARDSHIP_RESULT_SCHEMA.md`).
+
+Dabei gilt ausnahmslos:
+
+- Der Steward **recherchiert niemals selbst**. Die Anwendung übergibt den
+  validierten Request an einen **getrennten DSH-Recherche-Subagenten**; nur
+  dieser hat Webzugriff.
+- Der Steward darf **keine pädagogische Entscheidung delegieren**. Zulässig ist
+  ausschließlich quellengebundene Wissensprüfung (z. B. eine Lehrplanprüfung),
+  kein Vergleich pädagogischer Ansätze und keine Richtungsempfehlung.
+- Ohne erkennbare Autorisierung entsteht nur ein Request mit
+  `status: proposed`; er läuft nicht an.
+- Mit `permission.type: implied_bounded_request` und belegter Nachrichten-ID
+  der Lehrkraft darf die Recherche unmittelbar anlaufen (siehe `AGENTS.md`
+  und `ORCHESTRATION.md`).
+- **Materialproduktion, Export, Memory und kuratiertes Knowledge bleiben
+  bestätigungspflichtig** — sie sind für den Steward tabu.
+
+Das Ergebnis der Recherche kehrt als Draft mit Quellen und Unsicherheiten
+zurück zum Companion; die Rohantwort des Subagenten erscheint nie direkt im
+Chat.
 
 ## Erlaubte Workspace-Dateien
 
@@ -122,3 +153,9 @@ Die kontinuierliche Denkstandpflege läuft bewusst **nicht** durch ihn: Sie ist
 turngebunden, soll unmittelbar nach dem Gespräch anlaufen, erzeugt keine
 separate Prozess- und Polling-Latenz und braucht direkten Zugriff auf DSH-
 Session-Ereignisse.
+
+Der begrenzte Knowledge-Request bildet die **einzige** Ausnahme, in der aus
+der Denkstandpflege ein weiterer Dienst hervorgeht: Er wird nicht über den
+Dispatcher, sondern über einen getrennten DSH-Recherche-Subagenten ausgeführt,
+dessen Ergebnis als Draft zum Companion zurückkehrt. Der Steward selbst bleibt
+auf `read`, `glob` und `grep` beschränkt.

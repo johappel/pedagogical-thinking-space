@@ -36,6 +36,7 @@ function validResult(overrides = {}) {
 		],
 		teacher_decisions: [],
 		next_turn_hint: { kind: 'open_question', content: 'Was erzählt der Jugendliche seinen Eltern?' },
+		service_intents: [],
 		forbidden_effects: [],
 		...overrides,
 	};
@@ -53,6 +54,11 @@ function assertSubset(node, at) {
 	}
 	if (node.type !== undefined) {
 		assert.ok(ALLOWED_TYPES.has(node.type), `${at}: Typ "${node.type}" ist kein Einzeltyp der Teilmenge`);
+	}
+	// Die erzwungene Teilmenge verlangt: enum/const nur zusammen mit type (oder oneOf).
+	// Ohne type lehnt dsh-tools das Schema beim Lauf ab (JsonSchemaError).
+	if ((node.enum !== undefined || node.const !== undefined) && node.type === undefined && node.oneOf === undefined) {
+		assert.fail(`${at}: enum/const brauchen ein type (oder oneOf) in der erzwungenen Teilmenge`);
 	}
 	if (node.oneOf !== undefined) {
 		assert.ok(Array.isArray(node.oneOf) && node.oneOf.length >= 2, `${at}: oneOf braucht mindestens zwei Zweige`);
@@ -212,3 +218,83 @@ test('Wertlängengrenzen werden durchgesetzt', () => {
 	assert.equal(r.ok, false);
 	assert.ok(r.errors.some((e) => e.includes('4000')));
 });
+
+// ——— Politik: Service-Intents (begrenzter Knowledge-Request) ———
+
+function validIntent(overrides = {}) {
+	return {
+		task: 'verify_curriculum_alignment',
+		reason: 'Die Lehrkraft fragt, ob das Thema in die 11. Klasse in NRW passt.',
+		authorization: { type: 'implied_bounded_request', evidence: 'm2' },
+		scope: {
+			jurisdiction: 'NRW', subject: 'Religionslehre', phase: 'gymnasiale Oberstufe',
+			grade: '11', topic: 'Utopie und Hoffnung', denomination: 'unknown',
+		},
+		return_to: 'critical_friend',
+		...overrides,
+	};
+}
+
+function intentExpectation(overrides = {}) {
+	return {
+		sessionId: 'session-123', turn: 42, hashes: HASHES,
+		messageIds: new Set(['m1', 'm2', 'm3']),
+		userMessageIds: new Set(['m2']),
+		...overrides,
+	};
+}
+
+test('ein autorisierter, belegter Knowledge-Request besteht', () => {
+	const r = validateResult(validResult({ service_intents: [validIntent()] }), intentExpectation());
+	assert.equal(r.ok, true);
+	assert.equal(r.result.service_intents.length, 1);
+});
+
+test('mehr als ein Service-Intent pro Lauf wird abgelehnt', () => {
+	const r = validateResult(validResult({ service_intents: [validIntent(), validIntent()] }), intentExpectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('höchstens ein')));
+});
+
+test('Evidence "context" genügt für einen Service-Intent nicht', () => {
+	const intent = validIntent({ authorization: { type: 'implied_bounded_request', evidence: 'context' } });
+	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('belegte Nachricht der Lehrkraft')));
+});
+
+test('Evidence einer Assistenten-Nachricht (nicht Lehrkraft) wird abgelehnt', () => {
+	const intent = validIntent({ authorization: { type: 'implied_bounded_request', evidence: 'm3' } });
+	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation({ userMessageIds: new Set(['m2']) }));
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('belegte Nachricht der Lehrkraft')));
+});
+
+test('offener Scope (fehlendes Pflichtfeld) wird abgelehnt', () => {
+	const intent = validIntent();
+	delete intent.scope.grade;
+	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('scope.grade')));
+});
+
+test('personenbezogenes/fremdes Scope-Feld wird abgelehnt', () => {
+	const intent = validIntent();
+	intent.scope.student_name = 'Max Mustermann';
+	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('student_name')));
+});
+
+test('unerlaubte Task wird abgelehnt', () => {
+	const intent = validIntent({ task: 'compare_pedagogical_approaches' });
+	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
+	assert.equal(r.ok, false);
+});
+
+test('unbekannte Konfession blockiert den Intent nicht', () => {
+	const intent = validIntent({ scope: { ...validIntent().scope, denomination: 'unknown' } });
+	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
+	assert.equal(r.ok, true);
+});
+

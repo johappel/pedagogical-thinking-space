@@ -66,7 +66,8 @@ This field shapes scope and return format. It does not diagnose the teacher.
 
 - `board_item` - a specific Planning Board item was approved;
 - `explicit_chat` - the teacher explicitly approved this request in the conversation;
-- `bounded_session` - the teacher previously approved background work within a defined topic, source range, maximum scope and return format.
+- `bounded_session` - the teacher previously approved background work within a defined topic, source range, maximum scope and return format;
+- `implied_bounded_request` - the teacher's own question already requires checked, public, non-personal external knowledge within a tightly bounded scope; it authorises only a source-grounded knowledge request (for example a curriculum alignment check), never a pedagogical decision, a comparison of pedagogical approaches or material production. It carries `evidence: <teacher message id>`.
 
 A bounded session permission must be referenced and must not be interpreted as unrestricted permission.
 

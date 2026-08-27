@@ -29,9 +29,10 @@ import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { normalizeConfig, resolveModelConfig } from './config.js';
+import { normalizeConfig, resolveModelConfig, resolveResearchConfig } from './config.js';
 import { createScheduler } from './scheduler.js';
 import { createReflectionRunner } from './reflection-job.js';
+import { createServiceCoordinator } from './service-coordinator.js';
 import { readStewardModelSettings, readProviderCatalog, writeStewardSettingsSection } from './settings-source.js';
 import { CANONICAL_FILES } from './workspace-state.js';
 
@@ -67,6 +68,7 @@ function extractDialogue(session, config) {
 	const window = relevant.slice(-Math.max(2, config.recentTurnsWindow * 2));
 	const dialogue = [];
 	const messageIds = new Set();
+	const userMessageIds = new Set();
 	let used = 0;
 	for (let i = 0; i < window.length; i += 1) {
 		const m = window[i];
@@ -76,6 +78,7 @@ function extractDialogue(session, config) {
 		const id = `m${i + 1}`;
 		dialogue.push({ id, role: m.role, text: text.slice(0, Math.max(200, config.recentTurnsMaxChars)) });
 		messageIds.add(id);
+		if (m.role === 'user') userMessageIds.add(id);
 		used += text.length;
 	}
 	let lastUserText = '';
@@ -83,7 +86,7 @@ function extractDialogue(session, config) {
 		const m = window[i];
 		if (m.role === 'user') { lastUserText = textFromBlocks(m.content); break; }
 	}
-	return { dialogue, messageIds, lastUserText };
+	return { dialogue, messageIds, userMessageIds, lastUserText };
 }
 
 export function apply(ctx, rawConfig) {
@@ -114,6 +117,14 @@ export function apply(ctx, rawConfig) {
 	async function effectiveModelConfig() {
 		const settingsModel = await readStewardModelSettings(settingsService);
 		return resolveModelConfig(config, settingsModel);
+	}
+
+	// Effective research route (separate model + web-enabled allowlist). Empty
+	// values inherit the steward model but keep the research tool allowlist.
+	async function effectiveResearchConfig() {
+		const settingsModel = await readStewardModelSettings(settingsService);
+		const stewardModel = resolveModelConfig(config, settingsModel);
+		return resolveResearchConfig(config, stewardModel, settingsModel);
 	}
 
 	// Fiber-owned cancellation: plugin stop/update/unload aborts any active
@@ -187,6 +198,9 @@ export function apply(ctx, rawConfig) {
 
 	// ————— Reflection runner + scheduler —————
 	const reflect = createReflectionRunner({ subagents, jobs, config, log, logError, externalSignal: fiberAbort.signal });
+	// Bounded knowledge-request seam: the steward proposes, this coordinator
+	// deduplicates and routes to the separate web-enabled research subagent.
+	const coordinator = createServiceCoordinator({ subagents, jobs, log, logError, externalSignal: fiberAbort.signal });
 
 	async function runWorkspaceJob(key, metas) {
 		const last = metas[metas.length - 1];
@@ -203,12 +217,31 @@ export function apply(ctx, rawConfig) {
 			turn: last.turn,
 			dialogue: last.dialogue,
 			messageIds: last.messageIds,
+			userMessageIds: last.userMessageIds,
 			parentAgent: parent,
 			childSessionIds,
 			modelConfig: await effectiveModelConfig(),
 		};
 		const outcome = await reflect(job);
 		lastOutcomeByDir.set(key, { at: Date.now(), outcome });
+
+		// Route any validated bounded knowledge-request intents. This happens
+		// AFTER reflection and never blocks the visible conversation; the
+		// research runs in its own owned job and returns via a Companion
+		// follow-up. Duplicate turns are deduplicated inside the coordinator.
+		const intents = Array.isArray(outcome && outcome.serviceIntents) ? outcome.serviceIntents : [];
+		if (intents.length > 0) {
+			const researchConfig = await effectiveResearchConfig();
+			coordinator.handle({
+				dir: key,
+				slug: path.basename(key),
+				sessionId: last.sessionId,
+				parentAgent: parent,
+				intents,
+				childSessionIds,
+				researchConfig,
+			}).catch((error) => logError(`${key}: Coordinator-Fehler: ${String((error && error.stack) || error)}`));
+		}
 	}
 
 	const scheduler = createScheduler({
@@ -237,6 +270,7 @@ export function apply(ctx, rawConfig) {
 			turn: turnNumber,
 			dialogue: extracted.dialogue,
 			messageIds: extracted.messageIds,
+			userMessageIds: extracted.userMessageIds,
 		});
 	}
 
@@ -290,7 +324,7 @@ export function apply(ctx, rawConfig) {
 					req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
 					req.on('error', reject);
 				});
-				const configPayload = (mc) => ({
+				const configPayload = (mc, rc) => ({
 					providerName: config.providerName,
 					provider: mc.provider || null,
 					model: mc.model || null,
@@ -298,6 +332,14 @@ export function apply(ctx, rawConfig) {
 					reasoningEffort: mc.reasoningEffort || null,
 					reasoningEffortApplied: false,
 					modelSource: mc.source,
+					research: rc ? {
+						enabled: rc.enabled,
+						provider: rc.provider || null,
+						model: rc.model || null,
+						maxTokens: rc.maxTokens,
+						allowedTools: [...rc.allowedTools],
+						source: rc.source,
+					} : null,
 					debounceMs: config.debounceMs,
 					maxConcurrentPerWorkspace: config.maxConcurrentPerWorkspace,
 					runTimeoutMs: config.runTimeoutMs,
@@ -323,7 +365,7 @@ export function apply(ctx, rawConfig) {
 							ok: true,
 							version: '0.1.0',
 							schemaVersion: 'ptspace.stewardship-result/v1',
-							config: configPayload(await effectiveModelConfig()),
+							config: configPayload(await effectiveModelConfig(), await effectiveResearchConfig()),
 							ptsRoot: root,
 							activeChildSessions: [...childSessionIds],
 							workspaces,
@@ -333,9 +375,10 @@ export function apply(ctx, rawConfig) {
 					if (rawPath === '/api/pts-background-steward/config') {
 						if (req.method === 'GET') {
 							const mc = await effectiveModelConfig();
+							const rc = await effectiveResearchConfig();
 							const providers = await readProviderCatalog(settingsService);
 							const section = (await readStewardModelSettings(settingsService)) ?? {};
-							sendJson(200, { ok: true, effective: configPayload(mc), providers, section });
+							sendJson(200, { ok: true, effective: configPayload(mc, rc), providers, section });
 							return;
 						}
 						if (req.method === 'POST') {
@@ -349,14 +392,30 @@ export function apply(ctx, rawConfig) {
 							const doc = settingsService && settingsService.documentPath;
 							if (typeof doc !== 'string' || doc === '') { sendJson(503, { ok: false, error: 'Settings-Dokument nicht verfügbar' }); return; }
 							const current = (await readStewardModelSettings(settingsService)) ?? {};
+							// Optional research route: persisted as a nested block.
+							let research = current.research ?? undefined;
+							if (body.research !== undefined) {
+								if (body.research === null) {
+									research = undefined;
+								} else if (typeof body.research === 'object' && !Array.isArray(body.research)) {
+									const rProvider = typeof body.research.provider === 'string' ? body.research.provider.trim() : (current.research?.provider ?? '');
+									const rModel = typeof body.research.model === 'string' ? body.research.model.trim() : (current.research?.model ?? '');
+									const rMaxRaw = body.research.maxTokens === undefined ? (current.research?.maxTokens) : Number(body.research.maxTokens);
+									if (rMaxRaw !== undefined && (!Number.isFinite(rMaxRaw) || rMaxRaw < 0 || rMaxRaw > 200000)) { sendJson(400, { ok: false, error: 'research.maxTokens außerhalb des erlaubten Bereichs' }); return; }
+									research = { provider: rProvider, model: rModel, ...(Number.isFinite(rMaxRaw) ? { maxTokens: rMaxRaw } : {}) };
+								} else {
+									sendJson(400, { ok: false, error: 'research muss ein Objekt oder null sein' }); return;
+								}
+							}
 							await writeStewardSettingsSection(doc, {
 								provider,
 								model,
 								maxTokens: maxTokens !== undefined ? maxTokens : current.maxTokens ?? 8192,
 								reasoningEffort: current.reasoningEffort ?? '',
+								research,
 							});
-							log(`Modellwahl über die Oberfläche aktualisiert: ${provider}/${model}`);
-							sendJson(200, { ok: true, effective: configPayload(await effectiveModelConfig()) });
+							log(`Modellwahl über die Oberfläche aktualisiert: Steward ${provider}/${model}${research && (research.provider || research.model) ? `, Recherche ${research.provider || '—'}/${research.model || '—'}` : ''}`);
+							sendJson(200, { ok: true, effective: configPayload(await effectiveModelConfig(), await effectiveResearchConfig()) });
 							return;
 						}
 						sendJson(405, { ok: false, error: 'method-not-allowed' });
@@ -374,6 +433,7 @@ export function apply(ctx, rawConfig) {
 	// ————— Ordered teardown —————
 	ctx.effect(() => () => {
 		scheduler.dispose();
+		coordinator.dispose();
 		fiberAbort.abort(new Error('Plugin wird entladen'));
 		childSessionIds.clear();
 	}, 'pts-background-steward-cleanup');

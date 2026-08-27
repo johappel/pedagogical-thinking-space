@@ -32,12 +32,15 @@ Teacher <-> Pedagogical Companion        (sichtbar, wartet nie)
 
 ```text
 lib/
-├── index.js           Trigger-Observer, Denkraum-Auflösung, Verdrahtung, Status-Route
-├── config.js          Defaults + robuste Normalisierung der Row-Konfiguration
-├── scheduler.js       Debounce/Coalescing, max. 1 Lauf je Denkraum, Rerun-Puffer
-├── reflection-job.js  Steward-Persona, Prompt, Subagent-Start, Ergebnisverarbeitung
-├── patch-validator.js JSON-Schema (dsh-tools-Teilmenge) + Politikprüfung
-└── workspace-state.js Hashes, atomare Writes, reine Texttransformationen
+├── index.js            Trigger-Observer, Denkraum-Auflösung, Verdrahtung, Status-Route
+├── config.js           Defaults + robuste Normalisierung (inkl. research-Route)
+├── scheduler.js        Debounce/Coalescing, max. 1 Lauf je Denkraum, Rerun-Puffer
+├── reflection-job.js   Steward-Persona, Prompt, Subagent-Start, Ergebnisverarbeitung
+├── patch-validator.js  JSON-Schema (dsh-tools-Teilmenge) + Politikprüfung (inkl. service_intents)
+├── service-coordinator.js  Dedup + Persistenz + Routing autorisierter Knowledge-Requests
+├── research-job.js     Quellengebundener Recherche-Subagent, owned Job, Draft + Follow-up
+├── settings-source.js  Liest/schreibt Steward- und Recherche-Modellroute aus den Settings
+└── workspace-state.js  Hashes, atomare Writes, reine Texttransformationen
 ```
 
 Das Paket importiert absichtlich **keine** `@deepseek-ai/*`-Module: Es wird per
@@ -98,6 +101,51 @@ Fehler betreffen ausschließlich den Hintergrundjob: Sie werden geloggt und
 als Job-Ergebnis (`failed`) registriert, berühren die Companion-Session aber
 nicht. Erfolgreiche Pflege wird nicht im Chat erwähnt.
 
+## Begrenzter Knowledge-Request (Recherche-Seam)
+
+Der Steward recherchiert nie selbst. Erkennt er nach einem Turn, dass geprüftes
+externes Wissen fehlt (z. B. eine Lehrplan-Zuordnung), schlägt er **genau einen**
+validierten `service_intents`-Eintrag vor (`specs/STEWARDSHIP_RESULT_SCHEMA.md`).
+Der Validator (`patch-validator.js`) verlangt:
+
+- `task: verify_curriculum_alignment` (Allowlist, nur quellengebundenes Wissen);
+- `authorization.type: implied_bounded_request` mit einer Evidence, die auf eine
+  **Nachricht der Lehrkraft** zeigt (`"context"` genügt nicht);
+- einen eng begrenzten, ausschließlich öffentlichen `scope`
+  (`jurisdiction`, `subject`, `phase`, `grade`, `topic`, optional `denomination`);
+  fremde/personenbezogene Felder werden abgelehnt;
+- `return_to: critical_friend`; höchstens ein Intent pro Lauf.
+
+Ein validierter, autorisierter Intent geht an den `service-coordinator.js`:
+
+1. **Dedup** — identische Scopes (auch bei doppelten Turns oder nach Neustart
+   über den On-Disk-Marker) starten keinen zweiten Auftrag.
+2. **Persistenz** — der autorisierte Request wird als
+   `drafts/curriculum-alignment-<scope-hash>.request.yaml` abgelegt.
+3. **Delegation** — `research-job.js` startet den getrennten, web-fähigen
+   Recherche-Subagenten (eigene Modellroute, `research.allowedTools`,
+   Recherche-Persona, strukturierter `curriculum_alignment_brief`). Bei
+   unbekannter Konfession werden evangelisch **und** katholisch geprüft; die
+   fehlende Konfession blockiert die Prüfung nicht.
+4. **Rückkanal** — das validierte Ergebnis wird als Draft
+   (`drafts/curriculum-alignment-<scope-hash>.md`, mit Quellen und
+   Unsicherheiten) gespeichert. Der **owned Job** löst ein Companion-Follow-up
+   aus; dieses trägt eine interne Notiz plus kompakte Quellenlage, nie die
+   Rohantwort. Der Companion formuliert daraus einen kurzen, quellenbasierten
+   Anschlussbeitrag.
+
+Zielablauf:
+
+```text
+Companion antwortet
+→ Turn endet
+→ Steward erkennt Knowledge-Lücke
+→ validierter Service Request (implied_bounded_request)
+→ separater DSH-Recherche-Subagent (Websuche)
+→ Ergebnis (offizielle Quellen) zurück zum Companion
+→ kurzer quellenbasierter Anschlussbeitrag
+```
+
 ## Installation (pts-web-Profil)
 
 1. Junction:
@@ -150,6 +198,10 @@ nicht. Erfolgreiche Pflege wird nicht im Chat erwähnt.
 | `maxFileChars` | `24000` | Kappung je Datei im Prompt (ehrlich markiert). |
 | `minPromptChars` | `0` | Überspringt reine Begrüßungen (kürzester Nutzerbeitrag ohne `?`); `0` = aus. |
 | `allowedTools` | `[read, glob, grep]` | Werkzeug-Allowlist des Kindes; `write`/`edit` werden immer entfernt. |
+| `research.enabled` | `true` | Schalter für die begrenzte Wissens-Recherche. `false` = validierte Intents werden nur protokolliert/dedupliziert, ohne Anlauf. |
+| `research.provider` / `research.model` | `''` (leer) | Eigene Modellroute des Recherche-Subagenten; leer erbt das Steward-Modell. |
+| `research.maxTokens` | `8192` | Output-Limit des Recherche-Kindes. |
+| `research.allowedTools` | `[read, glob, grep, web]` | Werkzeuge des Recherche-Kindes; darf `web` enthalten, `write`/`edit` werden immer entfernt. |
 | `reasoningEffort` | `''` | **Geführt, aber derzeit nicht durchgereicht.** DSH 0.1.1-rc.2 kennt kein `reasoningEffort` für One-Shot-Subagent-Children (`agentOptions` trägt nur `provider`/`model`/`maxTokens`); das Kind läuft mit dem Provider-Default. Der Wert erscheint im Status als `reasoningEffortApplied: false`. |
 
 ## Modellsteuerung über die Settings (empfohlen)
@@ -169,6 +221,10 @@ pts-background-steward:
   model: ornith-1.5-9b-mtp
   maxTokens: 8192
   reasoningEffort: low   # derzeit NICHT an das One-Shot-Child durchgereicht
+  research:              # optionale, getrennte Route für den Recherche-Subagenten
+    provider: openrouter
+    model: perplexity/sonar
+    maxTokens: 8192
 ```
 
 Vorrang: **Settings-Block > Patch-Row > Default**. Der Wert wird pro Lauf und
@@ -188,8 +244,11 @@ extrahiert deshalb die eigene, kontrollierte Sektion aus dem Settings-Dokument
 Das Plugin registriert einen `conversation.view`-Tab **„Steward"** (rechte
 Spalte neben „Artefakte") mit einem Modell-Picker: Provider-Dropdown (aus dem
 Settings-Provider-Katalog `llm-pi-ai.providers`), Modell-Dropdown,
-`maxTokens`-Feld und Speichern-Button. Die Auswahl wird über
+`maxTokens`-Feld und Speichern-Button. Darunter steht ein **zweiter Picker für
+das Recherche-Modell** (Provider/Modell/`maxTokens` des quellengebundenen
+Recherche-Subagenten; leer = wie Steward-Modell). Die Auswahl wird über
 `POST /api/pts-background-steward/config` in die Settings-Sektion geschrieben
+(Steward-Route flach, Recherche-Route als verschachtelter `research:`-Block)
 und gilt ab dem nächsten Steward-Lauf. `reasoningEffort` wird nur als
 Hinweis angezeigt („nicht an das One-Shot-Child durchgereicht"), nicht editiert.
 Ein Doppelklick/Browser-Hart-Refresh (Strg+Umschalt+R) nach dem Neustart
@@ -207,14 +266,21 @@ gibt es **keine** Chat-Darstellung einzelner Hintergrundaktivitäten;
 einzigen dezenten Hinweis („Denkstand wird im Hintergrund gepflegt") allein
 auf dieser echten Job-Basis anzeigen.
 
-## Warum kein owned Job und keine Client-Hälfte?
+## Warum kein owned Job für die Denkstandpflege — aber einer für die Recherche?
 
 Ein Job mit dem Companion als Besitzer würde über den shipped `tool-jobs`-
 Reporter eine Completion-Nachricht **in die sichtbare Unterhaltung** einspeisen
-(`owner.followup(...)` bzw. `owner.inject(...)`) — genau das, was die
-Hintergrundarchitektur ausschließt. Deshalb: besitzloser Job (nur Beobachtung)
-oder direkter Lauf, wenn keine Registry dient. Eine Client-Hälfte braucht das
-Plugin nicht; alles Sichtbare bleibt bei den bestehenden UI-Plugins.
+(`owner.followup(...)` bzw. `owner.inject(...)`). Für die stille Denkstandpflege
+ist genau das unerwünscht — deshalb läuft die Reflexion als **besitzloser** Job
+(nur Beobachtung) oder als direkter Lauf.
+
+Die **begrenzte Wissens-Recherche** nutzt bewusst das Gegenteil: einen
+**owned Job** (Besitzer = Companion-Agent). Nach Abschluss löst der Reporter ein
+Companion-Follow-up aus, aus dem der Companion einen kurzen, quellenbasierten
+Anschlussbeitrag formuliert. Die Rohantwort des Recherche-Kindes erscheint nie
+wörtlich im Chat: Das Follow-up transportiert eine **interne Notiz** plus
+kompakte Quellenlage; der vollständige Befund liegt als Draft unter
+`drafts/curriculum-alignment-<scope-hash>.md`.
 
 ## Preset-Frage (pts-steward)
 

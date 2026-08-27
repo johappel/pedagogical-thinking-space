@@ -138,7 +138,33 @@ A useful research question names the contrast sought:
 Research may run in the background only after visible permission. Permission can be:
 
 - approval of a specific Planning Board item; or
-- a bounded session permission specifying topic, source types, time/scope and return format.
+- a bounded session permission specifying topic, source types, time/scope and return format; or
+- an `implied_bounded_request` (see below), when the teacher's own question already requires checked, public, non-personal external knowledge within a tightly bounded scope.
+
+## Implied bounded request
+
+A teacher question can itself authorise a single, tightly bounded,
+source-grounded knowledge request without a separate "shall I research?" turn:
+
+```yaml
+permission:
+  type: implied_bounded_request
+  evidence: <Nachrichten-ID der Lehrkraft>
+```
+
+This authorization holds only when **all** of the following are true:
+
+- the teacher themselves asks a question that requires checked external knowledge;
+- only public, non-personal sources are needed;
+- the research is tightly bounded;
+- no pedagogical decision is taken and no material is produced.
+
+Under these conditions a question such as *„Könnte das ein Thema für die 11.
+Klasse in NRW sein?“* already authorises a bounded curriculum check. A separate
+*„Soll ich recherchieren?“* is unnecessary and should be omitted. It authorises
+**only** source-grounded knowledge (for example a curriculum alignment check),
+never a pedagogical decision, a comparison of pedagogical approaches or any
+material production.
 
 The Companion reviews the result before presenting it. It normally returns:
 
@@ -280,10 +306,12 @@ The steward is **not a Worker**:
 
 - it needs no approval for reversible Denkstand care;
 - it must not produce materials;
-- it must not start research or any other service;
+- it must never research itself and never executes a service;
+- it may propose exactly one bounded, source-grounded knowledge request when checked external knowledge is missing after a dialog turn; the application routes it to a separate research subagent. Without an `implied_bounded_request` authorization it stays `proposed`;
+- it must not delegate a pedagogical decision;
 - it must not decide pedagogical direction;
 - it must not approve a Planning Board entry - proposals stay `proposed`;
-- it must not write into Memory or curated Knowledge.
+- it must not write into Memory or curated Knowledge; material production, export, Memory and curated Knowledge remain confirmation-bound.
 
 It has no user contact and is never visible in the conversation. Successful background maintenance does not need to be mentioned by the Companion.
 

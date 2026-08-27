@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { parseStewardSettingsSection, readStewardModelSettings, parseProviderCatalog, buildStewardSection, writeStewardSettingsSection } from '../lib/settings-source.js';
-import { resolveModelConfig } from '../lib/config.js';
+import { resolveModelConfig, resolveResearchConfig, normalizeConfig } from '../lib/config.js';
 
 const FULL = [
 	'# Eigene Einstellungen des Profils',
@@ -177,4 +177,108 @@ test('writeStewardSettingsSection: legt Sektion an, wenn keine existiert', async
 	} finally {
 		await rm(dir, { recursive: true, force: true });
 	}
+});
+
+// ——— Recherche-Route (verschachtelter research:-Block) ———
+
+const WITH_RESEARCH = [
+	'pts-background-steward:',
+	'  provider: lmstudio',
+	'  model: ornith-1.5-9b-mtp',
+	'  maxTokens: 8192',
+	'  research:',
+	'    provider: openrouter',
+	'    model: perplexity/sonar',
+	'    maxTokens: 4096',
+	'',
+	'llm-pi-ai:',
+	'  providers: {}',
+].join('\n');
+
+test('parseStewardSettingsSection: liest verschachtelten research-Block', () => {
+	const out = parseStewardSettingsSection(WITH_RESEARCH);
+	assert.equal(out.provider, 'lmstudio');
+	assert.equal(out.model, 'ornith-1.5-9b-mtp');
+	assert.deepEqual(out.research, { provider: 'openrouter', model: 'perplexity/sonar', maxTokens: 4096 });
+});
+
+test('parseStewardSettingsSection: research-Kinder landen nicht in der Top-Ebene', () => {
+	const out = parseStewardSettingsSection(WITH_RESEARCH);
+	// Der Steward-Provider bleibt lmstudio, nicht openrouter aus research.
+	assert.equal(out.provider, 'lmstudio');
+	assert.equal(out.maxTokens, 8192);
+});
+
+test('buildStewardSection: emittiert research-Unterblock nur bei Werten', () => {
+	const withR = buildStewardSection({ provider: 'lmstudio', model: 'm', research: { provider: 'openrouter', model: 'perplexity/sonar', maxTokens: 4096 } });
+	assert.ok(withR.includes('  research:'));
+	assert.ok(withR.includes('    provider: "openrouter"'));
+	assert.ok(withR.includes('    maxTokens: 4096'));
+	const withoutR = buildStewardSection({ provider: 'lmstudio', model: 'm' });
+	assert.ok(!withoutR.includes('research:'));
+});
+
+test('buildStewardSection: leere research-Strings werden nicht emittiert', () => {
+	// Wenn Nutzer "leer" für beide Picker auswählt, sendetet die UI: { provider: "", model: "", maxTokens: 8192 }
+	// Die Funktion sollte keine research:-Sektion mit leeren Strings emittieren.
+	const allEmpty = buildStewardSection({ provider: 'lmstudio', model: 'm', research: { provider: '', model: '', maxTokens: 0 } });
+	assert.ok(!allEmpty.includes('research:'), 'keine research-Sektion, wenn alle Felder leer sind');
+
+	const providerEmpty = buildStewardSection({ provider: 'lmstudio', model: 'm', research: { provider: '', model: 'perplexity/sonar', maxTokens: 4096 } });
+	assert.ok(providerEmpty.includes('  research:'), 'research-Sektion vorhanden, wenn modell nicht leer ist');
+	assert.ok(!providerEmpty.includes('    provider:'), 'leerer research-provider wird nicht emittiert');
+	assert.ok(providerEmpty.includes('    model: "perplexity/sonar"'), 'research-model wird emittiert');
+
+	const maxTokensOnly = buildStewardSection({ provider: 'lmstudio', model: 'm', research: { provider: '', model: '', maxTokens: 4096 } });
+	assert.ok(maxTokensOnly.includes('  research:'), 'research-Sektion vorhanden, wenn maxTokens vorhanden ist');
+	assert.ok(maxTokensOnly.includes('    maxTokens: 4096'), 'maxTokens wird emittiert');
+	assert.ok(!maxTokensOnly.includes('    provider:'), 'leerer research-provider wird nicht emittiert');
+	assert.ok(!maxTokensOnly.includes('    model:'), 'leeres research-model wird nicht emittiert');
+});
+
+test('writeStewardSettingsSection: persistiert und liest research-Route round-trip', async () => {
+	const dir = await mkdtemp(path.join(tmpdir(), 'pts-settings-research-'));
+	try {
+		const doc = path.join(dir, 'settings.yaml');
+		await writeFile(doc, FULL, 'utf8');
+		await writeStewardSettingsSection(doc, {
+			provider: 'lmstudio', model: 'ornith-1.5-9b-mtp', maxTokens: 8192, reasoningEffort: '',
+			research: { provider: 'openrouter', model: 'perplexity/sonar', maxTokens: 4096 },
+		});
+		const after = await import('node:fs/promises').then((fs) => fs.readFile(doc, 'utf8'));
+		assert.ok(after.includes('llm-pi-ai:'), 'andere Sektionen bleiben erhalten');
+		const parsed = parseStewardSettingsSection(after);
+		assert.equal(parsed.provider, 'lmstudio');
+		assert.deepEqual(parsed.research, { provider: 'openrouter', model: 'perplexity/sonar', maxTokens: 4096 });
+	} finally {
+		await rm(dir, { recursive: true, force: true });
+	}
+});
+
+test('resolveResearchConfig: Settings-research gewinnt; leere Werte erben Steward-Modell', () => {
+	const { config } = normalizeConfig(undefined);
+	const stewardModel = { provider: 'lmstudio', model: 'ornith', maxTokens: 8192, reasoningEffort: '', source: 'settings' };
+
+	// Settings-research setzt eigene Route.
+	const withSettings = resolveResearchConfig(config, stewardModel, { research: { provider: 'openrouter', model: 'perplexity/sonar', maxTokens: 4096 } });
+	assert.equal(withSettings.provider, 'openrouter');
+	assert.equal(withSettings.model, 'perplexity/sonar');
+	assert.equal(withSettings.maxTokens, 4096);
+	assert.equal(withSettings.source, 'settings');
+	assert.ok(withSettings.allowedTools.includes('web'));
+
+	// Ohne research-Settings und ohne Patch-Row-research erbt es das Steward-Modell.
+	const inherited = resolveResearchConfig(config, stewardModel, null);
+	assert.equal(inherited.provider, 'lmstudio');
+	assert.equal(inherited.model, 'ornith');
+	assert.ok(inherited.allowedTools.includes('web'), 'Web-Allowlist bleibt trotz geerbtem Modell');
+});
+
+test('resolveResearchConfig: web/edit werden aus einer Settings-Allowlist nie freigegeben', () => {
+	const { config } = normalizeConfig(undefined);
+	const stewardModel = { provider: '', model: '', maxTokens: 8192, reasoningEffort: '', source: 'patch-row' };
+	const out = resolveResearchConfig(config, stewardModel, { research: { allowedTools: ['read', 'web', 'write', 'edit'] } });
+	assert.ok(out.allowedTools.includes('web'));
+	assert.ok(!out.allowedTools.includes('write'));
+	assert.ok(!out.allowedTools.includes('edit'));
 });
