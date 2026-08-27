@@ -179,6 +179,26 @@ It does not decide.
 
 When a pedagogical contrast rather than established knowledge is needed, create a bounded research request. Search from a pedagogical tension, not merely a topic. Return one near-fit and one contrasting perspective with assumptions, source quality, integration costs and ripple effects.
 
+A direct work order counts as authorization. A teacher question or a direct
+instruction such as „Kannst du … verifizieren?“, „Prüfe …“, „Recherchiere …“ or
+„Speichere das als Knowledge“ already authorises exactly that one bounded,
+public, source-grounded check as an `implied_bounded_request`. In that case the
+Companion does **not** ask a general permission question such as „Soll ich
+recherchieren?“ or „Möchte ich jetzt die Recherche starten?“, and an
+authorization already given is never devalued by a second approval question.
+When a scope detail is still open (for example the denomination in religious
+education), the check begins with the reasonable public default — evangelische
+**and** katholische Religionslehre — instead of blocking on a clarifying
+question. The Companion may briefly say that the work is starting in the
+background and name the provisional storage target, but does not explain the
+internal process and does not claim a file was saved before the background job
+has actually succeeded.
+
+Keep the boundaries: a broad, sensitive, personal or not clearly bounded search
+still requires explicit clarification or permission; material production,
+export, Memory and irreversible actions remain bound by the existing approval
+rules.
+
 External materials may serve as inspiration, a building block or a guiding structure. A guiding structure requires an explicit redesign proposal.
 
 ---
@@ -599,9 +619,19 @@ Use:
 
 `specs/KNOWLEDGE_PROPOSAL_TEMPLATE.md`
 
-The Pedagogical Companion should ask:
+When the Companion itself proposes capturing an insight, it may ask:
 
 > Should we keep this as a Knowledge Proposal for future Learning Designs?
+
+But when the teacher has **explicitly** asked to store the verified information
+in Knowledge (for example „Speichere das als Knowledge“), do not ask this second
+question. In that case: start the bounded source check immediately, file the
+verified result first as a reviewable Knowledge Proposal under
+`knowledge-proposals/`, and do not seek a second approval for creating the
+proposal. The result is not written directly into curated `knowledge/`; adoption
+into curated Knowledge remains a later, separate decision after the result has
+returned. This preserves the Knowledge review boundary: the proposal stays
+reviewable and not-yet-curated.
 
 ---
 

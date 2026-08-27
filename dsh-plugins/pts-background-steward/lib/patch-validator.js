@@ -43,6 +43,12 @@ export const SERVICE_INTENT_TASKS = Object.freeze(['verify_curriculum_alignment'
 // request start without a separate permission turn.
 export const SERVICE_INTENT_AUTHORIZATIONS = Object.freeze(['implied_bounded_request']);
 
+// Where a completed research result is stored. `draft` is the default (a
+// reviewable draft under drafts/). `knowledge_proposal` is only reached when
+// the teacher explicitly asked to store the verified information in Knowledge;
+// it stays a not-yet-curated proposal under knowledge-proposals/.
+export const SERVICE_INTENT_OUTPUT_TYPES = Object.freeze(['draft', 'knowledge_proposal']);
+
 // Public, non-personal scope fields for verify_curriculum_alignment. Anything
 // outside this allowlist is rejected as an open/unbounded or personal scope.
 export const CURRICULUM_SCOPE_REQUIRED = Object.freeze(['jurisdiction', 'subject', 'phase', 'grade', 'topic']);
@@ -144,6 +150,16 @@ export const STEWARDSHIP_RESULT_SCHEMA = Object.freeze({
 							grade: { type: 'string' },
 							topic: { type: 'string' },
 							denomination: { type: 'string' },
+						},
+					},
+					expected_output: {
+						type: 'object',
+						additionalProperties: false,
+						required: ['type'],
+						description: 'Optional. Ablageziel des Rechercheergebnisses. Fehlt es, gilt draft.',
+						properties: {
+							type: { type: 'string', enum: [...SERVICE_INTENT_OUTPUT_TYPES] },
+							location: { type: 'string', description: 'Nur bei knowledge_proposal: Ablageort unter knowledge-proposals/.' },
 						},
 					},
 					return_to: { type: 'string', const: 'critical_friend' },
@@ -347,6 +363,27 @@ export function validateResult(structured, expectation) {
 			for (const key of Object.keys(scope)) {
 				if (!allowedScopeKeys.has(key)) {
 					errors.push(`${label}.scope.${key} ist kein zulässiges, öffentliches Scope-Feld (mögliche personenbezogene Daten)`);
+				}
+			}
+		}
+		// Optional storage target. Absent → draft. A knowledge_proposal is only
+		// valid with a knowledge-proposals/ location and must never write into
+		// curated knowledge/ (no automatic curation).
+		if (si.expected_output !== undefined) {
+			const eo = si.expected_output;
+			if (!isPlainObject(eo)) {
+				errors.push(`${label}.expected_output muss ein Objekt sein`);
+			} else {
+				if (!SERVICE_INTENT_OUTPUT_TYPES.includes(eo.type)) {
+					errors.push(`${label}.expected_output.type muss draft oder knowledge_proposal sein`);
+				}
+				if (eo.type === 'knowledge_proposal') {
+					const loc = typeof eo.location === 'string' ? eo.location.replace(/\\/g, '/').trim() : '';
+					if (loc === '') {
+						errors.push(`${label}.expected_output.location fehlt (ein Knowledge Proposal braucht einen Ablageort unter knowledge-proposals/)`);
+					} else if (!loc.includes('knowledge-proposals/')) {
+						errors.push(`${label}.expected_output.location muss unter knowledge-proposals/ liegen (keine direkte Ablage im kuratierten knowledge/)`);
+					}
 				}
 			}
 		}

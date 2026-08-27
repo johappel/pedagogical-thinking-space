@@ -9,7 +9,7 @@ import path from 'node:path';
 import { promises as fsp } from 'node:fs';
 
 import { createServiceCoordinator } from '../lib/service-coordinator.js';
-import { CURRICULUM_BRIEF_SCHEMA_VERSION, draftPathFor } from '../lib/research-job.js';
+import { CURRICULUM_BRIEF_SCHEMA_VERSION, draftPathFor, proposalPathFor } from '../lib/research-job.js';
 
 const intent = {
 	task: 'verify_curriculum_alignment',
@@ -81,4 +81,34 @@ test('deaktivierte Recherche hält den Request proposed (kein Anlauf)', async ()
 	});
 	assert.equal(counter.count, 0);
 	assert.equal(results[0].status, 'proposed');
+});
+
+test('expliziter Speicherauftrag legt ein Knowledge Proposal unter knowledge-proposals/ ab', async () => {
+	const dir = await tempDenkraum();
+	const counter = { count: 0 };
+	const proposalIntent = { ...intent, expected_output: { type: 'knowledge_proposal', location: 'knowledge-proposals/' } };
+	const coordinator = createServiceCoordinator({ subagents: makeStubSubagents(counter), jobs: undefined });
+	const results = await coordinator.handle({
+		dir, slug: 'testraum', sessionId: 's1', parentAgent: {}, intents: [proposalIntent], childSessionIds: new Set(), researchConfig,
+	});
+	assert.equal(counter.count, 1);
+	assert.equal(results[0].outcome.status, 'completed-research');
+	assert.equal(results[0].outcome.isProposal, true);
+	// Das Proposal liegt tatsächlich am angekündigten Ort, kein Draft.
+	assert.ok(await fsp.stat(proposalPathFor(dir, proposalIntent)).then(() => true, () => false));
+	assert.equal(await fsp.stat(draftPathFor(dir, proposalIntent)).then(() => true, () => false), false);
+	const md = await fsp.readFile(proposalPathFor(dir, proposalIntent), 'utf8');
+	assert.match(md, /type: Knowledge Proposal/);
+	assert.match(md, /status: proposal/);
+});
+
+test('doppelter Speicherauftrag erzeugt kein zweites Proposal', async () => {
+	const dir = await tempDenkraum();
+	const counter = { count: 0 };
+	const proposalIntent = { ...intent, expected_output: { type: 'knowledge_proposal', location: 'knowledge-proposals/' } };
+	const coordinator = createServiceCoordinator({ subagents: makeStubSubagents(counter), jobs: undefined });
+	await coordinator.handle({ dir, slug: 'testraum', sessionId: 's1', parentAgent: {}, intents: [proposalIntent], childSessionIds: new Set(), researchConfig });
+	const second = await coordinator.handle({ dir, slug: 'testraum', sessionId: 's1', parentAgent: {}, intents: [proposalIntent], childSessionIds: new Set(), researchConfig });
+	assert.equal(counter.count, 1);
+	assert.equal(second[0].status, 'deduplicated');
 });

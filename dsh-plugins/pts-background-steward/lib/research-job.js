@@ -89,6 +89,24 @@ export function draftPathFor(dir, intent) {
 	return path.join(dir, 'drafts', `curriculum-alignment-${scopeKey(intent)}.md`);
 }
 
+/** Deterministic knowledge-proposal path for one intent inside a Denkraum. */
+export function proposalPathFor(dir, intent) {
+	return path.join(dir, 'knowledge-proposals', `curriculum-alignment-${scopeKey(intent)}.md`);
+}
+
+/**
+ * True when the teacher explicitly asked to store the verified result in
+ * Knowledge: the intent then carries expected_output.type = knowledge_proposal.
+ */
+export function wantsKnowledgeProposal(intent) {
+	return isPlainObject(intent?.expected_output) && intent.expected_output.type === 'knowledge_proposal';
+}
+
+/** Where this intent's completed research result is written on disk. */
+export function outputTargetFor(dir, intent) {
+	return wantsKnowledgeProposal(intent) ? proposalPathFor(dir, intent) : draftPathFor(dir, intent);
+}
+
 export function buildResearcherPersona() {
 	return [
 		'Du bist ein quellengebundener Recherche-Subagent im Pedagogical Thinking Space.',
@@ -216,24 +234,126 @@ export function formatBriefMarkdown(result, intent, dateIso) {
 }
 
 /**
+ * Render the validated brief as an OKF-compatible Knowledge Proposal. Used only
+ * when the teacher explicitly asked to store the verified information in
+ * Knowledge. The proposal stays provisional and not-yet-curated: it separates
+ * verified sources, source candidates, interpretation and uncertainty, and
+ * carries `status: proposal`. It never lands in curated `knowledge/`.
+ */
+export function formatProposalMarkdown(result, intent, dateIso, slug) {
+	const s = (intent && intent.scope) || {};
+	const officialSources = result.sources.filter((x) => x.official);
+	const candidateSources = result.sources.filter((x) => !x.official);
+	const sourceStatus = officialSources.length > 0 ? 'partly-verified' : 'source-candidates-unverified';
+	const topic = String(s.topic ?? '').trim() || 'Thema';
+	const subject = String(s.subject ?? '').trim();
+	const jurisdiction = String(s.jurisdiction ?? '').trim();
+	const grade = String(s.grade ?? '').trim();
+	const yamlStr = (value) => JSON.stringify(String(value ?? ''));
+	const filename = `curriculum-alignment-${scopeKey(intent)}.md`;
+
+	const lines = [];
+	lines.push('---');
+	lines.push('type: Knowledge Proposal');
+	lines.push(`title: ${yamlStr(`Lehrplan-Zuordnung: ${topic}${subject ? ` (${subject})` : ''}`)}`);
+	lines.push(`description: ${yamlStr(`Quellengebundene Lehrplan-Zuordnung für ${topic}${jurisdiction ? ` in ${jurisdiction}` : ''}${grade ? `, Jahrgang ${grade}` : ''}.`)}`);
+	lines.push('tags:');
+	lines.push('  - lehrplan');
+	lines.push('  - curriculum-alignment');
+	if (subject) lines.push(`  - ${yamlStr(subject.toLowerCase())}`);
+	lines.push('status: proposal');
+	lines.push(`timestamp: ${dateIso}`);
+	if (jurisdiction) lines.push(`jurisdiction: ${yamlStr(jurisdiction)}`);
+	if (subject) lines.push(`subject: ${yamlStr(subject)}`);
+	if (grade) lines.push(`grade: ${yamlStr(grade)}`);
+	if (s.denomination && String(s.denomination).trim() !== '' && String(s.denomination).trim().toLowerCase() !== 'unknown') {
+		lines.push(`denomination: ${yamlStr(s.denomination)}`);
+	}
+	lines.push(`source_status: ${sourceStatus}`);
+	lines.push(`suggested_location: ${yamlStr(`knowledge/curricula/${filename}`)}`);
+	lines.push('---');
+	lines.push('');
+	lines.push('# Summary');
+	lines.push('');
+	lines.push(typeof result.summary === 'string' && result.summary.trim() !== ''
+		? result.summary.trim()
+		: `Quellengebundene Zuordnung von „${topic}" zu ${jurisdiction || 'der angegebenen Jurisdiktion'}, Fach ${subject || '—'}, Jahrgang ${grade || '—'}.`);
+	lines.push('');
+	lines.push('# Proposal');
+	lines.push('');
+	lines.push('Geprüfte Lehrplan-Zuordnung je Konfession/Schiene:');
+	lines.push('');
+	for (const f of result.findings) {
+		lines.push(`- **${f.denomination} — ${f.alignment}**${f.competence_areas ? ` · ${f.competence_areas}` : ''}: ${f.statement}`);
+	}
+	lines.push('');
+	lines.push('# Why It Matters');
+	lines.push('');
+	lines.push('Die Zuordnung zeigt, ob und wie das Thema an den offiziellen Rahmen anschlussfähig ist, ohne eine pädagogische Entscheidung vorwegzunehmen.');
+	lines.push('');
+	lines.push('# Verified Sources');
+	lines.push('');
+	if (officialSources.length === 0) lines.push('Noch keine offiziell verifizierte Quelle.');
+	else for (const src of officialSources) {
+		const url = src.url ? ` — ${src.url}` : '';
+		const accessed = src.accessed ? ` (Zugriff: ${src.accessed})` : '';
+		lines.push(`- ${src.title}${url}${accessed}`);
+	}
+	lines.push('');
+	lines.push('# Source Candidates');
+	lines.push('');
+	if (candidateSources.length === 0) lines.push('Keine weiteren, noch ungeprüften Quellen benannt.');
+	else for (const src of candidateSources) {
+		const url = src.url ? ` — ${src.url}` : '';
+		lines.push(`- ${src.title}${url}`);
+	}
+	lines.push('');
+	lines.push('# Interpretation');
+	lines.push('');
+	lines.push('Die Einordnung stammt aus einer begrenzten, quellengebundenen Prüfung durch einen getrennten Recherche-Subagenten. Sie ersetzt keine pädagogische Entscheidung.');
+	lines.push('');
+	lines.push('# Uncertainty');
+	lines.push('');
+	if (!Array.isArray(result.uncertainties) || result.uncertainties.length === 0) lines.push('- keine benannt');
+	else for (const u of result.uncertainties) lines.push(`- ${u}`);
+	lines.push('');
+	lines.push('# Review Checklist');
+	lines.push('');
+	lines.push('- [ ] Offizielle Quellen geprüft');
+	lines.push('- [ ] Quelleninhalt und Interpretation getrennt');
+	lines.push('- [ ] Keine unbelegten Lehrplan- oder Rechtsaussagen');
+	lines.push('- [ ] Über den Einzelfall hinaus wiederverwendbar');
+	lines.push('- [ ] Keine personenbezogenen Daten');
+	lines.push('- [ ] Vorgeschlagener Ablageort plausibel');
+	lines.push('');
+	lines.push(`> Herkunft: pts-background-steward · quellengebundener Recherche-Subagent · ${slug ?? 'Denkraum'} · erzeugt ${dateIso}. Noch nicht kuratiert.`);
+	lines.push('');
+	return lines.join('\n');
+}
+
+/**
  * Build the concise internal follow-up briefing for the Companion. This is NOT
  * the raw worker answer: it instructs the Companion to phrase one short,
- * source-based contribution and points to the full draft.
+ * source-based contribution and points to the full result on disk.
  */
-export function buildFollowupBriefing(result, intent, draftRel) {
+export function buildFollowupBriefing(result, intent, outputRel, isProposal = false) {
 	const s = (intent && intent.scope) || {};
 	const findings = result.findings
 		.map((f) => `${f.denomination}: ${f.alignment}${f.competence_areas ? ` (${f.competence_areas})` : ''}`)
 		.join('; ');
 	const officialSources = result.sources.filter((x) => x.official).map((x) => x.title);
 	const sourceList = (officialSources.length > 0 ? officialSources : result.sources.map((x) => x.title)).slice(0, 3).join('; ');
+	const artifactLabel = isProposal ? 'Knowledge Proposal (überprüfbar, noch nicht kuratiert)' : 'Draft';
 	return [
 		'INTERNE NOTIZ (nicht wörtlich zeigen, keine Roh-Ausgabe einfügen):',
 		`Die im Hintergrund angestoßene Lehrplan-Prüfung (${s.subject ?? ''} · ${s.jurisdiction ?? ''} · Jahrgang ${s.grade ?? ''} · Thema „${s.topic ?? ''}“) ist abgeschlossen.`,
 		`Kurzbefund: ${findings || '—'}.`,
 		`Offizielle Quellen: ${sourceList || '—'}.`,
 		result.uncertainties.length > 0 ? `Offene Unsicherheiten: ${result.uncertainties.slice(0, 2).join('; ')}.` : '',
-		`Vollständiger Befund als Draft: ${draftRel}.`,
+		`Vollständiger Befund als ${artifactLabel}: ${outputRel}.`,
+		isProposal
+			? 'Weise kurz darauf hin, dass das Ergebnis zunächst als überprüfbares Knowledge Proposal im Denkraum liegt; die Übernahme ins kuratierte Knowledge bleibt ein späterer, getrennter Schritt.'
+			: '',
 		'Formuliere daraus einen kurzen, quellenbasierten Anschlussbeitrag an die Lehrkraft; nenne die Quellenlage und bleibe bei quellengebundenem Wissen. Triff keine pädagogische Entscheidung und stelle keine erneute allgemeine Recherche-Erlaubnisfrage.',
 	].filter(Boolean).join('\n');
 }
@@ -246,8 +366,7 @@ function agentOptionsFrom(researchConfig) {
 	return Object.keys(options).length > 0 ? options : undefined;
 }
 
-async function writeDraft(dir, intent, markdown) {
-	const target = draftPathFor(dir, intent);
+async function writeArtifact(target, markdown) {
 	await fsp.mkdir(path.dirname(target), { recursive: true });
 	const tmp = `${target}.research-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.tmp`;
 	await fsp.writeFile(tmp, markdown, 'utf8');
@@ -321,12 +440,15 @@ export async function runResearch(ports) {
 			logError(`${slug}: Rechercheergebnis verworfen:\n- ${checked.errors.join('\n- ')}`);
 			return { status: 'invalid', detail: `${checked.errors.length} Verstoß gegen das Recherche-Schema`, errors: checked.errors };
 		}
-		const markdown = formatBriefMarkdown(checked.result, intent, dateIso);
-		const draftPath = await writeDraft(dir, intent, markdown);
-		const draftRel = path.relative(dir, draftPath).split(path.sep).join('/');
-		const briefing = buildFollowupBriefing(checked.result, intent, draftRel);
-		log(`${slug}: Lehrplan-Recherche abgeschlossen → Draft ${draftRel}`);
-		return { status: 'completed-research', detail: briefing, draftPath, briefing };
+		const asProposal = wantsKnowledgeProposal(intent);
+		const markdown = asProposal
+			? formatProposalMarkdown(checked.result, intent, dateIso, slug)
+			: formatBriefMarkdown(checked.result, intent, dateIso);
+		const outputPath = await writeArtifact(outputTargetFor(dir, intent), markdown);
+		const outputRel = path.relative(dir, outputPath).split(path.sep).join('/');
+		const briefing = buildFollowupBriefing(checked.result, intent, outputRel, asProposal);
+		log(`${slug}: Lehrplan-Recherche abgeschlossen → ${asProposal ? 'Knowledge Proposal' : 'Draft'} ${outputRel}`);
+		return { status: 'completed-research', detail: briefing, outputPath, outputRel, isProposal: asProposal, briefing };
 	};
 
 	// Owned job path: completion produces a Companion follow-up. Falls back to a
@@ -335,7 +457,7 @@ export async function runResearch(ports) {
 	if (!jobsUsable) {
 		const outcome = await doResearch(signal);
 		if (outcome.status === 'completed-research') {
-			logError(`${slug}: kein Job-Owner verfügbar — Draft gespeichert, aber kein Companion-Follow-up ausgelöst`);
+			logError(`${slug}: kein Job-Owner verfügbar — ${outcome.isProposal ? 'Knowledge Proposal' : 'Draft'} gespeichert, aber kein Companion-Follow-up ausgelöst`);
 		}
 		return outcome;
 	}

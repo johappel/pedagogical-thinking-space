@@ -194,3 +194,28 @@ Use:
 to keep proposal structure consistent.
 
 Only reviewed and curated proposals may be moved into `knowledge/`.
+
+---
+
+# Direct work orders and the proposal boundary
+
+A direct teacher work order is itself the authorization for one bounded,
+public, source-grounded knowledge check. A question or instruction such as
+„Kannst du … verifizieren?", „Prüfe den Lehrplanbezug", „Recherchiere …" or
+„Speichere das als Knowledge" already authorises exactly that check as an
+`implied_bounded_request`. The Pedagogical Companion does not answer it with a
+second permission question such as „Soll ich recherchieren?" or „Möchte ich
+jetzt die Recherche starten?", and it never devalues an authorization already
+given with a second approval question. On an open scope detail — for example the
+denomination in religious education — the check begins with the reasonable
+public default (evangelische and katholische Religionslehre) instead of blocking
+on a clarifying question.
+
+When the Companion itself proposes capturing an insight, it may still ask
+whether to keep it as a Knowledge Proposal. But when the teacher has explicitly
+asked to store the verified information in Knowledge, the verified result is
+filed immediately as a reviewable, not-yet-curated Knowledge Proposal under
+`knowledge-proposals/` — without a second approval for the proposal creation and
+never directly into curated `knowledge/`. Adoption into curated Knowledge
+remains a later, separate decision after the result has returned. This keeps the
+Knowledge review boundary intact: the proposal stays reviewable and provisional.

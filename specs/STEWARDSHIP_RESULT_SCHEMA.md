@@ -64,6 +64,9 @@ service_intents:
       grade: "11"
       denomination: unknown
       topic: Utopie und Hoffnung
+    expected_output:
+      type: knowledge_proposal
+      location: knowledge-proposals/
     return_to: critical_friend
 
 next_turn_hint:
@@ -130,6 +133,7 @@ DSH-Recherche-Subagenten.
 | `authorization.type` | const | Muss `implied_bounded_request` sein. |
 | `authorization.evidence` | string | Nachrichten-ID **der Lehrkraft** aus dem Gesprächsfenster. |
 | `scope` | object | Eng begrenzter, öffentlicher, nicht personenbezogener Umfang. |
+| `expected_output` | object/optional | Speicherziel des Rechercheergebnisses. Fehlt es, gilt `draft`. |
 | `return_to` | const | Muss `critical_friend` sein. |
 
 `scope` bei `verify_curriculum_alignment` trägt nur öffentliche Felder:
@@ -137,6 +141,18 @@ DSH-Recherche-Subagenten.
 `denomination`. Eine unbekannte Konfession (`denomination: unknown` oder leer)
 blockiert die erste Prüfung nicht — der Dienst prüft dann evangelisch **und**
 katholisch.
+
+`expected_output` unterscheidet das Speicherziel des zurückkehrenden Befunds:
+
+| `type` | Wirkung |
+|---|---|
+| `draft` (Default) | Ergebnis als überprüfbarer Draft unter `drafts/`. Reine Lehrplanfrage ohne Speicherauftrag. |
+| `knowledge_proposal` | Nur wenn die Lehrkraft ausdrücklich verlangt hat, das verifizierte Ergebnis im Knowledge zu speichern. Ergebnis als OKF-kompatibles Knowledge Proposal unter `knowledge-proposals/`; `location` ist dann Pflicht. Das Proposal bleibt überprüfbar und **noch nicht kuratiert**. |
+
+Ein `knowledge_proposal` ist kein zweiter Genehmigungsbedarf und keine Umgehung
+des Knowledge-Capture-Gates: Der ausdrückliche Auftrag der Lehrkraft ist bereits
+die Autorisierung; das Ergebnis wird niemals direkt in kuratiertes `knowledge/`
+geschrieben.
 
 Die anwendungsseitige Politikprüfung **lehnt einen Service-Intent ab**, wenn:
 
@@ -149,6 +165,9 @@ Die anwendungsseitige Politikprüfung **lehnt einen Service-Intent ab**, wenn:
 - der Request eine pädagogische Entscheidung oder Materialproduktion enthält
   (unzulässiger `task`, `authorization.type` ≠ `implied_bounded_request` oder
   `return_to` ≠ `critical_friend`);
+- ein `expected_output.type: knowledge_proposal` ohne `location` unter
+  `knowledge-proposals/` erscheint oder direkt in kuratiertes `knowledge/`
+  schreiben würde;
 - mehr als ein Service-Intent pro Lauf vorgeschlagen wird.
 
 Ohne gültige Autorisierung entsteht kein Anlaufen; der Request bleibt

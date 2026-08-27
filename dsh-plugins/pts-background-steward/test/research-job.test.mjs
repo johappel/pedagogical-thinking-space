@@ -12,7 +12,12 @@ import {
 	buildResearchPrompt,
 	buildResearcherPersona,
 	formatBriefMarkdown,
+	formatProposalMarkdown,
 	buildFollowupBriefing,
+	draftPathFor,
+	proposalPathFor,
+	outputTargetFor,
+	wantsKnowledgeProposal,
 } from '../lib/research-job.js';
 
 const ALLOWED_KEYWORDS = new Set(['type', 'oneOf', 'properties', 'required', 'additionalProperties', 'items', 'enum', 'const', 'description', 'title', 'default', 'examples']);
@@ -118,3 +123,46 @@ test('Follow-up-Briefing ist eine interne Notiz, keine Roh-Ausgabe', () => {
 	assert.match(briefing, /kurzen, quellenbasierten Anschlussbeitrag/);
 	assert.match(briefing, /keine erneute allgemeine Recherche-Erlaubnisfrage/);
 });
+
+// ——— Speicherziel: Draft vs. Knowledge Proposal ———
+
+const proposalIntent = {
+	...intent,
+	expected_output: { type: 'knowledge_proposal', location: 'knowledge-proposals/' },
+};
+
+test('wantsKnowledgeProposal unterscheidet Draft und Proposal', () => {
+	assert.equal(wantsKnowledgeProposal(intent), false);
+	assert.equal(wantsKnowledgeProposal(proposalIntent), true);
+});
+
+test('outputTargetFor wählt drafts/ bzw. knowledge-proposals/', () => {
+	assert.equal(outputTargetFor('/d', intent), draftPathFor('/d', intent));
+	const target = outputTargetFor('/d', proposalIntent);
+	assert.equal(target, proposalPathFor('/d', proposalIntent));
+	assert.match(target.split(/[\\/]/).join('/'), /knowledge-proposals\//);
+});
+
+test('formatProposalMarkdown erzeugt OKF-Frontmatter und trennt Quellen/Interpretation/Unsicherheit', () => {
+	const md = formatProposalMarkdown(validBrief(), proposalIntent, '2026-08-27', 'testraum');
+	assert.match(md, /^---\n/);
+	assert.match(md, /\ntype: Knowledge Proposal\n/);
+	assert.match(md, /\nstatus: proposal\n/);
+	assert.match(md, /\nsource_status: /);
+	assert.match(md, /\nsuggested_location: /);
+	assert.match(md, /# Verified Sources/);
+	assert.match(md, /# Source Candidates/);
+	assert.match(md, /# Interpretation/);
+	assert.match(md, /# Uncertainty/);
+	assert.match(md, /Noch nicht kuratiert/);
+	// Kein direktes Schreiben in kuratiertes knowledge/: nur als Vorschlag.
+	assert.match(md, /Kernlehrplan Religionslehre NRW/);
+});
+
+test('Follow-up-Briefing kennzeichnet ein Proposal als noch nicht kuratiert', () => {
+	const briefing = buildFollowupBriefing(validBrief(), proposalIntent, 'knowledge-proposals/curriculum-alignment-abc.md', true);
+	assert.match(briefing, /Knowledge Proposal/);
+	assert.match(briefing, /noch nicht kuratiert/);
+	assert.match(briefing, /späterer, getrennter Schritt/);
+});
+

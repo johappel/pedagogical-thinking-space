@@ -14,7 +14,7 @@
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 
-import { runResearch, scopeKey, draftPathFor } from './research-job.js';
+import { runResearch, scopeKey, outputTargetFor, wantsKnowledgeProposal } from './research-job.js';
 
 function requestPathFor(dir, intent) {
 	return path.join(dir, 'drafts', `curriculum-alignment-${scopeKey(intent)}.request.yaml`);
@@ -37,6 +37,10 @@ function yamlScalar(value) {
 /** Serialize the authorized request as a small, human-readable YAML record. */
 function serializeRequest(intent, meta) {
 	const s = intent.scope || {};
+	const storage = wantsKnowledgeProposal(intent) ? 'knowledge_proposal' : 'draft';
+	const location = storage === 'knowledge_proposal'
+		? (intent.expected_output && intent.expected_output.location) || 'knowledge-proposals/'
+		: undefined;
 	const lines = [
 		'service: knowledge',
 		'mode: research',
@@ -56,7 +60,9 @@ function serializeRequest(intent, meta) {
 		'  official_sources_first: true',
 		'  citations_required: true',
 		'expected_output:',
-		'  type: curriculum_alignment_brief',
+		'  format: curriculum_alignment_brief',
+		`  storage: ${yamlScalar(storage)}`,
+		...(location ? [`  location: ${yamlScalar(location)}`] : []),
 		`return_to: ${yamlScalar(intent.return_to)}`,
 		`requested_by: pts-background-steward`,
 		`session_id: ${yamlScalar(meta.sessionId)}`,
@@ -95,10 +101,10 @@ export function createServiceCoordinator({ subagents, jobs, log = () => {}, logE
 			log(`${slug}: Knowledge-Request in dieser Sitzung bereits erledigt — übersprungen`);
 			return { status: 'deduplicated', key };
 		}
-		// Cross-restart dedup: an existing draft or request marker means done.
-		if (await pathExists(draftPathFor(dir, intent)) || await pathExists(requestPathFor(dir, intent))) {
+		// Cross-restart dedup: an existing output or request marker means done.
+		if (await pathExists(outputTargetFor(dir, intent)) || await pathExists(requestPathFor(dir, intent))) {
 			done.add(key);
-			log(`${slug}: Knowledge-Request bereits als Draft/Marker vorhanden — kein doppelter Auftrag`);
+			log(`${slug}: Knowledge-Request bereits als Ergebnis/Marker vorhanden — kein doppelter Auftrag`);
 			return { status: 'deduplicated', key };
 		}
 

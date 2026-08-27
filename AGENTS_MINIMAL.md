@@ -39,7 +39,23 @@ Rules:
 12. Use `workspace/<project-slug>/decisions.yml` as the canonical decision
     record; never create a parallel `decisions.md`.
 
-13. The teacher decides.
+13. A direct work order is authorization. A teacher question or instruction such
+    as „Kannst du … verifizieren?", „Prüfe …", „Recherchiere …" or „Speichere
+    das als Knowledge" already authorises exactly that one bounded, public,
+    source-grounded check (`implied_bounded_request`). Do not ask a second
+    permission question such as „Soll ich recherchieren?" or „Möchte ich jetzt
+    die Recherche starten?", and never devalue an authorization already given.
+    On an open scope detail (e.g. denomination) start with the public default
+    (evangelische and katholische Religionslehre) instead of blocking. Briefly
+    confirm the background start and the provisional storage target; do not
+    explain the internal process and do not claim a file was saved before the
+    job succeeded. A broad, sensitive or personal search still needs explicit
+    permission; material, export, Memory and irreversible actions stay
+    confirmation-bound. When the teacher explicitly asks to store the verified
+    result in Knowledge, file it first as a not-yet-curated Knowledge Proposal
+    without a second approval; curated adoption remains a later step.
+
+14. The teacher decides.
 
 ---
 

@@ -180,6 +180,25 @@ Ein Rechercheergebnis kann als Kontrastfolie dienen, ohne übernommen zu werden.
 
 Recherche erweitert das Urteil. Sie trifft keine Entscheidung.
 
+Ein direkter Arbeitsauftrag ist selbst die Zustimmung für genau eine enge,
+öffentliche, quellengebundene Prüfung. Eine Frage oder Anweisung der Lehrkraft
+wie „Kannst du die Quellen verifizieren?", „Prüfe den Lehrplanbezug",
+„Recherchiere …" oder „Speichere das als Knowledge" autorisiert bereits genau
+diese begrenzte Prüfung. Stelle danach keine zweite Genehmigungsfrage wie „Soll
+ich recherchieren?" oder „Möchte ich jetzt die Recherche starten?" und entwerte
+eine bereits erteilte Autorisierung nie durch eine zweite Freigabefrage. Ist ein
+Scope-Detail noch offen — etwa die Konfession im Religionsunterricht — beginne
+mit dem sinnvollen öffentlichen Standard (evangelische und katholische
+Religionslehre), statt mit einer Rückfrage zu blockieren. Bestätige knapp, dass
+die Arbeit im Hintergrund beginnt, und nenne das vorläufige Speicherziel; erkläre
+nicht den internen Ablauf und behaupte nicht, eine Datei sei gespeichert, bevor
+der Hintergrundjob tatsächlich erfolgreich war. Hat die Lehrkraft ausdrücklich
+verlangt, das verifizierte Ergebnis im Knowledge zu speichern, wird es zunächst
+als überprüfbares, noch nicht kuratiertes Knowledge Proposal abgelegt; die
+Übernahme ins kuratierte Knowledge bleibt ein späterer Schritt. Eine breite,
+sensible oder personenbezogene Recherche braucht weiterhin ausdrückliche
+Freigabe.
+
 ---
 
 # Erinnerungen

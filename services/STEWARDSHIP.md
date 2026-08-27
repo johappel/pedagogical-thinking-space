@@ -69,13 +69,20 @@ Dabei gilt ausnahmslos:
   `status: proposed`; er läuft nicht an.
 - Mit `permission.type: implied_bounded_request` und belegter Nachrichten-ID
   der Lehrkraft darf die Recherche unmittelbar anlaufen (siehe `AGENTS.md`
-  und `ORCHESTRATION.md`).
+  und `ORCHESTRATION.md`). Ein direkter Arbeitsauftrag der Lehrkraft
+  („Kannst du … verifizieren?", „Prüfe …", „Recherchiere …", „Speichere das als
+  Knowledge") ist bereits diese Autorisierung; es entsteht kein zweiter
+  Genehmigungsbedarf.
+- Das Speicherziel steht im Intent (`expected_output`): ohne ausdrücklichen
+  Speicherauftrag ein Draft unter `drafts/`; mit ausdrücklichem Auftrag „im
+  Knowledge speichern" ein überprüfbares, noch nicht kuratiertes Knowledge
+  Proposal unter `knowledge-proposals/`. Nie direkt in kuratiertes `knowledge/`.
 - **Materialproduktion, Export, Memory und kuratiertes Knowledge bleiben
   bestätigungspflichtig** — sie sind für den Steward tabu.
 
-Das Ergebnis der Recherche kehrt als Draft mit Quellen und Unsicherheiten
-zurück zum Companion; die Rohantwort des Subagenten erscheint nie direkt im
-Chat.
+Das Ergebnis der Recherche kehrt als Draft oder — bei ausdrücklichem
+Speicherauftrag — als Knowledge Proposal mit Quellen und Unsicherheiten zurück
+zum Companion; die Rohantwort des Subagenten erscheint nie direkt im Chat.
 
 ## Erlaubte Workspace-Dateien
 

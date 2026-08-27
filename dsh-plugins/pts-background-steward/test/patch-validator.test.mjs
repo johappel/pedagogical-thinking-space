@@ -298,3 +298,43 @@ test('unbekannte Konfession blockiert den Intent nicht', () => {
 	assert.equal(r.ok, true);
 });
 
+// ——— Politik: expected_output (Speicherziel) ———
+
+test('Intent ohne expected_output ist gültig (Default Draft)', () => {
+	const intent = validIntent();
+	assert.equal(intent.expected_output, undefined);
+	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
+	assert.equal(r.ok, true);
+});
+
+test('expected_output knowledge_proposal mit knowledge-proposals/-Ort besteht', () => {
+	const intent = validIntent({
+		expected_output: { type: 'knowledge_proposal', location: 'workspace/testraum/knowledge-proposals/' },
+	});
+	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
+	assert.equal(r.ok, true);
+	assert.equal(r.result.service_intents[0].expected_output.type, 'knowledge_proposal');
+});
+
+test('expected_output knowledge_proposal ohne location wird abgelehnt', () => {
+	const intent = validIntent({ expected_output: { type: 'knowledge_proposal' } });
+	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('location')));
+});
+
+test('expected_output knowledge_proposal darf nicht in kuratiertes knowledge/ schreiben', () => {
+	const intent = validIntent({ expected_output: { type: 'knowledge_proposal', location: 'knowledge/curricula/x.md' } });
+	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('knowledge-proposals/')));
+});
+
+test('unzulässiger expected_output.type wird abgelehnt', () => {
+	const intent = validIntent({ expected_output: { type: 'curated_knowledge', location: 'knowledge-proposals/' } });
+	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('expected_output.type')));
+});
+
+

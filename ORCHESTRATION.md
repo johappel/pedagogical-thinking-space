@@ -154,17 +154,41 @@ permission:
 
 This authorization holds only when **all** of the following are true:
 
-- the teacher themselves asks a question that requires checked external knowledge;
+- the teacher themselves asks a question or gives a direct work order that requires checked external knowledge;
 - only public, non-personal sources are needed;
 - the research is tightly bounded;
 - no pedagogical decision is taken and no material is produced.
 
 Under these conditions a question such as *„Könnte das ein Thema für die 11.
-Klasse in NRW sein?“* already authorises a bounded curriculum check. A separate
-*„Soll ich recherchieren?“* is unnecessary and should be omitted. It authorises
-**only** source-grounded knowledge (for example a curriculum alignment check),
-never a pedagogical decision, a comparison of pedagogical approaches or any
-material production.
+Klasse in NRW sein?“* — and equally a direct work order such as *„Kannst du die
+Quellen verifizieren?“*, *„Prüfe den Lehrplanbezug“*, *„Recherchiere …“* or
+*„Speichere das als Knowledge“* — already authorises the bounded curriculum
+check. A separate *„Soll ich recherchieren?“* or *„Möchte ich jetzt die
+Recherche starten?“* is unnecessary and must be omitted. An authorization that
+has already been given must not be devalued by a second approval question. It
+authorises **only** source-grounded knowledge (for example a curriculum
+alignment check), never a pedagogical decision, a comparison of pedagogical
+approaches or any material production.
+
+When a scope detail is still open — for example the denomination in religious
+education — the check begins with the reasonable public default (evangelische
+**and** katholische Religionslehre) rather than blocking on a clarifying
+question. The Companion may briefly state that the work is starting in the
+background and name the provisional storage target, but it neither re-asks for
+permission nor explains the internal process, and it never claims a file was
+saved before the background job has actually succeeded.
+
+Distinguish clearly:
+
+- a direct, narrow, public source check → `implied_bounded_request` (starts immediately);
+- a broad, sensitive, personal or not clearly bounded search → still requires explicit clarification or permission;
+- material production, export, Memory and irreversible actions → still bound by the existing approval rules.
+
+If the teacher explicitly asks to store the verified information in Knowledge,
+the request additionally carries `expected_output.type: knowledge_proposal`.
+The verified result is then filed as a reviewable, not-yet-curated Knowledge
+Proposal under `knowledge-proposals/` without a second approval for the proposal
+creation; adoption into curated `knowledge/` remains a later, separate step.
 
 The Companion reviews the result before presenting it. It normally returns:
 
