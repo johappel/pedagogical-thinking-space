@@ -97,7 +97,10 @@ def main() -> int:
         rel = path.relative_to(ROOT).as_posix()
         text = read_text(path)
 
-        if "core/" in text:
+        # Match an old top-level `core/` PATH reference, but NOT `core/` inside a
+        # URL (e.g. .../api/core/bitstreams/...): a repo path is preceded by a
+        # boundary that is neither a word char nor a slash.
+        if re.search(r"(?<![\w/])core/", text):
             errors.append(f"{rel}: contains old reference 'core/'")
         if "workspace//" in text:
             errors.append(f"{rel}: contains broken path 'workspace//'")
@@ -119,7 +122,10 @@ def main() -> int:
                 continue
             if is_template_or_glob(target) or target.endswith("/"):
                 continue
-            if target.endswith((".md", ".yml", ".yaml")) and not (ROOT / target).exists():
+            # Relative links resolve against the SOURCE FILE's directory, not the
+            # repo root; URLs were already excluded by is_local_doc_target.
+            resolved = (path.parent / target).resolve()
+            if target.endswith((".md", ".yml", ".yaml")) and not resolved.exists():
                 errors.append(f"{rel}: links to missing path {target}")
 
     for rel, phrases in MUST_CONTAIN.items():

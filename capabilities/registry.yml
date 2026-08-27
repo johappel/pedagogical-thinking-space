@@ -72,6 +72,27 @@ capabilities:
     model_hint: careful_reasoning
     provenance: kernel meta-capability (capability builder)
 
+  - task: review_capability
+    capability_version: 1
+    service: worker
+    mode: review
+    status: active
+    capability_file: capabilities/workers/README.md
+    instruction_file: capabilities/workers/review_capability.instruction.md
+    schema_file: capabilities/workers/review_capability.schema.json
+    authorizations:
+      - board_item
+      - bounded_session
+    # The reviewer only READS; it judges a trial semantically (no web, no writes).
+    dsh_tools:
+      - read
+    result_schema: ptspace.capability-review/v1
+    output_handler: capability_review
+    output_targets:
+      - draft
+    model_hint: careful_reasoning
+    provenance: kernel meta-capability (capability reviewer)
+
   - task: research_pedagogical_alternatives
     capability_version: 1
     service: worker

@@ -96,28 +96,49 @@ export const genericHandler = Object.freeze({
 		const target = path.join(dir, 'drafts', `${task}-${key}.md`);
 		await writeArtifact(target, formatGenericResult(structured, intent, capability));
 		const briefing = buildGenericFollowup(structured, intent, capability, rel);
-		return { status: 'completed-research', detail: briefing, outputPath: target, outputRel: rel, isProposal: false, briefing };
+		return { status: 'completed-research', detail: briefing, outputPath: target, outputRel: rel, isProposal: false, briefing, structured };
 	},
 });
 
 /**
  * Capability-builder handler: materialize the builder subagent's structured
- * Capability Proposal into a versioned proposal folder (status trial) under
- * capabilities/_proposals/. Runs through the SAME generic dispatcher.
+ * Capability Proposal into a versioned proposal folder (status `proposed`) under
+ * capabilities/_proposals/. A separate deterministic preflight later promotes it
+ * to trial; the builder never sets trial itself. Runs through the SAME generic
+ * dispatcher.
  */
 export const capabilityProposalHandler = Object.freeze({
 	name: 'capability_proposal',
-	async process(structured, { ptsRoot, intent, dir }) {
+	async process(structured, { ptsRoot }) {
 		if (!ptsRoot) return { status: 'invalid', detail: 'ptsRoot fehlt — Proposal kann nicht materialisiert werden' };
 		const res = await materializeProposal(ptsRoot, structured);
 		if (res.errors) return { status: 'invalid', detail: `Proposal ungültig: ${res.errors.join('; ')}`, errors: res.errors };
 		const rel = path.relative(ptsRoot, res.dir).split(path.sep).join('/');
 		const briefing = [
 			'INTERNE NOTIZ (nicht wörtlich zeigen):',
-			`Capability-Proposal erstellt: ${res.entry.task} v${res.entry.capability_version} (status trial) unter ${rel}.`,
-			'Die neue Fähigkeit kann nun als trial über den generischen Dispatcher erprobt und danach geprüft werden.',
+			`Capability-Proposal erstellt: ${res.entry.task} v${res.entry.capability_version} (status proposed) unter ${rel}.`,
+			'Ein deterministischer Preflight kann sie nach trial überführen; danach folgt der Trial-Lauf und die semantische Review.',
 		].join('\n');
 		return { status: 'completed-research', detail: briefing, outputPath: res.dir, outputRel: rel, isProposal: false, briefing, proposalEntry: res.entry };
+	},
+});
+
+/**
+ * Capability-reviewer handler: validate the semantic reviewer subagent's verdict
+ * and surface it to the lifecycle orchestrator. Reviewer is a SEPARATE subagent
+ * from the builder; runs through the SAME generic dispatcher.
+ */
+export const capabilityReviewHandler = Object.freeze({
+	name: 'capability_review',
+	async process(structured, { schema, intent }) {
+		const errors = validateAgainstSchema(schema, structured);
+		if (errors.length > 0) return { status: 'invalid', detail: `Review-Ergebnis ungültig (${errors.length})`, errors };
+		const verdict = structured.verdict;
+		const briefing = [
+			'INTERNE NOTIZ (nicht wörtlich zeigen):',
+			`Semantische Review abgeschlossen: Verdikt ${verdict}.`,
+		].join('\n');
+		return { status: 'completed-research', detail: briefing, outputRel: null, isProposal: false, briefing, reviewVerdict: verdict, reviewReasons: structured.reasons };
 	},
 });
 
@@ -127,6 +148,7 @@ const HANDLERS = new Map([
 	// A capability may also declare `output_handler: draft` — treat as generic.
 	['draft', genericHandler],
 	['capability_proposal', capabilityProposalHandler],
+	['capability_review', capabilityReviewHandler],
 ]);
 
 /** Resolve a generic result handler by name, or undefined. */

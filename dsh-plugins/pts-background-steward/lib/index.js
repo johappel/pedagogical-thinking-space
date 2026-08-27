@@ -244,10 +244,17 @@ export function apply(ctx, rawConfig) {
 		const outcome = await reflect(job);
 		lastOutcomeByDir.set(key, { at: Date.now(), outcome });
 
-		// Route any validated bounded knowledge-request intents. This happens
-		// AFTER reflection and never blocks the visible conversation; the
-		// research runs in its own owned job and returns via a Companion
-		// follow-up. Duplicate turns are deduplicated inside the coordinator.
+		// ————— Companion/dispatcher execution seam (NOT a steward duty) —————
+		// Role boundary: the Background Steward job only RETURNS Denkstand data.
+		// The steward subagent never executes a service and never proposes the
+		// meta capabilities (build_capability/review_capability) — its routable
+		// tasks are the knowledge-service dispatchable capabilities only. The
+		// routing below is the APPLICATION's Companion/dispatcher seam that acts
+		// on a teacher-authorized implied bounded request the steward surfaced;
+		// it is deliberately separate from the steward's Denkstand maintenance.
+		// Capability building/trial/review are driven by runCapabilityLifecycle
+		// (capability-lifecycle.js) from this same dispatcher seam — never from
+		// steward reflection.
 		const intents = Array.isArray(outcome && outcome.serviceIntents) ? outcome.serviceIntents : [];
 		if (intents.length > 0) {
 			const researchConfig = await effectiveResearchConfig();

@@ -97,7 +97,7 @@ export async function materializeProposal(ptsRoot, proposal, opts = {}) {
 		capability_version: version,
 		service,
 		mode: String(proposal.mode || 'draft'),
-		status: 'trial',
+		status: 'proposed',
 		instruction_file: rel('instruction.md'),
 		schema_file: rel('schema.json'),
 		authorizations: Array.isArray(proposal.authorizations) && proposal.authorizations.length > 0 ? proposal.authorizations : ['board_item'],

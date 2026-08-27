@@ -48,7 +48,13 @@ Der Steward:
 - darf **`temporal-plan.yml` nie verändern** — bindende zeitliche Platzierungen
   bleiben der Lehrkraft vorbehalten;
 - schreibt **nie selbst Dateien**: Er liefert ein strukturiertes Ergebnis zurück;
-  die Anwendung validiert es und wendet es atomar an.
+  die Anwendung validiert es und wendet es atomar an;
+- ist **nicht** für Capability-Building, Trial oder Review zuständig: Das
+  Erzeugen, Erproben, Prüfen und Aktivieren von Capabilities ist Sache des
+  Companion-/Dispatcher-Seams (`capability-lifecycle.js`), nicht des Stewards.
+  Der Steward schlägt niemals die Meta-Capabilities `build_capability` oder
+  `review_capability` vor; seine routbaren Tasks sind ausschließlich die
+  dispatchbaren Knowledge-Capabilities.
 
 ## Begrenzter Knowledge-Request
 

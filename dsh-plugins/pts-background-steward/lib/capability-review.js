@@ -1,85 +1,109 @@
-// pts-background-steward — trial reviewer + bounded auto-activation.
+// pts-background-steward — capability preflight, trial gates + bounded activation.
 //
-// A trial capability's result is reviewed by DETERMINISTIC gates (a separate
-// step from execution). Auto-activation trial -> active is allowed ONLY when the
-// capability uses exclusively already-permitted tools and permissions and stays
-// inside the safe output targets. New tools/plugins, external writes, sensitive
-// data or runtime code keep the capability at trial and require human approval.
+// Lifecycle: a builder result is materialized as `proposed`. A successful
+// DETERMINISTIC preflight promotes it to `trial` (the builder never sets trial
+// itself). After the trial run, auto-activation trial -> active requires ALL of:
+//   1. deterministic policy + schema gates passed;
+//   2. a successful trial;
+//   3. a separate SEMANTIC reviewer subagent verdict `approved`;
+//   4. no new tools, permissions, output targets or runtime code paths.
+// Otherwise the capability stays at trial and needs human approval.
 //
-// Capability versions are never overwritten: activation flips THIS version's
-// status to `active` and appends a traceable activation record.
+// Capability versions are never overwritten: transitions flip THIS version's
+// status and append a traceable record.
 
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 
 import { validateAgainstSchema } from './output-handlers.js';
 
-// Tools already granted to the research route — the only ones eligible for
-// hands-off auto-activation.
+export const CAPABILITY_REVIEW_SCHEMA_VERSION = 'ptspace.capability-review/v1';
+
+// Tools/permissions/targets already granted — the only ones eligible for
+// hands-off activation. Anything beyond stays trial (human approval).
 export const ACTIVATION_ALLOWED_TOOLS = Object.freeze(['read', 'glob', 'grep', 'web_search', 'web_fetch']);
 export const ACTIVATION_ALLOWED_AUTHZ = Object.freeze(['board_item', 'bounded_session', 'implied_bounded_request', 'explicit_chat']);
 export const ACTIVATION_ALLOWED_TARGETS = Object.freeze(['draft', 'knowledge_proposal']);
+export const ACTIVATION_ALLOWED_HANDLERS = Object.freeze(['generic', 'draft']);
 
-/**
- * Deterministic review gates over a trial run.
- * @param {object} args
- * @param {object} args.entry - the trial capability entry
- * @param {object} args.schema - the loaded result schema (object-rooted)
- * @param {unknown} args.resultStructured - the trial run's structured result
- * @param {string[]} args.toolsUsed - tools the child was actually allowed/used
- * @param {object} args.tests - { positive, negative }
- * @returns {{ pass: boolean, autoActivate: boolean, reasons: string[] }}
- */
-export function reviewTrial({ entry, schema, resultStructured, toolsUsed, tests }) {
+function policyReasons(entry) {
 	const reasons = [];
-	// Gate 1: the trial result validates against the capability's own schema.
-	const resultErrors = validateAgainstSchema(schema, resultStructured);
-	if (resultErrors.length > 0) reasons.push(`Ergebnis verletzt das Capability-Schema (${resultErrors.length})`);
-	// Gate 2: positive test validates, negative test does not.
-	if (tests && tests.positive !== undefined) {
-		if (validateAgainstSchema(schema, tests.positive).length > 0) reasons.push('Positiv-Testfall besteht das Schema nicht');
-	} else {
-		reasons.push('kein Positiv-Testfall');
-	}
-	if (tests && tests.negative !== undefined) {
-		if (validateAgainstSchema(schema, tests.negative).length === 0) reasons.push('Negativ-Testfall wird fälschlich akzeptiert');
-	} else {
-		reasons.push('kein Negativ-Testfall');
-	}
-	const pass = reasons.length === 0;
-
-	// Auto-activation eligibility: only already-allowed tools/permissions/targets.
 	const tools = Array.isArray(entry.dsh_tools) ? entry.dsh_tools : [];
-	const usedOk = (Array.isArray(toolsUsed) ? toolsUsed : []).every((t) => ACTIVATION_ALLOWED_TOOLS.includes(t));
-	const toolsOk = tools.every((t) => ACTIVATION_ALLOWED_TOOLS.includes(t));
-	const authzOk = (entry.authorizations || []).every((a) => ACTIVATION_ALLOWED_AUTHZ.includes(a));
-	const targetsOk = (entry.output_targets || []).every((o) => ACTIVATION_ALLOWED_TARGETS.includes(o));
-	const handlerOk = entry.output_handler === 'generic' || entry.output_handler === 'draft';
-	const escalations = [];
-	if (!toolsOk || !usedOk) escalations.push('nutzt Werkzeuge außerhalb der bereits erlaubten Menge');
-	if (!authzOk) escalations.push('verlangt eine nicht freigegebene Autorisierung');
-	if (!targetsOk) escalations.push('schreibt außerhalb der sicheren Ausgabeziele');
-	if (!handlerOk) escalations.push('nutzt keinen freigegebenen generischen Handler');
-	if (escalations.length > 0) reasons.push(`Auto-Aktivierung nicht zulässig: ${escalations.join('; ')}`);
-	const autoActivate = pass && escalations.length === 0;
-
-	return { pass: pass && autoActivate, autoActivate, reasons };
+	if (!tools.every((t) => ACTIVATION_ALLOWED_TOOLS.includes(t))) reasons.push('nutzt Werkzeuge außerhalb der bereits erlaubten Menge');
+	if (!(entry.authorizations || []).every((a) => ACTIVATION_ALLOWED_AUTHZ.includes(a))) reasons.push('verlangt eine nicht freigegebene Autorisierung');
+	if (!(entry.output_targets || []).every((o) => ACTIVATION_ALLOWED_TARGETS.includes(o))) reasons.push('schreibt außerhalb der sicheren Ausgabeziele');
+	if (!ACTIVATION_ALLOWED_HANDLERS.includes(entry.output_handler)) reasons.push('nutzt keinen freigegebenen generischen Handler');
+	return reasons;
 }
 
 /**
- * Flip a trial capability version to `active` and append an activation record.
- * Never overwrites the contract; only the lifecycle status of this version.
- * @param {string} ptsRoot
- * @param {object} entry - the trial capability entry (needs instruction_file path root)
+ * Deterministic preflight BEFORE a trial: policy + schema + test-case coherence.
+ * A pass promotes proposed -> trial. The builder must not set trial itself.
+ * @returns {{ pass: boolean, reasons: string[] }}
  */
-export async function activateProposal(ptsRoot, entry) {
-	// The version dir is the parent of the instruction_file.
-	const versionDirRel = path.dirname(entry.instruction_file); // capabilities/_proposals/<service>/<id>/vN
+export function preflightProposal({ entry, schema, tests }) {
+	const reasons = [];
+	if (!schema || schema.type !== 'object') reasons.push('Ergebnis-Schema ist nicht objektgewurzelt');
+	if (tests && tests.positive !== undefined) {
+		if (validateAgainstSchema(schema, tests.positive).length > 0) reasons.push('Positiv-Testfall besteht das Schema nicht');
+	} else reasons.push('kein Positiv-Testfall');
+	if (tests && tests.negative !== undefined) {
+		if (validateAgainstSchema(schema, tests.negative).length === 0) reasons.push('Negativ-Testfall wird fälschlich akzeptiert');
+	} else reasons.push('kein Negativ-Testfall');
+	reasons.push(...policyReasons(entry));
+	return { pass: reasons.length === 0, reasons };
+}
+
+/** Deterministic gates over the TRIAL result. */
+export function reviewGates({ entry, schema, resultStructured, toolsUsed }) {
+	const reasons = [];
+	const resultErrors = validateAgainstSchema(schema, resultStructured);
+	if (resultErrors.length > 0) reasons.push(`Trial-Ergebnis verletzt das Capability-Schema (${resultErrors.length})`);
+	if (!(Array.isArray(toolsUsed) ? toolsUsed : []).every((t) => ACTIVATION_ALLOWED_TOOLS.includes(t))) {
+		reasons.push('Trial nutzte Werkzeuge außerhalb der erlaubten Menge');
+	}
+	reasons.push(...policyReasons(entry));
+	return { pass: reasons.length === 0, reasons };
+}
+
+/**
+ * Combine every activation precondition. Auto-activation requires the
+ * deterministic preflight + trial success + deterministic trial gates + a
+ * semantic reviewer verdict `approved` + no new tools/permissions.
+ * @returns {{ activate: boolean, reasons: string[] }}
+ */
+export function combineActivation({ preflight, trialOk, gates, reviewerVerdict, entry, toolsUsed }) {
+	const reasons = [];
+	if (!preflight || !preflight.pass) reasons.push('deterministischer Preflight nicht bestanden');
+	if (!trialOk) reasons.push('Trial nicht erfolgreich');
+	if (!gates || !gates.pass) reasons.push('deterministische Trial-Gates nicht bestanden');
+	if (reviewerVerdict !== 'approved') reasons.push(`semantischer Reviewer nicht approved (${reviewerVerdict ?? 'kein Verdikt'})`);
+	reasons.push(...policyReasons(entry));
+	if (!(Array.isArray(toolsUsed) ? toolsUsed : []).every((t) => ACTIVATION_ALLOWED_TOOLS.includes(t))) reasons.push('Lauf nutzte nicht freigegebene Werkzeuge');
+	return { activate: reasons.length === 0, reasons };
+}
+
+async function flipStatus(ptsRoot, entry, next, event) {
+	const versionDirRel = path.dirname(entry.instruction_file);
 	const metaPath = path.join(ptsRoot, ...versionDirRel.split('/'), 'meta.yml');
 	const text = await fsp.readFile(metaPath, 'utf8');
-	const next = text.replace(/^(\s*)status:\s*\S+\s*$/m, `$1status: active`);
-	await fsp.writeFile(metaPath, next, 'utf8');
-	const activationPath = path.join(ptsRoot, ...versionDirRel.split('/'), 'activation.log');
-	const rec = { at: new Date().toISOString(), event: 'auto-activated', task: entry.task, version: entry.capability_version, by: 'deterministic-review-gates' };
-	await fsp.appendFile(activationPath, `${JSON.stringify(rec)}\n`, 'utf8').catch(() => {});
+	await fsp.writeFile(metaPath, text.replace(/^(\s*)status:\s*\S+\s*$/m, `$1status: ${next}`), 'utf8');
+	const logPath = path.join(ptsRoot, ...versionDirRel.split('/'), 'lifecycle.log');
+	const rec = { at: new Date().toISOString(), event, task: entry.task, version: entry.capability_version, status: next };
+	await fsp.appendFile(logPath, `${JSON.stringify(rec)}\n`, 'utf8').catch(() => {});
+}
+
+/** proposed -> trial after a successful deterministic preflight. */
+export async function promoteToTrial(ptsRoot, entry) {
+	await flipStatus(ptsRoot, entry, 'trial', 'promoted-to-trial');
+}
+
+/** trial -> active after all activation preconditions hold. */
+export async function activateProposal(ptsRoot, entry) {
+	await flipStatus(ptsRoot, entry, 'active', 'auto-activated');
+}
+
+/** proposed/trial -> revision-needed when review fails. */
+export async function markRevisionNeeded(ptsRoot, entry) {
+	await flipStatus(ptsRoot, entry, 'revision-needed', 'revision-needed');
 }

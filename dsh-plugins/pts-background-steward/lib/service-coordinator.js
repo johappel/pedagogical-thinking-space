@@ -75,12 +75,18 @@ export function createServiceCoordinator({ subagents, jobs, log = () => {}, logE
 	let disposed = false;
 
 	async function runIntent(context, intent, researchConfig) {
-		const { dir, slug, sessionId, parentAgent, childSessionIds, ptsRoot, registry } = context;
+		const { dir, slug, sessionId, parentAgent, childSessionIds, ptsRoot, registry, allowTrial } = context;
 
 		const cap = registry ? getCapability(registry, intent.task) : undefined;
 		if (!cap || !isDispatchable(cap)) {
 			log(`${slug}: "${intent.task}" ist keine dispatchbare Capability im Katalog — kein Lauf`);
 			return { status: 'no-capability', key: `${dir}::${intent.task}` };
+		}
+		// A `trial` capability may only run inside a controlled trial (allowTrial).
+		// A NORMAL request must never use a trial capability as if it were active.
+		if (cap.status === 'trial' && allowTrial !== true) {
+			log(`${slug}: "${intent.task}" ist erst im Trial — normale Requests nutzen sie nicht wie aktiv`);
+			return { status: 'not-active', key: `${dir}::${intent.task}` };
 		}
 
 		const storage = storageOf(intent);
