@@ -54,6 +54,12 @@ function assertSubset(node, at) {
 	if (node.type !== undefined) {
 		assert.ok(ALLOWED_TYPES.has(node.type), `${at}: Typ "${node.type}" ist kein Einzeltyp der Teilmenge`);
 	}
+	if (node.enum !== undefined || node.const !== undefined) {
+		assert.ok(
+			node.type !== undefined || node.oneOf !== undefined,
+			`${at}: enum/const braucht type oder oneOf (dsh-tools Laufzeitvertrag)`,
+		);
+	}
 	if (node.oneOf !== undefined) {
 		assert.ok(Array.isArray(node.oneOf) && node.oneOf.length >= 2, `${at}: oneOf braucht mindestens zwei Zweige`);
 		node.oneOf.forEach((branch, i) => assertSubset(branch, `${at}.oneOf[${i}]`));
@@ -212,4 +218,3 @@ test('Wertlängengrenzen werden durchgesetzt', () => {
 	assert.equal(r.ok, false);
 	assert.ok(r.errors.some((e) => e.includes('4000')));
 });
-

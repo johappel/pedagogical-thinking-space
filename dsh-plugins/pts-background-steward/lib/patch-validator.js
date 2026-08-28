@@ -44,7 +44,7 @@ export const STEWARDSHIP_RESULT_SCHEMA = Object.freeze({
 	additionalProperties: false,
 	required: ['schema', 'session_id', 'turn', 'base', 'observations', 'operations', 'teacher_decisions', 'next_turn_hint', 'forbidden_effects'],
 	properties: {
-		schema: { const: STEWARDSHIP_SCHEMA_VERSION },
+		schema: { type: 'string', const: STEWARDSHIP_SCHEMA_VERSION },
 		session_id: { type: 'string', description: 'Session-ID des auslösenden Gesprächs (aus dem Auftrag übernehmen).' },
 		turn: { type: 'integer', description: 'Turn-Nummer des auslösenden Gesprächs (aus dem Auftrag übernehmen).' },
 		base: {
@@ -58,7 +58,7 @@ export const STEWARDSHIP_RESULT_SCHEMA = Object.freeze({
 				additionalProperties: false,
 				required: ['type', 'evidence', 'content'],
 				properties: {
-					type: { enum: [...OBSERVATION_TYPES] },
+					type: { type: 'string', enum: [...OBSERVATION_TYPES] },
 					evidence: { type: 'string', description: 'Beleg als Nachrichten-ID aus dem Gesprächsausschnitt (z. B. m3) oder "context".' },
 					content: { type: 'string' },
 				},
@@ -71,18 +71,18 @@ export const STEWARDSHIP_RESULT_SCHEMA = Object.freeze({
 				additionalProperties: false,
 				required: ['target', 'kind', 'value'],
 				properties: {
-					target: { enum: [...CANONICAL_FILES] },
-					kind: { enum: [...OPERATION_KINDS] },
+					target: { type: 'string', enum: [...CANONICAL_FILES] },
+					kind: { type: 'string', enum: [...OPERATION_KINDS] },
 					value: { type: 'string', description: 'Inhalt: Absatztext, Entscheidungsaussage bzw. Kurzbegründung.' },
 					section: { type: 'string', description: 'Nur für set-section / append-under-section an learning-design.md.' },
 					title: { type: 'string', description: 'Titel für add-draft-moment oder propose-board-item.' },
-					moment_type: { enum: [...MOMENT_TYPES] },
+					moment_type: { type: 'string', enum: [...MOMENT_TYPES] },
 					moment_function: { type: 'string' },
 					learning_activity: { type: 'string' },
 					expected_experience: { type: 'string' },
 					open_questions: { type: 'string' },
 					material_needs: { type: 'string' },
-					board_kind: { enum: [...BOARD_KINDS] },
+					board_kind: { type: 'string', enum: [...BOARD_KINDS] },
 					evidence: { type: 'string', description: 'Pflicht bei add-decision: Beleg-Nachrichten-ID der expliziten Lehrkraftentscheidung.' },
 				},
 			},
@@ -108,7 +108,7 @@ export const STEWARDSHIP_RESULT_SCHEMA = Object.freeze({
 					additionalProperties: false,
 					required: ['kind', 'content'],
 					properties: {
-						kind: { enum: ['none', 'open_question'] },
+						kind: { type: 'string', enum: ['none', 'open_question'] },
 						content: { type: 'string' },
 					},
 				},
@@ -258,4 +258,3 @@ export function validateResult(structured, expectation) {
 	if (errors.length > 0) return { ok: false, errors };
 	return { ok: true, result: r };
 }
-
