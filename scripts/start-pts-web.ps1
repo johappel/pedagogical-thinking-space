@@ -36,8 +36,8 @@ foreach ($needle in $required) {
 		throw "Installed PTS preset is stale (missing '$needle'). Run the installer with -Replace."
 	}
 }
-if ($preset.Contains("@PTS_SKILLS_DIR@")) {
-	throw "Installed PTS preset has an unresolved skills directory. Run: pwsh -File .\scripts\install-pts-preset.ps1 -Replace"
+if ($preset.Contains("@PTS_SKILLS_DIR@") -or $preset.Contains("@PTS_SETTINGS_PATH@")) {
+	throw "Installed PTS preset has unresolved placeholders. Run: pwsh -File .\scripts\install-pts-preset.ps1 -Replace"
 }
 
 # Skill-Manager plugin marker: the profile patch row + junction must exist so

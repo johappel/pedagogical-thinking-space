@@ -162,9 +162,16 @@ rollenspezifische Unterschied.
     („nicht zugewiesen") — hart, testbar.
   - **Guidance:** registriert eine `systemPrompt.section`, die die
     zugewiesenen Skill-IDs nennt (leer: „keine Skills zugewiesen").
-  - Die Zuweisungen liest das Plugin aus der Settings-Sektion
-    `pts-worker-skills:` (`ctx.settings.documentPath`, gleiches Muster wie der
-    Steward-Parser) — je Agent-Erzeugung frisch, ohne Neustart.
+  - Die Zuweisungen liest das Plugin je Agent-Erzeugung frisch aus der
+    Settings-Sektion `pts-worker-skills:`. Wichtig (Laufzeit-Fund): ein
+    Subagent-Kontext kann den Host-Dienst `settings` **nicht** auflösen —
+    der Preset-Mount verbindet per Scope-Binding, nicht per Fiber-Parenting
+    (`mountPreset`/`bindScopeParent`), und nur `tools` lebt in der
+    Kind-Komposition. Deshalb erhält das Plugin den Settings-Dokument-Pfad
+    über die Row-Config (`settingsPath: '@PTS_SETTINGS_PATH@'`, vom Installer
+    ersetzt) und liest die Datei direkt (gleiches Dokument, gleicher Parser
+    wie der Steward). Fallback: `ctx.get('settings')` — nie ein bloßer
+    `ctx.settings`-Zugriff, der „without inject" wirft.
 - **Nachweis:** Tool-Aufruf-Log (`skill google-search` gelingt, `skill ppt-builder`
   im Research-Worker wird vom Guard abgelehnt) + Persona-Wirkung.
 
@@ -176,11 +183,12 @@ geladen werden dürfen.
 ## 8. Implikationen für Installer/Scripts
 
 Der absolute `customSkillDirs`-Pfad ist maschinenabhängig. Der Installer
-(`scripts/install-pts-preset.ps1`) ersetzt beim Kopieren einen Platzhalter
-`@PTS_SKILLS_DIR@` im `agent.cordis.yml` durch den aufgelösten Repo-Pfad
-`<repo>\skills`. `start-pts-web.ps1` prüft im Preflight, dass der Platzhalter
-ersetzt wurde. Die Plugin-Host-Hälfte löst die Bibliothek relativ zu sich selbst
-auf (Junction im Repo), schreibt also immer ins Repo-`skills/`.
+(`scripts/install-pts-preset.ps1`) ersetzt beim Kopieren die Platzhalter
+`@PTS_SKILLS_DIR@` (→ `<repo>\skills`) und `@PTS_SETTINGS_PATH@` (→
+`<profil>\settings.yaml`) im `agent.cordis.yml` durch die aufgelösten
+Repo-Pfade. `start-pts-web.ps1` prüft im Preflight, dass beide ersetzt
+wurden. Die Plugin-Host-Hälfte löst die Bibliothek relativ zu sich selbst auf
+(Junction im Repo), schreibt also immer ins Repo-`skills/`.
 
 ## 9. Verifikationen aus dem installierten Code
 

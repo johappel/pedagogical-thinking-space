@@ -25,8 +25,11 @@ by `companion-tool-boundary.mjs`.
 `worker-skill-scope.mjs` enforces the role↔skill matrix from the settings
 section `pts-worker-skills:`: it detects the worker role from the applied tool
 filter, hard-rejects `skill` calls for non-assigned ids via a per-agent guard
-and names the assigned skills in a system-prompt section. Assignment changes
-take effect for newly started workers (composition is fixed at session start);
-use the manager's "Denkraum neu laden" action for a fresh session.
+and names the assigned skills in a system-prompt section. It reads the settings
+document directly from the row-config path (`settingsPath`, substituted by the
+installer) because a subagent context cannot reach the host `settings` service.
+Assignment changes take effect for newly started workers (composition is fixed
+at session start); use the manager's "Denkraum neu laden" action for a fresh
+session.
 
 

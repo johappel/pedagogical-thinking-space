@@ -66,11 +66,15 @@ Run again with -Replace to move it to a timestamped backup and install the canon
 Copy-Item -LiteralPath $source -Destination $target -Recurse -Force
 Set-Content -LiteralPath (Join-Path $target $markerName) -Value $resolvedSource -NoNewline -Encoding UTF8
 
-# Substitute the machine-specific skill library root into the installed preset
-# (the canonical agent.cordis.yml keeps the @PTS_SKILLS_DIR@ placeholder).
+# Substitute the machine-specific skill library root and the profile settings
+# document into the installed preset (the canonical agent.cordis.yml keeps the
+# @PTS_SKILLS_DIR@ / @PTS_SETTINGS_PATH@ placeholders).
 $presetPath = Join-Path $target "agent.cordis.yml"
 $skillsDir = (Join-Path $repoRoot "skills").Replace('\', '/')
-$substituted = (Get-Content $presetPath -Raw).Replace("@PTS_SKILLS_DIR@", $skillsDir)
+$settingsPath = (Join-Path $dshHome "profiles\pts-web\settings.yaml").Replace('\', '/')
+$substituted = (Get-Content $presetPath -Raw)
+$substituted = $substituted.Replace("@PTS_SKILLS_DIR@", $skillsDir)
+$substituted = $substituted.Replace("@PTS_SETTINGS_PATH@", $settingsPath)
 Set-Content -LiteralPath $presetPath -Value $substituted -Encoding UTF8
 
 $installed = Get-Content $presetPath -Raw
@@ -90,8 +94,13 @@ foreach ($needle in $required) {
 		throw "Installed preset verification failed: missing '$needle'"
 	}
 }
-if ($installed.Contains("@PTS_SKILLS_DIR@")) {
-	throw "Installed preset verification failed: skills directory placeholder not substituted"
+foreach ($placeholder in @("@PTS_SKILLS_DIR@", "@PTS_SETTINGS_PATH@")) {
+	if ($installed.Contains($placeholder)) {
+		throw "Installed preset verification failed: placeholder not substituted: $placeholder"
+	}
+}
+if (-not $installed.Contains($settingsPath)) {
+	throw "Installed preset verification failed: settings path not written"
 }
 
 # Profile plugin marker: the Skill-Manager patch row and junction must exist,

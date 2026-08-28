@@ -162,5 +162,11 @@
 # Per-worker skill enforcement (matrix from settings `pts-worker-skills:`):
 # role detection via the applied tool filter, a hard `skill` guard for
 # non-assigned ids and a system-prompt section naming the assigned skills.
+# The settings document path is profile-specific and substituted by
+# scripts/install-pts-preset.ps1 (@PTS_SETTINGS_PATH@ -> <profile>\settings.yaml);
+# a subagent's context cannot reach the host `settings` service, so the plugin
+# reads the file directly.
 - id: pts-worker-skill-scope
   name: './worker-skill-scope.mjs'
+  config:
+    settingsPath: '@PTS_SETTINGS_PATH@'

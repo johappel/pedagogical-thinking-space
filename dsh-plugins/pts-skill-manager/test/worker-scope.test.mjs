@@ -14,21 +14,23 @@ import {
 	roleForAgent,
 	installWorkerSkillScope,
 	parseWorkerSkillsSection,
+	readWorkerSkillsSectionFromPath,
 	isSubagent,
 } from '../../../dsh-presets/pts-companion/worker-skill-scope.mjs';
 
-function fakeAgent({ subagent, visibleTools, settingsPath }) {
+function fakeAgent({ subagent, visibleTools, settingsPath, settingsService }) {
 	const guardFns = [];
 	const sections = [];
 	const ctx = {
 		settings: settingsPath !== undefined ? { documentPath: settingsPath } : undefined,
 		tools: {
 			get(name) { return visibleTools[name] !== undefined ? { name } : undefined; },
-			guard(fn) { guardFns.push(fn); let removed = false; return () => { removed = true; }; },
+			guard(fn) { guardFns.push(fn); return () => {}; },
 		},
 		systemPrompt: {
 			section(def) { sections.push(def); return () => {}; },
 		},
+		get(name) { return name === 'settings' ? settingsService : undefined; },
 	};
 	const agent = { ctx, session: { header: subagent ? { origin: 'subagent' } : { origin: 'main' } } };
 	return { agent, guardFns, sections };
@@ -83,8 +85,8 @@ test('isSubagent und roleForAgent erkennen die Rollen über den Tool-Filter', ()
 test('installWorkerSkillScope: Guard lehnt nicht zugewiesene Skills hart ab', async () => {
 	const s = await withSettings(['  research: [google-search]', '  material: []', '  review: []', '  renderer: []']);
 	try {
-		const { agent, guardFns } = fakeAgent({ subagent: true, visibleTools: { skill: {}, web_search: {} }, settingsPath: s.doc });
-		const dispose = installWorkerSkillScope(agent);
+		const { agent, guardFns } = fakeAgent({ subagent: true, visibleTools: { skill: {}, web_search: {} } });
+		const dispose = installWorkerSkillScope(agent, s.doc);
 		assert.equal(guardFns.length, 1);
 		// Zuweisung ist asynchron geladen — kurz warten.
 		await new Promise((r) => setTimeout(r, 30));
@@ -101,8 +103,8 @@ test('installWorkerSkillScope: Guard lehnt nicht zugewiesene Skills hart ab', as
 test('installWorkerSkillScope: ohne Zuweisungen fail-closed (alles abgelehnt)', async () => {
 	const s = await withSettings(['  research: []', '  material: []', '  review: []', '  renderer: []']);
 	try {
-		const { agent, guardFns } = fakeAgent({ subagent: true, visibleTools: { skill: {} }, settingsPath: s.doc });
-		const dispose = installWorkerSkillScope(agent);
+		const { agent, guardFns } = fakeAgent({ subagent: true, visibleTools: { skill: {} } });
+		const dispose = installWorkerSkillScope(agent, s.doc);
 		await new Promise((r) => setTimeout(r, 30));
 		const guard = guardFns[0];
 		assert.ok(String(guard({ name: 'skill', arguments: { name: 'google-search' } })).includes('nicht zugewiesen'));
@@ -115,8 +117,8 @@ test('installWorkerSkillScope: ohne Zuweisungen fail-closed (alles abgelehnt)', 
 test('installWorkerSkillScope: Prompt-Sektion nennt die zugewiesenen Skills', async () => {
 	const s = await withSettings(['  material: [ppt-builder]', '  research: []', '  review: []', '  renderer: []']);
 	try {
-		const { agent, sections } = fakeAgent({ subagent: true, visibleTools: { skill: {} }, settingsPath: s.doc });
-		installWorkerSkillScope(agent);
+		const { agent, sections } = fakeAgent({ subagent: true, visibleTools: { skill: {} } });
+		installWorkerSkillScope(agent, s.doc);
 		assert.equal(sections.length, 1);
 		assert.equal(sections[0].name, 'pts:worker-skills');
 		await new Promise((r) => setTimeout(r, 30));
@@ -128,9 +130,39 @@ test('installWorkerSkillScope: Prompt-Sektion nennt die zugewiesenen Skills', as
 	}
 });
 
+test('installWorkerSkillScope: Fallback über ctx.get(settings) ohne row config', async () => {
+	const s = await withSettings(['  research: [google-search]', '  material: []', '  review: []', '  renderer: []']);
+	try {
+		const { agent, guardFns } = fakeAgent({
+			subagent: true,
+			visibleTools: { skill: {}, web_search: {} },
+			settingsService: { documentPath: s.doc },
+		});
+		installWorkerSkillScope(agent, null);
+		await new Promise((r) => setTimeout(r, 30));
+		const guard = guardFns[0];
+		assert.equal(guard({ name: 'skill', arguments: { name: 'google-search' } }), undefined, 'Fallback-Zuweisung erlaubt');
+		assert.ok(String(guard({ name: 'skill', arguments: { name: 'ppt-builder' } })).includes('nicht zugewiesen'));
+	} finally {
+		await s.cleanup();
+	}
+});
+
+test('readWorkerSkillsSectionFromPath: liest die Sektion direkt von der Platte', async () => {
+	const s = await withSettings(['  research: [google-search]', '  material: []', '  review: []', '  renderer: []']);
+	try {
+		const matrix = await readWorkerSkillsSectionFromPath(s.doc);
+		assert.deepEqual(matrix.research, ['google-search']);
+		assert.equal(await readWorkerSkillsSectionFromPath(''), null);
+		assert.equal(await readWorkerSkillsSectionFromPath(path.join(path.dirname(s.doc), 'gibt-es-nicht.yaml')), null);
+	} finally {
+		await s.cleanup();
+	}
+});
+
 test('installWorkerSkillScope: kein Eingriff bei Nicht-Skill-Rollen', () => {
 	const { agent, guardFns, sections } = fakeAgent({ subagent: true, visibleTools: { read: {} } });
-	const dispose = installWorkerSkillScope(agent);
+	const dispose = installWorkerSkillScope(agent, null);
 	assert.equal(guardFns.length, 0);
 	assert.equal(sections.length, 0);
 	dispose();

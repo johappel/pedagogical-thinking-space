@@ -63,7 +63,12 @@ entsprechen (die Matrix referenziert die `id`). Details: [`skills/README.md`](..
 - **Zuweisung:** `worker-skill-scope.mjs` liest die Matrix je Agent-Erzeugung
   aus der Settings-Sektion `pts-worker-skills:` und lehnt `skill`-Aufrufe für
   nicht zugewiesene IDs per Guard ab (fail-closed bis die Zuweisung geladen
-  ist); die Prompt-Sektion nennt die erlaubten Skills.
+  ist); die Prompt-Sektion nennt die erlaubten Skills. Die Sektion liest das
+  Preset-Plugin **direkt von der Platte** (Row-Config
+  `settingsPath: '@PTS_SETTINGS_PATH@'`, vom Installer ersetzt): ein
+  Subagent-Kontext erreicht den Host-Dienst `settings` nicht (Scope-Binding
+  statt Fiber-Parenting), ein bloßer `ctx.settings`-Zugriff würde mit
+  „without inject" scheitern.
 - **Build-Zeit, kein Laufzeit-Toggle:** Die Komposition wird beim
   Session-Start fixiert. Eine geänderte Matrix wirkt ab der **nächsten**
   Worker-Ausführung; die Aktion **„Denkraum neu laden"** im Tab startet eine

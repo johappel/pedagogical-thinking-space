@@ -134,9 +134,23 @@ export function parseWorkerSkillsSection(text) {
  */
 export async function readWorkerSkillsSection(settings) {
 	if (!settings || typeof settings.documentPath !== 'string' || settings.documentPath === '') return null;
+	return readWorkerSkillsSectionFromPath(settings.documentPath);
+}
+
+/**
+ * Read the worker-skills section from the settings document path directly.
+ * A subagent's scoped context cannot reach the host `settings` service (the
+ * preset mount joins by scope binding, not fiber parenting), so the preset
+ * plugin receives the profile settings path through its row config and reads
+ * the file itself — same document, same parser.
+ * @param {string} documentPath - absolute settings document path.
+ * @returns {Promise<Record<string, string[]> | null>}
+ */
+export async function readWorkerSkillsSectionFromPath(documentPath) {
+	if (typeof documentPath !== 'string' || documentPath === '') return null;
 	let text;
 	try {
-		text = await fsp.readFile(settings.documentPath, 'utf8');
+		text = await fsp.readFile(documentPath, 'utf8');
 	} catch {
 		return null;
 	}
@@ -180,9 +194,11 @@ function sectionText(role, assigned) {
  * section (guidance). Fail-closed: until the assignment read settles the
  * guard denies every `skill` call, and the prompt names no skills.
  * @param {object} agent - the live worker subagent.
+ * @param {string|null} [settingsPath] - absolute settings document path from
+ *   the row config; when absent, falls back to ctx.get('settings').
  * @returns {() => void} disposer removing both registrations.
  */
-export function installWorkerSkillScope(agent) {
+export function installWorkerSkillScope(agent, settingsPath = null) {
 	const role = roleForAgent(agent);
 	if (role === null) return () => {};
 	const ctx = agent.ctx;
@@ -216,9 +232,8 @@ export function installWorkerSkillScope(agent) {
 		}
 	}
 
-	readWorkerSkillsSection(ctx.settings)
-		.then((matrix) => {
-			const ids = matrix && Array.isArray(matrix[role]) ? matrix[role] : [];
+	loadAssignedSkills(role, agent, settingsPath)
+		.then((ids) => {
 			assigned.clear();
 			for (const id of ids) assigned.add(id);
 			return assigned;
@@ -233,17 +248,41 @@ export function installWorkerSkillScope(agent) {
 	};
 }
 
+/**
+ * Resolve the assigned skill ids for one worker role: configured settings path
+ * first, then the settings service via ctx.get (never a bare ctx.settings
+ * access, which throws "without inject" on agent-scoped contexts).
+ */
+async function loadAssignedSkills(role, agent, settingsPath) {
+	const configured = typeof settingsPath === 'string' && settingsPath !== '' ? settingsPath : null;
+	if (configured !== null) {
+		const matrix = await readWorkerSkillsSectionFromPath(configured);
+		return matrix && Array.isArray(matrix[role]) ? matrix[role] : [];
+	}
+	const settings = typeof agent.ctx.get === 'function' ? agent.ctx.get('settings') : undefined;
+	if (settings !== undefined) {
+		const matrix = await readWorkerSkillsSection(settings);
+		return matrix && Array.isArray(matrix[role]) ? matrix[role] : [];
+	}
+	return [];
+}
+
 function composedPreset(ctx, agent) {
 	return ctx.get('agentPresets')?.composedPreset(agent.ctx)
 		?? agent?.session?.header?.agentPreset;
 }
 
-export function apply(ctx) {
+export function apply(ctx, rawConfig) {
+	const config = (rawConfig !== null && typeof rawConfig === 'object' && !Array.isArray(rawConfig)) ? rawConfig : {};
+	const settingsPath = typeof config.settingsPath === 'string' && config.settingsPath.trim() !== ''
+		? config.settingsPath.trim()
+		: null;
+
 	// Per-Session preset implementations expose the Agent directly.
 	if (ctx.agent !== undefined) {
 		if (!isSubagent(ctx.agent)) return undefined;
 		if (composedPreset(ctx, ctx.agent) !== 'pts-companion') return undefined;
-		return installWorkerSkillScope(ctx.agent);
+		return installWorkerSkillScope(ctx.agent, settingsPath);
 	}
 
 	// Standing-preset implementations mount once and attach every matching
@@ -254,7 +293,7 @@ export function apply(ctx) {
 			&& composedPreset(ctx, agent) === 'pts-companion'
 			&& roleForAgent(agent) !== null;
 		const current = installed.get(agent);
-		if (shouldInstall && current === undefined) installed.set(agent, installWorkerSkillScope(agent));
+		if (shouldInstall && current === undefined) installed.set(agent, installWorkerSkillScope(agent, settingsPath));
 		if (!shouldInstall && current !== undefined) {
 			current();
 			installed.delete(agent);

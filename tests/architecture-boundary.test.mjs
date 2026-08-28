@@ -39,6 +39,7 @@ test('preset exposes four native role-bound DSH subagents', async () => {
   assert.match(preset, /name: '@deepseek-ai\/dsh-tool-skill'/);
   assert.match(preset, /pts-worker-skill-scope/);
   assert.match(preset, /@PTS_SKILLS_DIR@/);
+  assert.match(preset, /@PTS_SETTINGS_PATH@/);
   assert.match(preset, /includeDefaultRoots: false/);
 });
 
