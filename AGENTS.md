@@ -39,6 +39,8 @@ Delegate bounded work with the role-specific DSH tools supplied by the
 These tools start real DSH subagents. They are not capabilities resolved by PTS
 code. Use `run_in_background: true` unless the very next conversational action
 depends on the result. DSH owns the returned job id, status, output and failure.
+The root Companion is technically barred from web search, skills and file
+mutation; those capabilities exist only behind the role-specific Worker tools.
 
 A direct bounded instruction is already authorization for that task. Examples:
 `Recherchiere ...`, `Prüfe die Quellen ...`, `Erstelle daraus ein Arbeitsblatt`

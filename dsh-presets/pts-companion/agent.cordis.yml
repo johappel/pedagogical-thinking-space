@@ -138,3 +138,8 @@
           path. Report contradictions instead of redesigning the lesson.
         toolFilter:
           allow: [read, glob, grep, write, edit]
+
+# Loaded last: hides direct research and production tools only from the
+# top-level Companion while DSH children retain their role-specific filters.
+- id: pts-companion-tool-boundary
+  name: './companion-tool-boundary.mjs'

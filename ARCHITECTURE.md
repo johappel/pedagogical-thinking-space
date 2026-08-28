@@ -59,8 +59,12 @@ runtime registrations and cannot become executable through a PTS status flag.
 4. Research has web tools and may write only requested research drafts or
    Knowledge Proposals; material production has write tools but no web tools;
    review is read-only.
-5. The Companion remains responsive while independent jobs run.
-6. The Steward starts only after a completed top-level turn and changes only
+5. The Companion's own Agent scope exposes no web, skill, write or edit path;
+   the DSH Worker tools are the only execution boundary for those operations.
+6. Every Session created through the PTS Workspace UI explicitly names the
+   `pts-companion` preset instead of inheriting a machine-wide default.
+7. The Companion remains responsive while independent jobs run.
+8. The Steward starts only after a completed top-level turn and changes only
    reversible Denkstand files.
-7. A Steward timeout cannot prevent or delay a Worker job.
-8. Repository checks reject the reintroduction of the removed runtime layers.
+9. A Steward timeout cannot prevent or delay a Worker job.
+10. Repository checks reject the reintroduction of the removed runtime layers.

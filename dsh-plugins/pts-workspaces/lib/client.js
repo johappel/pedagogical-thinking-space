@@ -439,8 +439,9 @@ window.__ModuleLoader__.load({
 		// Empty-state seat: the hero workspace picker.
 		// ------------------------------------------------------------------
 		function PtsWorkspacePicker(props) {
-			const { open, anchorRef, selectedId, onPick, onClose, useWorkspaces, createDenkraum, loadConfig } = props;
+			const { open, anchorRef, selectedId, onPick, onClose, useWorkspaces, createDenkraum, startSession, loadConfig } = props;
 			const scope = usePtsScope(useWorkspaces, loadConfig);
+			const pickWorkspace = typeof startSession === "function" ? startSession : onPick;
 			const [rect, setRect] = React.useState(null);
 			const [dialogOpen, setDialogOpen] = React.useState(false);
 			const menuRef = React.useRef(null);
@@ -471,7 +472,7 @@ window.__ModuleLoader__.load({
 				setDialogOpen(true);
 			};
 			const onSubmit = (name) => Promise.resolve().then(() => createDenkraum(name)).then((ws) => {
-				if (ws && ws.workspaceId && typeof onPick === "function") onPick(ws.workspaceId);
+				if (ws && ws.workspaceId && typeof pickWorkspace === "function") pickWorkspace(ws.workspaceId);
 				return ws;
 			});
 
@@ -494,7 +495,7 @@ window.__ModuleLoader__.load({
 							key: ws.workspaceId,
 							className: "ptsw-mitem" + (selected ? " ptsw-mitem-selected" : ""),
 							title: ws.path,
-							onClick: () => onPick(ws.workspaceId),
+							onClick: () => pickWorkspace(ws.workspaceId),
 						},
 						React.createElement(FolderIcon, null),
 						React.createElement("span", null, ws.title),
@@ -643,6 +644,14 @@ window.__ModuleLoader__.load({
 				}
 			}
 
+			/** Create a real PTS Session with the canonical Agent composition. */
+			async function startPtsSession(workspaceId) {
+				if (typeof workspaceId !== "string" || workspaceId === "") throw new Error("Ungültiger Denkraum.");
+				const sessionId = await sessions.create({ workspaceId, agentPreset: "pts-companion" });
+				sessions.open(sessionId);
+				return sessionId;
+			}
+
 			ctx.slots.inject("sidebar.workspaces", () => ctx.slots.register({
 				name: "sidebar.workspaces",
 				priority: -1,
@@ -651,7 +660,7 @@ window.__ModuleLoader__.load({
 				inject: () => ({
 					createDenkraum,
 					removeDenkraum,
-					startSession: (id) => workspaces.startSession(id),
+					startSession: (id) => startPtsSession(id),
 					openSession: (id) => sessions.open(id),
 					clearSelection: () => sessions.clear(),
 					loadConfig,
@@ -663,6 +672,7 @@ window.__ModuleLoader__.load({
 				priority: -1,
 				inject: () => ({
 					createDenkraum,
+					startSession: (id) => startPtsSession(id),
 					loadConfig,
 				}),
 			}, (props) => React.createElement(PtsWorkspacePicker, props)));

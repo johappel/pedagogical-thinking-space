@@ -27,7 +27,8 @@ $required = @(
 	"toolName: pts_research",
 	"toolName: pts_material",
 	"toolName: pts_review",
-	"toolName: pts_renderer"
+	"toolName: pts_renderer",
+	"pts-companion-tool-boundary"
 )
 foreach ($needle in $required) {
 	if (-not $preset.Contains($needle)) {

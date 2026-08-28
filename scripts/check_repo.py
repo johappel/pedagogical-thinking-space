@@ -20,6 +20,7 @@ REQUIRED_FILES = [
     "specs/SERVICE_REQUEST_SCHEMA.md",
     "dsh-presets/pts-companion/agent.cordis.yml",
     "dsh-presets/pts-companion/preset.yml",
+    "dsh-presets/pts-companion/companion-tool-boundary.mjs",
     "dsh-plugins/pts-background-steward/lib/index.js",
 ]
 
@@ -47,6 +48,10 @@ MUST_CONTAIN = {
         "toolName: pts_material",
         "toolName: pts_review",
         "toolName: pts_renderer",
+        "pts-companion-tool-boundary",
+    ],
+    "dsh-plugins/pts-workspaces/lib/client.js": [
+        'agentPreset: "pts-companion"',
     ],
 }
 
@@ -112,4 +117,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

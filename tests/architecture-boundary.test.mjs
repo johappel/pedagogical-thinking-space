@@ -33,17 +33,24 @@ test('preset exposes four native role-bound DSH subagents', async () => {
   assert.match(preset, /toolName: pts_material[\s\S]*allow: \[read, glob, grep, write, edit\]/);
   assert.match(preset, /toolName: pts_review[\s\S]*allow: \[read, glob, grep\]/);
   assert.match(preset, /backgroundMode: one-shot/);
+  assert.match(preset, /pts-companion-tool-boundary/);
 });
 
 test('prototype launch requires the canonical installed worker preset', async () => {
   const installer = await read('scripts/install-pts-preset.ps1');
   const launcher = await read('scripts/start-pts-web.ps1');
-  for (const marker of ['@deepseek-ai/dsh-tool-jobs', 'pts_research', 'pts_material', 'pts_review', 'pts_renderer']) {
+  for (const marker of ['@deepseek-ai/dsh-tool-jobs', 'pts_research', 'pts_material', 'pts_review', 'pts_renderer', 'pts-companion-tool-boundary']) {
     assert.match(installer, new RegExp(marker.replace('/', '\\/')));
     assert.match(launcher, new RegExp(marker.replace('/', '\\/')));
   }
   assert.match(installer, /ItemType Junction/);
   assert.match(installer, /Move-Item[\s\S]*backup/);
+});
+
+test('PTS workspace sessions pin the companion preset instead of inheriting a default', async () => {
+  const client = await read('dsh-plugins/pts-workspaces/lib/client.js');
+  assert.match(client, /sessions\.create\(\{\s*workspaceId,\s*agentPreset:\s*["']pts-companion["']\s*\}\)/);
+  assert.doesNotMatch(client, /startSession:\s*\(id\)\s*=>\s*workspaces\.startSession\(id\)/);
 });
 
 test('steward code has no service dispatch seam', async () => {
