@@ -26,7 +26,7 @@ jobs:
         run: python scripts/check_repo.py
 
       - name: Run architecture and Steward tests
-        run: node --test tests/*.test.mjs dsh-plugins/pts-background-steward/test/*.test.mjs
+        run: node --test tests/*.test.mjs dsh-plugins/pts-background-steward/test/*.test.mjs dsh-plugins/pts-skill-manager/test/*.test.mjs
 
       - name: Run activity projection checks
         run: node dsh-plugins/pts-activity-stream/test-activity.cjs

@@ -1,0 +1,31 @@
+- generic [ref=e4]:
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - button "New session" [ref=e9] [cursor=pointer]:
+        - generic [ref=e10]:
+          - generic [ref=e11]: P
+          - generic [ref=e14]: Pedagogical Thinking Space
+      - button "Collapse sidebar" [ref=e17] [cursor=pointer]
+    - button "New session" [ref=e20] [cursor=pointer]:
+      - generic [ref=e23]: New Session
+    - generic [ref=e26]:
+      - generic [ref=e27]:
+        - generic [ref=e28]: Arbeitsräume
+        - button "Neuen Denkraum anlegen" [ref=e29] [cursor=pointer]: +
+      - tree "Arbeitsräume" [ref=e30]:
+        - generic [ref=e31]: Lade Arbeitsräume …
+    - button "Settings" [ref=e35] [cursor=pointer]
+  - generic [ref=e49]:
+    - generic [ref=e52]:
+      - generic "Pedagogical Thinking Space" [ref=e55]: P
+      - generic [ref=e56]: Into the Unknown
+      - generic [ref=e57]: Preview
+    - button "Choose workspace" [ref=e59] [cursor=pointer]
+    - generic [ref=e67] [cursor=pointer]:
+      - textbox "Choose workspace" [ref=e70]:
+        - /placeholder: Choose a workspace to start
+      - generic [ref=e71]:
+        - generic [ref=e72]:
+          - button "Commands" [disabled]
+        - generic [ref=e73]:
+          - button "Send message" [disabled]

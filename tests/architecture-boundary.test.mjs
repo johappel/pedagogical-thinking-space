@@ -29,17 +29,23 @@ test('preset exposes four native role-bound DSH subagents', async () => {
   for (const tool of ['pts_research', 'pts_material', 'pts_review', 'pts_renderer']) {
     assert.match(preset, new RegExp('toolName: ' + tool));
   }
-  assert.match(preset, /toolName: pts_research[\s\S]*allow: \[read, glob, grep, web_search, web_fetch, write, edit\]/);
-  assert.match(preset, /toolName: pts_material[\s\S]*allow: \[read, glob, grep, write, edit\]/);
+  assert.match(preset, /toolName: pts_research[\s\S]*allow: \[read, glob, grep, web_search, web_fetch, write, edit, skill\]/);
+  assert.match(preset, /toolName: pts_material[\s\S]*allow: \[read, glob, grep, write, edit, skill\]/);
   assert.match(preset, /toolName: pts_review[\s\S]*allow: \[read, glob, grep\]/);
   assert.match(preset, /backgroundMode: one-shot/);
   assert.match(preset, /pts-companion-tool-boundary/);
+  // DSH skill stack is mounted by the preset (web profile disables the host rows).
+  assert.match(preset, /name: '@deepseek-ai\/dsh-skill-filesystem'/);
+  assert.match(preset, /name: '@deepseek-ai\/dsh-tool-skill'/);
+  assert.match(preset, /pts-worker-skill-scope/);
+  assert.match(preset, /@PTS_SKILLS_DIR@/);
+  assert.match(preset, /includeDefaultRoots: false/);
 });
 
 test('prototype launch requires the canonical installed worker preset', async () => {
   const installer = await read('scripts/install-pts-preset.ps1');
   const launcher = await read('scripts/start-pts-web.ps1');
-  for (const marker of ['@deepseek-ai/dsh-tool-jobs', 'pts_research', 'pts_material', 'pts_review', 'pts_renderer', 'pts-companion-tool-boundary']) {
+  for (const marker of ['@deepseek-ai/dsh-tool-jobs', 'pts_research', 'pts_material', 'pts_review', 'pts_renderer', 'pts-companion-tool-boundary', 'pts-worker-skill-scope', 'pts-skill-manager']) {
     assert.match(installer, new RegExp(marker.replace('/', '\\/')));
     assert.match(launcher, new RegExp(marker.replace('/', '\\/')));
   }

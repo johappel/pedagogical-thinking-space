@@ -49,6 +49,7 @@ MUST_CONTAIN = {
         "toolName: pts_review",
         "toolName: pts_renderer",
         "pts-companion-tool-boundary",
+        "pts-worker-skill-scope",
     ],
     "dsh-plugins/pts-workspaces/lib/client.js": [
         'agentPreset: "pts-companion"',

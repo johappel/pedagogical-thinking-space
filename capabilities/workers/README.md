@@ -16,3 +16,14 @@ Current notes cover pedagogical alternatives, Board materials, student
 instructions, diagrams, image generation and metrics. All produced artefacts
 remain reviewable drafts and may not decide the Learning Design.
 
+## Skills (pts-skill-manager)
+
+Recurring task capabilities arrive as DSH-native **skills** (`skill`-Tool):
+the versioned library lives at `skills/<id>/SKILL.md`, the role↔skill matrix in
+the settings section `pts-worker-skills:`. Assignment and status are the only
+controls; they take effect for newly started workers (composition is fixed at
+session start). The manager UI is the „Skills" tab
+(`dsh-plugins/pts-skill-manager`); enforcement happens in the preset plugin
+`worker-skill-scope.mjs` (role detection, hard `skill` guard, prompt section).
+Worker notes here remain prompt references — they are not skill registrations.
+

@@ -28,12 +28,27 @@ $required = @(
 	"toolName: pts_material",
 	"toolName: pts_review",
 	"toolName: pts_renderer",
-	"pts-companion-tool-boundary"
+	"pts-companion-tool-boundary",
+	"pts-worker-skill-scope"
 )
 foreach ($needle in $required) {
 	if (-not $preset.Contains($needle)) {
 		throw "Installed PTS preset is stale (missing '$needle'). Run the installer with -Replace."
 	}
+}
+if ($preset.Contains("@PTS_SKILLS_DIR@")) {
+	throw "Installed PTS preset has an unresolved skills directory. Run: pwsh -File .\scripts\install-pts-preset.ps1 -Replace"
+}
+
+# Skill-Manager plugin marker: the profile patch row + junction must exist so
+# the workers' `skill` tool can see the repo skill library.
+$patchFile = Join-Path $profileDir "cordis.patch.yml"
+if (-not (Test-Path $patchFile -PathType Leaf) -or -not ((Get-Content $patchFile -Raw).Contains("pts-skill-manager"))) {
+	throw "pts-web profile patch is missing the pts-skill-manager row (see docs/experiments/DSH_PTS_WEB_PROFILE.md)."
+}
+$junctionDir = Join-Path $profileDir "node_modules\pts-skill-manager"
+if (-not (Test-Path $junctionDir)) {
+	throw "pts-web profile junction missing for pts-skill-manager (see docs/experiments/DSH_PTS_WEB_PROFILE.md)."
 }
 
 Write-Host "Starting PTS web (profile: pts-web) on http://127.0.0.1:$Port ..." -ForegroundColor Cyan

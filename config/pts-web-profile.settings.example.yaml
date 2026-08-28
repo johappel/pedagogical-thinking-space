@@ -15,3 +15,12 @@ pts-background-steward:
   maxTokens: 8192
   reasoningEffort: low
 
+# Rolle-Skill-Matrix des pts-skill-manager (Skills-Tab). Werte = Skill-IDs aus
+# der Repo-Bibliothek skills/<id>/SKILL.md. Der Steward- und der Skills-Writer
+# ersetzen je nur ihre eigene Sektion atomar (fremde Sections bleiben erhalten).
+pts-worker-skills:
+  research: [google-search]
+  material: [ppt-builder]
+  review: []
+  renderer: []
+

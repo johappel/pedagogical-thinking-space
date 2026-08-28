@@ -35,6 +35,21 @@
 - id: tool-ask-user
   name: '@deepseek-ai/dsh-tool-ask-user'
 
+# DSH skill stack for the PTS workers. The web profile disables the host
+# skill-filesystem and tool-skill rows, so a preset owns local discovery and
+# the catalog/loader here. The catalog is scoped to THIS preset (and only this
+# preset's agents read it): the library root is substituted by
+# scripts/install-pts-preset.ps1 (@PTS_SKILLS_DIR@ -> <repo>\skills).
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+  config:
+    includeDefaultRoots: false
+    customSkillDirs:
+      - '@PTS_SKILLS_DIR@'
+
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'
+
 - id: compaction
   name: cordis:group
   group: true
@@ -76,7 +91,7 @@
           not-yet-curated Knowledge Proposal below drafts/ or
           knowledge-proposals/. Return the report and any created path.
         toolFilter:
-          allow: [read, glob, grep, web_search, web_fetch, write, edit]
+          allow: [read, glob, grep, web_search, web_fetch, write, edit, skill]
 
     - id: pts-material
       name: '@deepseek-ai/dsh-tool-subagent'
@@ -97,7 +112,7 @@
           workspace context and write only to the requested path below drafts/
           or materials/. State assumptions and return the created path.
         toolFilter:
-          allow: [read, glob, grep, write, edit]
+          allow: [read, glob, grep, write, edit, skill]
 
     - id: pts-review
       name: '@deepseek-ai/dsh-tool-subagent'
@@ -143,3 +158,9 @@
 # top-level Companion while DSH children retain their role-specific filters.
 - id: pts-companion-tool-boundary
   name: './companion-tool-boundary.mjs'
+
+# Per-worker skill enforcement (matrix from settings `pts-worker-skills:`):
+# role detection via the applied tool filter, a hard `skill` guard for
+# non-assigned ids and a system-prompt section naming the assigned skills.
+- id: pts-worker-skill-scope
+  name: './worker-skill-scope.mjs'

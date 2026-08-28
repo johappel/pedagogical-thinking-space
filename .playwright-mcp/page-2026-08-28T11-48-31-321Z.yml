@@ -1,0 +1,56 @@
+- generic [ref=f2e4]:
+  - generic [ref=f2e7]:
+    - generic [ref=f2e8]:
+      - button "New session" [ref=f2e9] [cursor=pointer]:
+        - generic [ref=f2e10]:
+          - generic [ref=f2e11]: P
+          - generic [ref=f2e14]: Pedagogical Thinking Space
+      - button "Collapse sidebar" [ref=f2e17] [cursor=pointer]
+    - button "New session" [ref=f2e20] [cursor=pointer]:
+      - generic [ref=f2e23]: New Session
+    - generic [ref=f2e26]:
+      - generic [ref=f2e27]:
+        - generic [ref=f2e28]: Arbeitsräume
+        - button "Neuen Denkraum anlegen" [ref=f2e29] [cursor=pointer]: +
+      - tree "Arbeitsräume" [ref=f2e30]:
+        - generic [ref=f2e31]: Lade Arbeitsräume …
+    - button "Settings" [ref=f2e35] [cursor=pointer]
+  - generic [ref=f2e49]:
+    - generic [ref=f2e52]:
+      - generic "Pedagogical Thinking Space" [ref=f2e55]: P
+      - generic [ref=f2e56]: Into the Unknown
+      - generic [ref=f2e57]: Preview
+    - button "Choose workspace" [ref=f2e59] [cursor=pointer]
+    - generic [ref=f2e67] [cursor=pointer]:
+      - textbox "Choose workspace" [ref=f2e70]:
+        - /placeholder: Choose a workspace to start
+      - generic [ref=f2e71]:
+        - generic [ref=f2e72]:
+          - button "Commands" [disabled]
+        - generic [ref=f2e73]:
+          - button "Send message" [disabled]
+  - status "Updates and compatibility" [ref=f2e75]:
+    - generic [ref=f2e76]:
+      - strong [ref=f2e77]: "New version available: 0.1.0-alpha.4.21"
+      - button "Later" [ref=f2e78] [cursor=pointer]
+    - generic [ref=f2e79]:
+      - strong [ref=f2e80]: 🟢 Current combination verified
+      - paragraph [ref=f2e81]: "DSH: 0.1.1-rc.2 · Up to date"
+      - paragraph [ref=f2e82]: "Codex Connect: Current 0.1.0-alpha.4.19 · Latest 0.1.0-alpha.4.21"
+      - paragraph [ref=f2e83]: This installed DSH and Codex Connect combination has been verified.
+    - paragraph [ref=f2e84]: 2 published release(s) behind your current version.
+    - generic [ref=f2e85]:
+      - strong [ref=f2e86]: What matters for you
+      - paragraph [ref=f2e88]: Added optional GPT Image generation in the Codex Connect settings and a preview card in the conversation.
+    - generic [ref=f2e89]:
+      - strong [ref=f2e90]: How to upgrade
+      - paragraph [ref=f2e91]: Copy this short request to your Agent. It can inspect the project instructions and choose the appropriate install or update method.
+      - generic [ref=f2e92]:
+        - code [ref=f2e93]: "Please open this project, check its latest version, and install or update the corresponding plugin in the current DSH Web profile: https://github.com/franksong2702/dsh-codex-connect"
+        - button "Copy for Agent" [ref=f2e94] [cursor=pointer]
+      - paragraph [ref=f2e95]: After the Agent reports completion, return here and check the installed version again.
+      - button "Done — check again" [ref=f2e97] [cursor=pointer]
+    - generic [ref=f2e98]:
+      - link "Open release page" [ref=f2e99] [cursor=pointer]:
+        - /url: https://github.com/franksong2702/dsh-codex-connect/releases/tag/v0.1.0-alpha.4.21
+      - button "View technical details" [ref=f2e100] [cursor=pointer]

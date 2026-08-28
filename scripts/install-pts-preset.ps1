@@ -66,19 +66,44 @@ Run again with -Replace to move it to a timestamped backup and install the canon
 Copy-Item -LiteralPath $source -Destination $target -Recurse -Force
 Set-Content -LiteralPath (Join-Path $target $markerName) -Value $resolvedSource -NoNewline -Encoding UTF8
 
-$installed = Get-Content (Join-Path $target "agent.cordis.yml") -Raw
+# Substitute the machine-specific skill library root into the installed preset
+# (the canonical agent.cordis.yml keeps the @PTS_SKILLS_DIR@ placeholder).
+$presetPath = Join-Path $target "agent.cordis.yml"
+$skillsDir = (Join-Path $repoRoot "skills").Replace('\', '/')
+$substituted = (Get-Content $presetPath -Raw).Replace("@PTS_SKILLS_DIR@", $skillsDir)
+Set-Content -LiteralPath $presetPath -Value $substituted -Encoding UTF8
+
+$installed = Get-Content $presetPath -Raw
 $required = @(
 	"@deepseek-ai/dsh-tool-jobs",
 	"toolName: pts_research",
 	"toolName: pts_material",
 	"toolName: pts_review",
 	"toolName: pts_renderer",
-	"pts-companion-tool-boundary"
+	"pts-companion-tool-boundary",
+	"pts-worker-skill-scope",
+	"@deepseek-ai/dsh-skill-filesystem",
+	"@deepseek-ai/dsh-tool-skill"
 )
 foreach ($needle in $required) {
 	if (-not $installed.Contains($needle)) {
 		throw "Installed preset verification failed: missing '$needle'"
 	}
+}
+if ($installed.Contains("@PTS_SKILLS_DIR@")) {
+	throw "Installed preset verification failed: skills directory placeholder not substituted"
+}
+
+# Profile plugin marker: the Skill-Manager patch row and junction must exist,
+# otherwise the skill library stays invisible to the workers' skill tool.
+$profileDir = Join-Path $dshHome "profiles\pts-web"
+$patchPath = Join-Path $profileDir "cordis.patch.yml"
+$junctionPath = Join-Path $profileDir "node_modules\pts-skill-manager"
+if (-not (Test-Path $patchPath -PathType Leaf) -or -not ((Get-Content $patchPath -Raw).Contains("pts-skill-manager"))) {
+	throw "Profile patch missing the pts-skill-manager row in $patchPath (see docs/experiments/DSH_PTS_WEB_PROFILE.md)"
+}
+if (-not (Test-Path $junctionPath)) {
+	throw "Profile junction missing: $junctionPath -> F:\code\pedagogical-thinking-space\dsh-plugins\pts-skill-manager"
 }
 
 Write-Host "Installed canonical PTS preset (copy) at $target" -ForegroundColor Green
