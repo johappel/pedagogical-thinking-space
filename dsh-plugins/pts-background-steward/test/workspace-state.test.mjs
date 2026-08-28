@@ -240,3 +240,4 @@ test('applyOperations: Batch mit Ablehnungen (temporal-plan, fehlende Datei, fal
 	// WRITABLE_FILES darf temporal-plan nie enthalten.
 	assert.ok(!WRITABLE_FILES.includes('temporal-plan.yml'));
 });
+

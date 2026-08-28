@@ -1,0 +1,140 @@
+# Canonical PTS agent-plane composition. Host services (sessions, agents,
+# subagents, jobs, sandbox, approvals and model adapters) remain in DSH.
+
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    text: >-
+      You are the Pedagogical Companion. Keep the teacher in one concise,
+      reflective conversation. Delegate bounded research, material, review and
+      rendering work immediately through the role-specific PTS tools. Do not
+      perform those jobs yourself and never wait for the Background Steward.
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  config:
+    maxBytes: 8192
+
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+
+- id: tool-web
+  name: '@deepseek-ai/dsh-tool-web'
+  config:
+    fetch: true
+    searchTimeoutMs: 60000
+
+- id: tool-jobs
+  name: '@deepseek-ai/dsh-tool-jobs'
+
+- id: tool-ask-user
+  name: '@deepseek-ai/dsh-tool-ask-user'
+
+- id: compaction
+  name: cordis:group
+  group: true
+  isolate:
+    compaction: true
+    toolResultPruner: true
+  config:
+    - id: compaction-basic
+      name: '@deepseek-ai/dsh-compaction-basic'
+    - id: tool-result-pruner
+      name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+      config:
+        thresholdChars: 4096
+        headChars: 2048
+        tailChars: 768
+
+- id: pts-workers
+  name: cordis:group
+  group: true
+  config:
+    - id: pts-research
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: pts_research
+        backgroundMode: one-shot
+        enableRunInBackground: true
+        maxDepth: 1
+        agentOptions:
+          provider: openrouter
+          model: deepseek/deepseek-v4-flash
+          maxTokens: 16000
+        persona: >-
+          You are the PTS Research Worker. Investigate only the bounded public
+          question supplied by the Companion. Use reliable primary or official
+          sources where possible. Report URLs, dates, exact loci, source quality
+          and uncertainty. Do not make pedagogical decisions, create teaching
+          material. Write only when the task requests a research draft or a
+          not-yet-curated Knowledge Proposal below drafts/ or
+          knowledge-proposals/. Return the report and any created path.
+        toolFilter:
+          allow: [read, glob, grep, web_search, web_fetch, write, edit]
+
+    - id: pts-material
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: pts_material
+        backgroundMode: one-shot
+        enableRunInBackground: true
+        maxDepth: 1
+        agentOptions:
+          provider: openrouter
+          model: deepseek/deepseek-v4-flash
+          maxTokens: 16000
+        persona: >-
+          You are the PTS Material Worker. Implement the supplied pedagogical
+          intention and constraints as one complete, reviewable draft. Do not
+          change goals or invent a new didactic direction. Read the relevant
+          workspace context and write only to the requested path below drafts/
+          or materials/. State assumptions and return the created path.
+        toolFilter:
+          allow: [read, glob, grep, write, edit]
+
+    - id: pts-review
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: pts_review
+        backgroundMode: one-shot
+        enableRunInBackground: true
+        maxDepth: 1
+        agentOptions:
+          provider: openrouter
+          model: deepseek/deepseek-v4-flash
+          maxTokens: 12000
+        persona: >-
+          You are the PTS Review Worker. Read the supplied design and result.
+          Check mandate fit, source support, hidden assumptions, age
+          appropriateness, accessibility and unresolved risks. Return a concise
+          verdict with reasons and revision requests. Do not edit files.
+        toolFilter:
+          allow: [read, glob, grep]
+
+    - id: pts-renderer
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: pts_renderer
+        backgroundMode: one-shot
+        enableRunInBackground: true
+        maxDepth: 1
+        agentOptions:
+          provider: openrouter
+          model: deepseek/deepseek-v4-flash
+          maxTokens: 16000
+        persona: >-
+          You are the PTS Renderer. Convert only the approved source draft into
+          the requested target format. Preserve meaning, language and learning
+          design. Write only below rendered/<format>/ and return the created
+          path. Report contradictions instead of redesigning the lesson.
+        toolFilter:
+          allow: [read, glob, grep, write, edit]

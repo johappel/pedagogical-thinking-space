@@ -152,6 +152,17 @@ const CWD = "F:/code/pedagogical-thinking-space";
 	check("C: settled copy path (single spawn)", dDone.spawns === 1 && dDone.running === false);
 }
 
+// --- Scenario C2: native PTS worker tools retain their domain activity ------
+{
+	const research = runningCall("pts_research", JSON.stringify({ description: "Lehrplan prüfen", prompt: "...", run_in_background: true }));
+	const material = runningCall("pts_material", JSON.stringify({ description: "Arbeitsblatt entwerfen", prompt: "...", run_in_background: true }));
+	const review = runningCall("pts_review", JSON.stringify({ description: "Entwurf prüfen", prompt: "...", run_in_background: true }));
+	const s = snap([toolNode(research), toolNode(material), toolNode(review)]);
+	check("C2: pts_research classified as research", describeKey("tool-call:" + research.callId, s, CWD).type === "research");
+	check("C2: pts_material classified as draft", describeKey("tool-call:" + material.callId, s, CWD).type === "draft");
+	check("C2: pts_review classified as review", describeKey("tool-call:" + review.callId, s, CWD).type === "review");
+}
+
 // --- Scenario D: unknown tool => honest technical fallback -----------------
 {
 	const x = runningCall("workflow", JSON.stringify({ script: "..." }));

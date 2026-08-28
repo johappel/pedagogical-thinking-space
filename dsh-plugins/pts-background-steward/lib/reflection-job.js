@@ -35,9 +35,7 @@ export function buildStewardPersona() {
 		'- decisions.yml wird nur verändert, wenn die Lehrkraft eine Entscheidung eindeutig und erkennbar getroffen hat; sonst unterbleibt der Eintrag.',
 		'- Lernmomente werden ausschließlich als vollständige Entwürfe mit Status draft erfasst; stable vergibst du nie.',
 		'- temporal-plan.yml ist für dich tabu; bindende zeitliche Platzierungen brauchen die Lehrkraft.',
-		'- Du produzierst keine Unterrichtsmaterialien und schreibst nichts in Memory oder kuratiertes Wissen.',
-		'- Du recherchierst NIEMALS selbst und führst keine Worker oder Dienste aus.',
-		'- Fehlt nach dem Gesprächsschritt geprüftes externes Wissen (z. B. eine Lehrplan-Zuordnung), darfst du GENAU EINEN begrenzten, quellengebundenen Knowledge-Request als service_intents-Eintrag vorschlagen. Ein getrennter Recherche-Subagent führt ihn aus, nicht du. Nur quellengebundenes Wissen, keine pädagogische Entscheidung, kein Material.',
+		'- Du produzierst keine Unterrichtsmaterialien, startest keine Recherchen oder Worker und schreibst nichts in Memory oder kuratiertes Wissen.',
 		'- Du schreibst NICHT selbst Dateien; du lieferst ausschließlich dein strukturiertes Ergebnis zurück. Die Anwendung prüft es und wendet es an.',
 		'- Halte Beobachtung, wiedergegebene Aussage, Deutung, Hypothese und offene Frage begrifflich auseinander.',
 		'Antworte auf Deutsch. Beende deinen Lauf, indem du genau einmal das Tool structured_output mit deinem Ergebnis aufrufst.',
@@ -55,10 +53,7 @@ function formatDialogue(dialogue) {
 }
 
 export function buildTaskPrompt(task) {
-	const { dir, sessionId, turn, hashes, files, dialogue, allowedTasks } = task;
-	const taskList = Array.isArray(allowedTasks) && allowedTasks.length > 0
-		? allowedTasks.join(', ')
-		: '(derzeit keine dispatchbare Knowledge-Capability im Katalog)';
+	const { dir, sessionId, turn, hashes, files, dialogue } = task;
 	const hashLines = Object.entries(hashes)
 		.map(([name, h]) => `- ${name}: ${h ?? '(nicht vorhanden)'}`)
 		.join('\n');
@@ -101,14 +96,7 @@ ${dialogueText}
 5. Leere \`operations\` sind ausdrücklich erlaubt und oft richtig (z. B. nach reinen Begrüßungen).
 6. \`next_turn_hint\`: höchstens eine offene Frage, die sich aus dem Gespräch ergibt — oder null. Die Frage ist ein Angebot an den Begleiter, keine Vorgabe.
 7. \`forbidden_effects\`: liste hier auf, was du bewusst NICHT getan hast (z. B. "keine Entscheidung erkannt").
-8. \`service_intents\`: normalerweise leer. Nur wenn nach diesem Gesprächsschritt geprüftes externes Wissen fehlt (z. B. ob ein Thema in einen Lehrplan/Jahrgang passt) und die Lehrkraft selbst danach fragt oder einen direkten Auftrag gibt („Kannst du … verifizieren?", „Prüfe …", „Speichere das als Knowledge"), schlage GENAU EINEN begrenzten, quellengebundenen Request vor:
-   - \`task\`: eine dispatchbare Capability aus dem Katalog. Aktuell verfügbar: ${taskList}. Nutze ausschließlich eine dieser Task-IDs.
-   - \`authorization\`: \`{ type: implied_bounded_request, evidence: <Nachrichten-ID der Lehrkraft> }\`. Die Evidence MUSS eine Nachricht der Lehrkraft sein (nicht "context"). Ein direkter Arbeitsauftrag der Lehrkraft ist bereits die Autorisierung; verlange keine zweite Freigabe.
-   - \`scope\`: nur öffentliche, nicht personenbezogene Felder — \`jurisdiction\`, \`subject\`, \`phase\`, \`grade\`, \`topic\` (Pflicht) und optional \`denomination\` (bei Unklarheit "unknown"; das blockiert die Prüfung nicht).
-   - \`expected_output\`: OPTIONAL. Nur wenn die Lehrkraft ausdrücklich verlangt hat, das verifizierte Ergebnis im Knowledge zu speichern, setze \`{ type: knowledge_proposal, location: "knowledge-proposals/" }\`. Sonst weglassen (dann wird ein Draft abgelegt). Das Proposal bleibt überprüfbar und noch nicht kuratiert; niemals direkt in kuratiertes knowledge/.
-   - \`return_to\`: \`critical_friend\`.
-   - Kein Vergleich pädagogischer Ansätze, keine Entscheidung, kein Material. Im Zweifel: leer lassen.
-9. Bleibe beim Wortlaut der Lehrkraft, wo sie selbst Formulierungen genutzt hat; kennzeichne Deutungen deutlich als solche.`;
+8. Bleibe beim Wortlaut der Lehrkraft, wo sie selbst Formulierungen genutzt hat; kennzeichne Deutungen deutlich als solche.`;
 }
 
 function agentOptionsFrom(config) {
@@ -169,9 +157,7 @@ export function createReflectionRunner({
 	externalSignal,
 }) {
 	async function reflectOnce(job) {
-		const { key, dir, sessionId, turn, dialogue, messageIds, userMessageIds } = job;
-		const allowedTasks = Array.isArray(job.allowedTasks) ? job.allowedTasks : [];
-		const allowedTaskSet = new Set(allowedTasks);
+		const { key, dir, sessionId, turn, dialogue, messageIds } = job;
 		// Effective model target resolved per job (settings block > patch row).
 		// reasoningEffort is deliberately NOT passed: the one-shot seam cannot
 		// route it to the child, so the child always runs with provider default.
@@ -186,7 +172,7 @@ export function createReflectionRunner({
 
 		// 2. Prompt material (truncated copies for context only).
 		const files = await readCanonicalFiles(dir, config.maxFileChars);
-		const prompt = buildTaskPrompt({ dir, sessionId, turn, hashes, files, dialogue, allowedTasks });
+		const prompt = buildTaskPrompt({ dir, sessionId, turn, hashes, files, dialogue });
 
 		// 3+4. Native one-shot child through the spawn provider.
 		const request = {
@@ -218,15 +204,12 @@ export function createReflectionRunner({
 		}
 
 		// 5. Validate against expectations + policy.
-		const checked = validateResult(result.structured, { sessionId, turn, hashes, messageIds, userMessageIds, allowedTasks: allowedTaskSet });
+		const checked = validateResult(result.structured, { sessionId, turn, hashes, messageIds });
 		if (!checked.ok) {
 			logError(`${key}: Ergebnis verworfen — Validierung fehlgeschlagen:\n- ${checked.errors.join('\n- ')}`);
 			return { status: 'invalid', detail: `${checked.errors.length} Verstoß/Vorstöße gegen Schema oder Politik`, errors: checked.errors };
 		}
 		const value = checked.result;
-		// Validated bounded knowledge-request intents (usually none). These are
-		// surfaced to the coordinator only after the revision re-check passes.
-		const serviceIntents = Array.isArray(value.service_intents) ? value.service_intents : [];
 
 		// 6. Revision check immediately before applying.
 		const freshHashes = await snapshotHashes(dir);
@@ -237,7 +220,7 @@ export function createReflectionRunner({
 		}
 
 		if (!Array.isArray(value.operations) || value.operations.length === 0) {
-			return { status: 'no-change', detail: 'keine Operationen vorgeschlagen', hint: value.next_turn_hint ?? null, serviceIntents };
+			return { status: 'no-change', detail: 'keine Operationen vorgeschlagen', hint: value.next_turn_hint ?? null };
 		}
 
 		// 7. Apply atomically against CURRENT uncapped contents.
@@ -260,7 +243,7 @@ export function createReflectionRunner({
 			logError(`${key}: Operation abgelehnt (${r.reason}): ${JSON.stringify(r.op).slice(0, 240)}`);
 		}
 		if (updates.size === 0) {
-			return { status: 'no-change', detail: `alle ${rejected.length} Vorschläge von der Politik abgelehnt`, hint: value.next_turn_hint ?? null, serviceIntents };
+			return { status: 'no-change', detail: `alle ${rejected.length} Vorschläge von der Politik abgelehnt`, hint: value.next_turn_hint ?? null };
 		}
 		for (const [name, content] of updates) {
 			await atomicWrite(dir, name, content);
@@ -270,7 +253,7 @@ export function createReflectionRunner({
 		if (Array.isArray(value.forbidden_effects) && value.forbidden_effects.length > 0) {
 			log(`${key}: laut Steward unterlassen: ${value.forbidden_effects.join('; ')}`);
 		}
-		return { status: 'applied', detail: summary, applied, rejectedCount: rejected.length, hint: value.next_turn_hint ?? null, serviceIntents };
+		return { status: 'applied', detail: summary, applied, rejectedCount: rejected.length, hint: value.next_turn_hint ?? null };
 	}
 
 	return async function runReflection(job) {
@@ -340,3 +323,4 @@ export function createReflectionRunner({
 		}
 	};
 }
+

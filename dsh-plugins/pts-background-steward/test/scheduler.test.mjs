@@ -205,3 +205,4 @@ test('normalizeConfig: Schreibwerkzeuge werden nie an das Kind durchgereicht', (
 	assert.deepEqual(silent.config.allowedTools, ['read', 'glob']);
 	assert.equal(silent.warnings.length, 0);
 });
+

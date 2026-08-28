@@ -120,6 +120,12 @@ window.__ModuleLoader__.load({
 			send_message: true, interrupt_agent: true, list_agents: true,
 			job_output: true, job_list: true, job_kill: true,
 		};
+		const PTS_WORKER_TOOLS = {
+			pts_research: "research",
+			pts_material: "draft",
+			pts_review: "review",
+			pts_renderer: "draft",
+		};
 
 		function classifyRoot(root) {
 			if (root === null || typeof root !== "object") return null;
@@ -141,6 +147,13 @@ window.__ModuleLoader__.load({
 				return undefined;
 			};
 
+			if (Object.prototype.hasOwnProperty.call(PTS_WORKER_TOOLS, name)) {
+				return {
+					type: PTS_WORKER_TOOLS[name],
+					isSpawn: true,
+					desc: pick("description", "prompt"),
+				};
+			}
 			if (RESEARCH_TOOLS[name] === true) {
 				return { type: "research", isSpawn: name === "subagent", desc: name === "subagent" ? pick("description") : undefined };
 			}
