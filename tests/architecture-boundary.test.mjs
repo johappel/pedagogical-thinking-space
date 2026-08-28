@@ -43,7 +43,9 @@ test('prototype launch requires the canonical installed worker preset', async ()
     assert.match(installer, new RegExp(marker.replace('/', '\\/')));
     assert.match(launcher, new RegExp(marker.replace('/', '\\/')));
   }
-  assert.match(installer, /ItemType Junction/);
+  // DSH does not index linked preset folders, so the preset must be a real copy.
+  assert.match(installer, /Copy-Item[\s\S]*-Recurse/);
+  assert.doesNotMatch(installer, /New-Item -ItemType Junction/);
   assert.match(installer, /Move-Item[\s\S]*backup/);
 });
 

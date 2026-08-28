@@ -564,6 +564,72 @@ window.__ModuleLoader__.load({
 			ctx.effect(() => () => stop(), "pts-workspaces: boot scope guard");
 		}
 
+		/**
+		 * Global "Neue Sitzung" guard. The shipped sidebar shell keeps its own
+		 * top-left New Session button that calls ctx.workspaces.startSession()
+		 * with no workspace id; that resolves to the current/most-recent
+		 * Workspace, which in this profile can be the repository root itself —
+		 * opening a session with the whole PTS as cwd instead of a Denkraum.
+		 *
+		 * We cannot re-declare the shipped "sidebar" seat (its child-slot
+		 * declarations are exclusive), so we wrap the shared workspaces service
+		 * method the button invokes. In-scope targets (a direct Denkraum under
+		 * <PTS>/workspace/) start a proper PTS session with the pts-companion
+		 * preset; anything out of scope (the repo root) never opens — it returns
+		 * to the PTS start view so the teacher picks or creates a Denkraum. The
+		 * wrap is idempotent and restored on dispose.
+		 */
+		function installGlobalNewSessionGuard(ctx, workspaces, sessions, loadConfig, startPtsSession) {
+			if (typeof workspaces.startSession !== "function" || workspaces.__ptsNewSessionGuarded === true) return;
+			const original = workspaces.startSession.bind(workspaces);
+			workspaces.__ptsNewSessionGuarded = true;
+			const guarded = function ptsGuardedStartSession(workspaceId) {
+				Promise.resolve().then(loadConfig).then((cfg) => {
+					if (!cfg || typeof cfg.root !== "string" || cfg.root === "") {
+						// PTS host not resolvable: keep the shipped behaviour.
+						original(workspaceId);
+						return;
+					}
+					const base = typeof cfg.workspaceDir === "string" && cfg.workspaceDir !== ""
+						? cfg.workspaceDir
+						: cfg.root.replace(/[\\/]+$/, "") + "/workspace";
+					const prefix = normPath(base) + "/";
+					const wsSnap = workspaces.list.getSnapshot();
+					const items = wsSnap && Array.isArray(wsSnap.items) ? wsSnap.items : [];
+					const sess = sessions.list.getSnapshot();
+					const current = sess ? sess.current : undefined;
+					let currentWorkspaceId;
+					if (current !== undefined) {
+						const row = items.find((it) => it && Array.isArray(it.sessionIds) && it.sessionIds.indexOf(current) >= 0);
+						currentWorkspaceId = row ? row.workspaceId : undefined;
+					}
+					const targetId = workspaceId !== undefined
+						? workspaceId
+						: (currentWorkspaceId !== undefined ? currentWorkspaceId : (wsSnap ? wsSnap.recentWorkspaceId : undefined));
+					const targetWs = targetId !== undefined ? items.find((it) => it && it.workspaceId === targetId) : undefined;
+					const p = targetWs ? normPath(targetWs.path) : "";
+					const rest = p !== "" && p.indexOf(prefix) === 0 ? p.slice(prefix.length) : null;
+					const inScope = rest !== null && rest !== "" && rest.indexOf("/") === -1 && rest.charAt(0) !== ".";
+					if (inScope) {
+						startPtsSession(targetId).catch((err) => console.warn("[pts-workspaces] new session in Denkraum failed:", err));
+					} else {
+						console.info("[pts-workspaces] global New Session outside PTS scope - returning to start view");
+						sessions.clear();
+					}
+				}).catch((err) => {
+					console.warn("[pts-workspaces] new session guard skipped:", err);
+					original(workspaceId);
+				});
+			};
+			workspaces.startSession = guarded;
+			ctx.effect(() => () => {
+				if (workspaces.__ptsNewSessionGuarded === true && workspaces.startSession === guarded) {
+					workspaces.startSession = original;
+				}
+				delete workspaces.__ptsNewSessionGuarded;
+			}, "pts-workspaces: global new-session guard");
+		}
+
 		/** Required services (cordis fiber inject). */
 		const inject = ["slots", "workspaces", "sessions"];
 
@@ -651,6 +717,8 @@ window.__ModuleLoader__.load({
 				sessions.open(sessionId);
 				return sessionId;
 			}
+
+			installGlobalNewSessionGuard(ctx, workspaces, sessions, loadConfig, startPtsSession);
 
 			ctx.slots.inject("sidebar.workspaces", () => ctx.slots.register({
 				name: "sidebar.workspaces",

@@ -1,4 +1,10 @@
 # install-pts-preset.ps1 — expose the repository's canonical PTS preset to DSH.
+#
+# The preset is installed as a REAL directory copy, not a junction: the current
+# DSH version does not index linked (reparse-point) preset folders, so a linked
+# pts-companion never shows up under "CUSTOM". A managed marker file records the
+# source path so re-running this script refreshes the copy in place; edit the
+# canonical preset in the repo and re-run to update.
 param(
 	[switch]$Replace
 )
@@ -18,36 +24,47 @@ if (-not $dshHome) {
 }
 $presetRoot = Join-Path $dshHome ".agent-presets"
 $target = Join-Path $presetRoot "pts-companion"
+$markerName = ".pts-installed-from"
+$resolvedSource = [System.IO.Path]::GetFullPath((Resolve-Path $source).Path).TrimEnd('\')
 
 New-Item -ItemType Directory -Path $presetRoot -Force | Out-Null
 
 if (Test-Path $target) {
 	$existing = Get-Item $target -Force
-	$resolvedSource = [System.IO.Path]::GetFullPath((Resolve-Path $source).Path).TrimEnd('\')
-	$resolvedTarget = $null
-	if ($existing.LinkType -eq "Junction" -and $existing.Target) {
-		$resolvedTarget = [System.IO.Path]::GetFullPath([string]$existing.Target).TrimEnd('\')
-	}
 
-	if ($resolvedTarget -eq $resolvedSource) {
-		Write-Host "PTS preset is already linked to $source" -ForegroundColor Green
-		exit 0
-	}
+	if ($existing.LinkType -eq "Junction") {
+		# Legacy link-based install: DSH never listed it under CUSTOM. Remove the
+		# junction (link only — rmdir never follows into the source tree) and fall
+		# through to a real copy below.
+		cmd /c rmdir "$target" | Out-Null
+		Write-Host "Removed legacy junction; installing a real preset copy instead." -ForegroundColor Yellow
+	} else {
+		$markerPath = Join-Path $target $markerName
+		$managed = $false
+		if (Test-Path $markerPath -PathType Leaf) {
+			$recorded = (Get-Content $markerPath -Raw).Trim()
+			if ($recorded -eq $resolvedSource) { $managed = $true }
+		}
 
-	if (-not $Replace) {
-		throw @"
-$target already exists and is not linked to this checkout.
-Run again with -Replace to move it to a timestamped backup and install the canonical preset.
+		if ($managed) {
+			# Our own copy from a previous run: refresh it in place.
+			Remove-Item -LiteralPath $target -Recurse -Force
+		} elseif ($Replace) {
+			$stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+			$backup = "$target.backup-$stamp"
+			Move-Item -LiteralPath $target -Destination $backup
+			Write-Host "Previous preset moved to $backup" -ForegroundColor Yellow
+		} else {
+			throw @"
+$target already exists and is not managed by this installer.
+Run again with -Replace to move it to a timestamped backup and install the canonical preset copy.
 "@
+		}
 	}
-
-	$stamp = Get-Date -Format "yyyyMMdd-HHmmss"
-	$backup = "$target.backup-$stamp"
-	Move-Item -LiteralPath $target -Destination $backup
-	Write-Host "Previous preset moved to $backup" -ForegroundColor Yellow
 }
 
-New-Item -ItemType Junction -Path $target -Target $source | Out-Null
+Copy-Item -LiteralPath $source -Destination $target -Recurse -Force
+Set-Content -LiteralPath (Join-Path $target $markerName) -Value $resolvedSource -NoNewline -Encoding UTF8
 
 $installed = Get-Content (Join-Path $target "agent.cordis.yml") -Raw
 $required = @(
@@ -64,5 +81,5 @@ foreach ($needle in $required) {
 	}
 }
 
-Write-Host "Installed canonical PTS preset at $target" -ForegroundColor Green
-Write-Host "Restart DSH and open a new conversation." -ForegroundColor Cyan
+Write-Host "Installed canonical PTS preset (copy) at $target" -ForegroundColor Green
+Write-Host "Restart DSH; pts-companion now appears under CUSTOM." -ForegroundColor Cyan
