@@ -107,6 +107,7 @@ forbidden_effects:
 | `learning-design.md` + `set-section` | `section`, `value` | Ersetzt den Rumpf einer `##`-Ebene oder legt sie an. |
 | `learning-design.md` + `append-under-section` | `section`, `value` | Hängt einen Block unter die Überschrift. |
 | `learning-landscape.md` + `add-draft-moment` | `title`, `moment_type`, `moment_function`, `learning_activity`, `expected_experience`, `value` | Vollständiger Entwurf; Status wird zwangsläufig `draft`; ID und Herkunft generiert die Anwendung. |
+| `learning-landscape.md` + `add-draft-transition` | `from_id`, `to_id`, `transition_type`, `value`, `evidence` | Höchstens zwei pro Lauf; verbindet **vorhandene** Lernmomente (`§`-`### <id>`); `transition_type` ∈ `required`, `choice`, `parallel`, `return`, `meeting_point`, `prerequisite`; `evidence` muss aus dem Gesprächsfenster stammen. |
 | `decisions.yml` + `add-decision` | `value`, `evidence` | Nur mit passendem `teacher_decisions`-Eintrag `explicit: true`; sonst abgelehnt. |
 | `planning-board.yml` + `propose-board-item` | `title`, `board_kind`, `value` | Höchstens einer pro Lauf; wird mit `status: proposed`, `column: clarify`, `requires_teacher_approval: true` angelegt. |
 | `temporal-plan.yml` + `propose-window` | `title`, `window_kind`, `duration_minutes`, `evidence`, `value` | Höchstens einer pro Lauf; Fenster wird mit `status: proposed` angelegt; `evidence` muss aus dem Gesprächsfenster stammen. |

@@ -88,7 +88,7 @@ Konfiguration ohne Schema unverändert durch) und in `config.js` normalisiert.
    - `decisions.yml` nur bei eindeutiger, belegter Lehrkraftentscheidung
      (`teacher_decisions` mit `explicit: true` + passender Evidence);
    - Lernmomente nur als vollständige Entwürfe (`Status: draft`);
-   - `temporal-plan.yml` nur als Vorschlag (Fenster/Platzierung, `status: proposed`); Board höchstens 1 Vorschlag/Lauf
+   - `temporal-plan.yml` nur als Vorschlag (Fenster/Platzierung, `status: proposed`); Board höchstens 1 Vorschlag/Lauf; Lernlandschaft-Übergänge höchstens 2 Vorschläge/Lauf
      (erzwungen `status: proposed`, `requires_teacher_approval: true`);
    - `set-section`/`append-under-section` nur an `learning-design.md`;
    - Wertlängengrenzen.

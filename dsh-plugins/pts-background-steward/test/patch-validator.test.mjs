@@ -267,6 +267,46 @@ test('unvollständiger Lernmoment-Entwurf wird abgelehnt; vollständiger besteht
 	assert.equal(r.ok, true);
 });
 
+test('add-draft-transition: gültig bei vorhandenen Momenten; fehlende Felder abgelehnt', () => {
+	const valid = validResult({
+		operations: [{
+			target: 'learning-landscape.md', kind: 'add-draft-transition',
+			from_id: 'lm-a', to_id: 'lm-b', transition_type: 'required',
+			value: 'Erst die Irritation, dann die Position.', evidence: 'm3',
+		}],
+	});
+	let r = validateResult(valid, expectation());
+	assert.equal(r.ok, true);
+
+	const noTo = validResult({
+		operations: [{
+			target: 'learning-landscape.md', kind: 'add-draft-transition',
+			from_id: 'lm-a', transition_type: 'required', value: 'x', evidence: 'm3',
+		}],
+	});
+	r = validateResult(noTo, expectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('to_id')));
+
+	const badType = validResult({
+		operations: [{
+			target: 'learning-landscape.md', kind: 'add-draft-transition',
+			from_id: 'lm-a', to_id: 'lm-b', transition_type: 'chaos', value: 'x', evidence: 'm3',
+		}],
+	});
+	r = validateResult(badType, expectation());
+	assert.equal(r.ok, false);
+
+	const self = validResult({
+		operations: [{
+			target: 'learning-landscape.md', kind: 'add-draft-transition',
+			from_id: 'lm-a', to_id: 'lm-a', transition_type: 'required', value: 'x', evidence: 'm3',
+		}],
+	});
+	r = validateResult(self, expectation());
+	assert.equal(r.ok, false);
+});
+
 test('höchstens ein Planning-Board-Vorschlag pro Lauf', () => {
 	const two = validResult({
 		operations: [

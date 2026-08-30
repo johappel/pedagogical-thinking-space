@@ -17,6 +17,7 @@ import {
 	mdReplaceSection,
 	mdAppendUnderSection,
 	landscapeAppendMoment,
+	landscapeAppendTransition,
 	decisionsAppendEntry,
 	boardAppendItem,
 	temporalPlanAppendWindow,
@@ -139,6 +140,24 @@ test('landscapeAppendMoment fügt vollständigen draft-Lernmoment vor Übergäng
 		learning_activity: 'a', expected_experience: 'e',
 	});
 	assert.equal(badType.ok, false);
+});
+
+test('landscapeAppendTransition: fügt Übergang unter ## Übergänge ein, Referenzprüfung', () => {
+	const landscape = '## Lernmomente\n\n### lm-a\n\n- Titel: A\n- Status: draft\n\n### lm-b\n\n- Titel: B\n- Status: draft\n';
+	const r = landscapeAppendTransition(landscape, { from_id: 'lm-a', to_id: 'lm-b', transition_type: 'required', value: 'Erst A, dann B.' });
+	assert.ok(r.ok);
+	assert.ok(r.content.includes('## Übergänge'));
+	assert.ok(r.content.includes('### tr-lm-a-lm-b'));
+	assert.ok(r.content.includes('- Von: lm-a'));
+	assert.ok(r.content.includes('- Zu: lm-b'));
+	assert.ok(r.content.includes('- Typ: required'));
+
+	const unknown = landscapeAppendTransition(landscape, { from_id: 'lm-a', to_id: 'lm-z', transition_type: 'required', value: 'x' });
+	assert.equal(unknown.ok, false);
+	assert.equal(unknown.reason, 'unknown-to-moment');
+
+	const self = landscapeAppendTransition(landscape, { from_id: 'lm-a', to_id: 'lm-a', transition_type: 'required', value: 'x' });
+	assert.equal(self.ok, false);
 });
 
 test('decisionsAppendEntry: Leerliste wird expandiert, bestehende Liste am Dateiende bekommt Einträge', () => {

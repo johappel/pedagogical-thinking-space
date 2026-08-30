@@ -40,9 +40,15 @@ window.__ModuleLoader__.load({
 .pls-band { position:absolute; left:0; right:0; border-top:1px solid rgba(128,128,128,.22); border-bottom:1px solid rgba(128,128,128,.22); background:rgba(128,128,128,.04); pointer-events:none; z-index:0; }
 .pls-band-title { position:absolute; left:8px; top:4px; font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; opacity:.55; pointer-events:none; }
 .pls-arrow-svg { position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; z-index:1; }
-.pls-card { border:1px solid rgba(128,128,128,.3); border-radius:8px; background:rgba(128,128,128,.06); padding:8px 12px; display:flex; flex-direction:column; gap:6px; }
+.pls-card { border:1px solid rgba(128,128,128,.3); border-radius:8px; background:#252525; padding:8px 12px 8px 10px; display:flex; flex-direction:column; gap:6px; }
+.pls-card:hover { border-color:rgba(128,128,128,.55); }
+.pls-card-actions { display:flex; align-items:center; gap:6px; flex-wrap:nowrap; margin-top:auto; }
+.pls-card-actions .pls-btn { white-space:nowrap; flex:0 0 auto; padding:3px 6px; font-size:11px; }
 .pls-card.draggable { cursor:grab; }
 .pls-card.draggable:active { cursor:grabbing; }
+.pls-grip { cursor:grab; opacity:.55; font-size:13px; line-height:1; padding:2px 4px; border-radius:4px; user-select:none; flex:0 0 auto; }
+.pls-grip:hover { opacity:.9; background:rgba(128,128,128,.15); }
+.pls-grip:active { cursor:grabbing; }
 .pls-card-ok { border-color:#7ec699; box-shadow:0 0 0 1px rgba(126,198,153,.5) inset; }
 .pls-card-warn { border-color:#d19a66; box-shadow:0 0 0 1px rgba(209,154,102,.55) inset; }
 .pls-card-head { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
@@ -217,9 +223,28 @@ window.__ModuleLoader__.load({
 				if (next) setEstDraft(m.time_estimate != null ? String(m.time_estimate) : "");
 			}
 
+			const grip = React.createElement("span", {
+				key: "grip",
+				className: "pls-grip",
+				title: "⠿ ziehen, um den Lernmoment auf der Landschaft zu verschieben",
+				draggable: true,
+				onDragStart: function(e) {
+					e.stopPropagation();
+					e.dataTransfer.setData("text/plain", m.id);
+					e.dataTransfer.setData("text/pts-intent", "move");
+					e.dataTransfer.effectAllowed = "all";
+				},
+			}, "⠿");
+
+			const focusState = React.useState(false);
+			const focused = focusState[0];
+			const setFocused = focusState[1];
+
+			// Header: grip, type badge (before title), title, chips.
 			const head = [
-				React.createElement("span", { key: "t", className: "pls-card-title" }, esc(m.title || m.id)),
+				grip,
 				React.createElement("span", { key: "ty", className: "pls-badge" }, esc(typeLabel(m.type))),
+				React.createElement("span", { key: "t", className: "pls-card-title" }, esc(m.title || m.id)),
 			];
 			if (m.time_estimate != null) {
 				head.push(React.createElement("span", { key: "te", className: "pls-chip" }, "≈ " + m.time_estimate + " min"));
@@ -228,24 +253,6 @@ window.__ModuleLoader__.load({
 				head.push(React.createElement("span", { key: "as", className: "pls-chip" },
 					"zugeordnet " + assign.assigned + " min" + (assign.estimated != null ? " / " + assign.estimated + " min" : "")));
 			}
-			head.push(React.createElement("button", {
-				key: "chat",
-				className: "pls-btn",
-				title: "Diesen Lernmoment mit dem Companion besprechen",
-				onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); props.onChat(m); },
-			}, "💬 Chat"));
-			head.push(React.createElement("button", {
-				key: "edit",
-				className: "pls-btn pls-btn-edit",
-				title: "Diesen Lernmoment bearbeiten (nur dieser Moment, nicht das ganze Dokument)",
-				onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); props.onEdit(m); },
-			}, "✎ Edit"));
-			head.push(React.createElement("button", {
-				key: "ex",
-				className: "pls-btn",
-				title: expanded ? "Details einklappen" : "Details aufklappen",
-				onClick: toggleDetails,
-			}, expanded ? "▾ Details" : "▸ Details"));
 
 			const children = [React.createElement("div", { key: "h", className: "pls-card-head" }, head)];
 
@@ -309,18 +316,38 @@ window.__ModuleLoader__.load({
 				children.push(React.createElement("div", { key: "d", className: "pls-details" }, details));
 			}
 
+			children.push(React.createElement("div", { key: "x", className: "pls-card-actions" },
+				React.createElement("button", {
+					className: "pls-btn",
+					title: "Diesen Lernmoment mit dem Companion besprechen",
+					onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); props.onChat(m); },
+				}, "💬 Chat"),
+				React.createElement("button", {
+					className: "pls-btn pls-btn-edit",
+					title: "Diesen Lernmoment bearbeiten (nur dieser Moment)",
+					onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); props.onEdit(m); },
+				}, "✎ Edit"),
+				React.createElement("button", {
+					className: "pls-btn",
+					title: expanded ? "Details einklappen" : "Details aufklappen",
+					onClick: toggleDetails,
+				}, expanded ? "▾ Details" : "▸ Details")));
+
 			const cardProps = {
 				className: "pls-card draggable" + (assign.status === "ok" ? " pls-card-ok" : assign.status === "warn" ? " pls-card-warn" : ""),
-				style: props.position ? { left: props.position.x + "px", top: props.position.y + "px" } : undefined,
+				style: props.position ? { left: props.position.x + "px", top: props.position.y + "px", zIndex: (expanded || focused) ? 10 : undefined } : undefined,
 				key: m.id,
 				draggable: true,
-				title: m.id + " — ziehen: auf ein Stundenfenster = zuordnen · auf die freie Fläche = verschieben · auf eine andere Karte = Übergang anlegen",
+				title: m.id + " — ⠿ ziehen = verschieben · Karte ziehen = in eine Stunde zuordnen oder mit einer anderen Karte verbinden",
+				onMouseDown: function() { if (!focused) setFocused(true); },
 				onDragStart: onDragStart,
 				onDragOver: function(e) { e.preventDefault(); },
 				onDrop: function(e) {
 					e.preventDefault();
-					e.stopPropagation();
 					const dragged = e.dataTransfer.getData("text/plain");
+					const intent = e.dataTransfer.getData("text/pts-intent");
+					if (intent === "move") return; // let it bubble to the canvas (reposition)
+					e.stopPropagation();
 					if (dragged !== "" && dragged !== m.id && typeof props.onDropCard === "function") {
 						props.onDropCard(dragged, m.id);
 					}
@@ -548,7 +575,8 @@ window.__ModuleLoader__.load({
 				return function(e) {
 					e.preventDefault();
 					const momentId = e.dataTransfer.getData("text/plain");
-					if (!momentId) return;
+					const intent = e.dataTransfer.getData("text/pts-intent");
+					if (!momentId || intent !== "assign") return;
 					const st = temporalState();
 					const win = st.windows.find(function(w) { return w.id === windowId; });
 					if (!win) return;
@@ -719,7 +747,8 @@ window.__ModuleLoader__.load({
 			function onCanvasDrop(e) {
 				e.preventDefault();
 				const id = e.dataTransfer.getData("text/plain");
-				if (id === "") return;
+				const intent = e.dataTransfer.getData("text/pts-intent");
+				if (id === "" || intent !== "move") return;
 				const el = e.currentTarget;
 				const rect = el.getBoundingClientRect();
 				const x = clamp(Math.round(e.clientX - rect.left + el.scrollLeft - CARD_W / 2), 8, Math.max(8, rect.width + el.scrollLeft - CARD_W));
@@ -871,7 +900,7 @@ window.__ModuleLoader__.load({
 					moment: m,
 					position: displayPos[m.id],
 					assign: assignStatus(m),
-					onDragStart: function(e) { e.dataTransfer.setData("text/plain", m.id); e.dataTransfer.effectAllowed = "all"; },
+					onDragStart: function(e) { e.dataTransfer.setData("text/plain", m.id); e.dataTransfer.setData("text/pts-intent", "assign"); e.dataTransfer.effectAllowed = "all"; },
 					onPickMaterials: openMaterialPicker,
 					onSaveEstimate: saveEstimate,
 					onChat: chatMoment,
@@ -998,7 +1027,7 @@ window.__ModuleLoader__.load({
 						React.createElement("div", null,
 							React.createElement("div", { className: "pls-toolbar" },
 								React.createElement("span", { className: "pls-section-title", style: { marginBottom: 0 } }, "Lernlandschaft (Karten frei verschieben)")),
-							React.createElement("div", { className: "pls-note" }, "Karte ziehen: auf freie Fläche = verschieben · auf ein Stundenfenster rechts = zuordnen · auf eine andere Karte = Übergang"),
+							React.createElement("div", { className: "pls-note" }, "⠿ ziehen = auf der Landschaft verschieben · Karte ziehen = in eine Stunde (rechts) zuordnen oder auf eine andere Karte ziehen = Übergang"),
 							momentsSection),
 						React.createElement("div", null,
 							React.createElement("div", { className: "pls-section-title" }, "Übergänge"),

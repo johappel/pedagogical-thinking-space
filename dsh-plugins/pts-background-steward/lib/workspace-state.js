@@ -46,6 +46,15 @@ export const BOARD_KINDS = Object.freeze([
 	'produce', 'review', 'render', 'export',
 ]);
 
+/** Allowed transition types per specs/LEARNING_LANDSCAPE_SCHEMA.md. */
+export const TRANSITION_TYPES = Object.freeze([
+	'required', 'choice', 'parallel', 'return', 'meeting_point', 'prerequisite',
+]);
+
+function slugify(s) {
+	return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'x';
+}
+
 /** Allowed teaching-window kinds per specs/TEMPORAL_PLAN_SCHEMA.md. */
 export const WINDOW_KINDS = Object.freeze([
 	'lesson', 'double_lesson', 'project_block', 'open_learning_time',
@@ -237,6 +246,58 @@ export function landscapeAppendMoment(content, moment) {
 		return { ok: true, content: joinLines([...lines, '', ...block, '']) };
 	}
 	return { ok: true, content: joinLines([...lines.slice(0, anchor), ...block, '', ...lines.slice(anchor)]) };
+}
+
+/**
+ * Append one transition (`### tr-<from>-<to>` block) under `## Übergänge`
+ * (creating the section and removing the scaffold placeholder when needed).
+ * Requires referencing two distinct existing learning moments.
+ */
+export function landscapeAppendTransition(content, transition) {
+	if (typeof content !== 'string') return { ok: false, reason: 'file-missing-or-absent' };
+	const from = String(transition?.from_id ?? '').trim();
+	const to = String(transition?.to_id ?? '').trim();
+	const type = String(transition?.transition_type ?? '').trim();
+	const rationale = singleLine(transition?.value) || '(keine)';
+	if (from === '' || to === '' || from === to) return { ok: false, reason: 'invalid-transition' };
+	if (!TRANSITION_TYPES.includes(type)) return { ok: false, reason: 'invalid-transition-type' };
+	if (!new RegExp(`^###\\s*${escapeRegExp(from)}\\s*$`, 'm').test(content)) return { ok: false, reason: 'unknown-from-moment' };
+	if (!new RegExp(`^###\\s*${escapeRegExp(to)}\\s*$`, 'm').test(content)) return { ok: false, reason: 'unknown-to-moment' };
+	const lines = toLines(content);
+	const taken = new Set();
+	for (const l of lines) {
+		const m = l.trim().match(/^### (tr-[\w-]+)$/);
+		if (m) taken.add(m[1]);
+	}
+	let id = 'tr-' + slugify(from) + '-' + slugify(to);
+	let n = 2;
+	while (taken.has(id)) { id = 'tr-' + slugify(from) + '-' + slugify(to) + '-' + n; n += 1; }
+	const block = ['### ' + id, '', `- Von: ${from}`, `- Zu: ${to}`, `- Typ: ${type}`, `- Begründung: ${rationale}`];
+	let headIdx = -1;
+	for (let i = 0; i < lines.length; i += 1) {
+		if (/^##\s*Übergänge\s*$/.test(lines[i])) { headIdx = i; break; }
+	}
+	if (headIdx === -1) {
+		let out = joinLines(lines).trimEnd();
+		if (out !== '') out += '\n\n';
+		out += '## Übergänge\n\n' + block.join('\n') + '\n';
+		return { ok: true, content: out };
+	}
+	let endIdx = lines.length;
+	for (let i = headIdx + 1; i < lines.length; i += 1) {
+		if (/^##\s+/.test(lines[i])) { endIdx = i; break; }
+	}
+	const body = [];
+	for (let i = headIdx + 1; i < endIdx; i += 1) {
+		const l = lines[i];
+		if (l.trim() === 'Keine Übergänge festgelegt.') continue;
+		if (l.trim() === '') continue;
+		body.push(l);
+	}
+	const before = lines.slice(0, headIdx + 1);
+	const after = lines.slice(endIdx);
+	const out = [...before, '', ...block, ...(body.length > 0 ? ['', ...body] : []), '', ...after];
+	return { ok: true, content: joinLines(out) };
 }
 
 /**
@@ -458,6 +519,17 @@ export function applyOperations(baseFiles, ops, ctx) {
 					});
 					if (!r.ok) { rejected.push({ op, reason: r.reason }); break; }
 					stage(name, r.content, { target: name, kind: op.kind, id: ctx.makeId.lastValue });
+					break;
+				}
+				case 'learning-landscape.md:add-draft-transition': {
+					const r = landscapeAppendTransition(content, {
+						from_id: op.from_id,
+						to_id: op.to_id,
+						transition_type: op.transition_type,
+						value: op.value,
+					});
+					if (!r.ok) { rejected.push({ op, reason: r.reason }); break; }
+					stage(name, r.content, { target: name, kind: op.kind });
 					break;
 				}
 				case 'decisions.yml:add-decision': {

@@ -7,11 +7,12 @@ top-level dialogue turn. It never delays the visible Companion response.
 
 The Steward may update draft sections of `learning-design.md` and
 `learning-landscape.md`, record a recognizable teacher decision in
-`decisions.yml`, propose at most one Planning Board item, and propose at most
+`decisions.yml`, propose at most one Planning Board item, propose at most
 one temporal-plan window and one placement per run (both forced to
-`status: proposed`). Every operation is schema-checked, policy-checked and
-protected by base hashes before atomic apply. Binding timing remains a teacher
-decision.
+`status: proposed`), and propose at most two transitions between existing
+learning moments. Every operation is schema-checked, policy-checked and
+protected by base hashes before atomic apply. Binding timing and adopted
+flow remain teacher decisions.
 
 The Steward must not:
 

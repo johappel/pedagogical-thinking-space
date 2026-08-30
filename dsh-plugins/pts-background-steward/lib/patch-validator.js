@@ -12,7 +12,7 @@
 //    ids) and against the stewardship policy from services/STEWARDSHIP.md —
 //    independent of whatever the provider enforced.
 
-import { CANONICAL_FILES, WRITABLE_FILES, MOMENT_TYPES, BOARD_KINDS, WINDOW_KINDS, DRAMATURGICAL_ROLES, PLACEMENT_MODES } from './workspace-state.js';
+import { CANONICAL_FILES, WRITABLE_FILES, MOMENT_TYPES, BOARD_KINDS, WINDOW_KINDS, DRAMATURGICAL_ROLES, PLACEMENT_MODES, TRANSITION_TYPES } from './workspace-state.js';
 
 export const STEWARDSHIP_SCHEMA_VERSION = 'ptspace.stewardship-result/v1';
 
@@ -30,6 +30,7 @@ export const OPERATION_KINDS = Object.freeze([
 	'set-section',
 	'append-under-section',
 	'add-draft-moment',
+	'add-draft-transition',
 	'add-decision',
 	'propose-board-item',
 	'propose-window',
@@ -92,6 +93,9 @@ export const STEWARDSHIP_RESULT_SCHEMA = Object.freeze({
 					start_minute: { type: 'integer', description: 'Startminute innerhalb des Fensters (propose-placement).' },
 					dramaturgical_role: { type: 'string', enum: [...DRAMATURGICAL_ROLES] },
 					mode: { type: 'string', enum: [...PLACEMENT_MODES] },
+					from_id: { type: 'string', description: 'Von-Lernmoment-ID für add-draft-transition.' },
+					to_id: { type: 'string', description: 'Zu-Lernmoment-ID für add-draft-transition.' },
+					transition_type: { type: 'string', enum: [...TRANSITION_TYPES] },
 					evidence: { type: 'string', description: 'Pflicht bei add-decision: Beleg-Nachrichten-ID der expliziten Lehrkraftentscheidung; bei propose-window/propose-placement: Beleg aus dem Gesprächsfenster.' },
 				},
 			},
@@ -229,6 +233,15 @@ export function validateResult(structured, expectation) {
 					else if (op[field].length > TITLE_MAX_CHARS && field === 'title') errors.push(`${label}.title ist zu lang`);
 				}
 				if (!MOMENT_TYPES.includes(op.moment_type)) errors.push(`${label}.moment_type ist kein zulässiger Lerntyp`);
+				break;
+			}
+			case 'add-draft-transition': {
+				if (op.target !== 'learning-landscape.md') { errors.push(`${label}: add-draft-transition ist nur an learning-landscape.md erlaubt`); break; }
+				if (typeof op.from_id !== 'string' || op.from_id.trim() === '') errors.push(`${label}.from_id fehlt`);
+				if (typeof op.to_id !== 'string' || op.to_id.trim() === '') errors.push(`${label}.to_id fehlt`);
+				if (typeof op.from_id === 'string' && typeof op.to_id === 'string' && op.from_id.trim() !== '' && op.from_id.trim() === op.to_id.trim()) errors.push(`${label}: from und to müssen verschiedene Lernmomente sein`);
+				if (!TRANSITION_TYPES.includes(op.transition_type)) errors.push(`${label}.transition_type ist unzulässig`);
+				if (!evidenceOk(op.evidence)) errors.push(`${label}.evidence verweist nicht auf das angebotene Gesprächsfenster`);
 				break;
 			}
 			case 'add-decision': {
