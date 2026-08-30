@@ -180,5 +180,31 @@ check('flat placements list', Array.isArray(tpFlat.placements) && tpFlat.placeme
 check('flat placement fields', tpFlat.placements[0].moment_id === 'lm-a' && tpFlat.placements[0].status === 'binding');
 check('nested placements still grouped', tpFlat.windows[0].placements.length === 2);
 
+// 13. parseLayout with group bands
+const layoutWithGroups = pls.parseLayout('{"schema":"ptspace.learning-landscape.layout/v1","positions":{"lm-a":{"x":10,"y":20}},"groups":[{"id":"grp-1","title":"Erkundung","y":30,"height":130}]}');
+check('layout groups parsed', layoutWithGroups.groups.length === 1 && layoutWithGroups.groups[0].title === 'Erkundung');
+check('layout positions still parsed', layoutWithGroups.positions['lm-a'].x === 10);
+
+// 14. addTransition / removeTransition
+const noSection = '# Lernlandschaft\n\n## Lernmomente\n\n### lm-a\n\n- Titel: A\n- Status: draft\n';
+const trAdd = pls.addTransition(noSection, { from: 'lm-a', to: 'lm-b', type: 'choice', rationale: 'Zwei Einstiege je Gruppe.' });
+check('transition creates section', trAdd.ok && trAdd.content.includes('## Übergänge') && trAdd.content.includes('### tr-lm-a-lm-b'));
+check('transition fields', trAdd.content.includes('- Von: lm-a') && trAdd.content.includes('- Zu: lm-b') && trAdd.content.includes('- Typ: choice'));
+const parsedTr = pls.parseLandscape(trAdd.content);
+check('transition parsed back', parsedTr.transitions.length === 1 && parsedTr.transitions[0].from === 'lm-a' && parsedTr.transitions[0].type === 'choice');
+
+const withPlaceholder = '# Lernlandschaft\n\n## Lernmomente\n\n### lm-a\n\n- Titel: A\n- Status: draft\n\n## Übergänge\n\nKeine Übergänge festgelegt.\n';
+const trAdd2 = pls.addTransition(withPlaceholder, { from: 'lm-a', to: 'lm-b', type: 'required' });
+check('placeholder removed on first transition', trAdd2.ok && !trAdd2.content.includes('Keine Übergänge festgelegt.'));
+const trAdd3 = pls.addTransition(trAdd2.content, { from: 'lm-b', to: 'lm-c', type: 'parallel' });
+check('second transition appended', trAdd3.ok && trAdd3.content.includes('### tr-lm-b-lm-c'));
+const trDup = pls.addTransition(trAdd3.content, { from: 'lm-a', to: 'lm-b', type: 'choice' });
+check('duplicate from-to gets unique id', trDup.ok && trDup.content.includes('### tr-lm-a-lm-b-2'));
+check('self transition rejected', pls.addTransition(noSection, { from: 'lm-a', to: 'lm-a' }).ok === false);
+check('bad type rejected', pls.addTransition(noSection, { from: 'lm-a', to: 'lm-b', type: 'chaos' }).ok === false);
+const trRem = pls.removeTransition(trDup.content, 'tr-lm-b-lm-c');
+check('transition removed', trRem.ok && !trRem.content.includes('### tr-lm-b-lm-c') && trRem.content.includes('### tr-lm-a-lm-b'));
+check('remove unknown id', pls.removeTransition(noSection, 'tr-xyz').ok === false);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

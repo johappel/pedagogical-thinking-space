@@ -315,10 +315,11 @@ function assignField(target, label, parsedValue) {
 	}
 }
 
-/** Parse the layout JSON (positions only; unknown shapes tolerated). */
+/** Parse the layout JSON (positions + group bands; unknown shapes tolerated). */
 export function parseLayout(raw) {
 	const positions = {};
-	if (typeof raw !== 'string' || raw.trim() === '') return { positions };
+	const groups = [];
+	if (typeof raw !== 'string' || raw.trim() === '') return { positions, groups };
 	try {
 		const v = JSON.parse(raw);
 		const src = v !== null && typeof v === 'object' && !Array.isArray(v) && v.positions
@@ -331,10 +332,22 @@ export function parseLayout(raw) {
 				}
 			}
 		}
+		if (v !== null && typeof v === 'object' && Array.isArray(v.groups)) {
+			for (const g of v.groups) {
+				if (g !== null && typeof g === 'object' && typeof g.id === 'string' && g.id.trim() !== '') {
+					groups.push({
+						id: g.id,
+						title: typeof g.title === 'string' ? g.title : g.id,
+						y: typeof g.y === 'number' ? g.y : 0,
+						height: typeof g.height === 'number' ? g.height : 130,
+					});
+				}
+			}
+		}
 	} catch {
 		// unparsable layout -> empty
 	}
-	return { positions };
+	return { positions, groups };
 }
 
 // ————————————————————————————————————————————————
@@ -415,6 +428,11 @@ const WINDOW_KINDS = new Set(['lesson', 'double_lesson', 'project_block', 'open_
 const ROLES = new Set(['opening', 'irritation', 'exploration', 'deepening', 'practice', 'decision', 'consolidation', 'reflection', 'closing', 'transition', 'buffer', 'other']);
 const MODES = new Set(['common', 'choice', 'parallel', 'individual', 'group', 'open']);
 const TEMPORAL_STATUSES = new Set(['proposed', 'binding']);
+const TRANSITION_TYPES = new Set(['required', 'choice', 'parallel', 'return', 'meeting_point', 'prerequisite']);
+
+function slugify(s) {
+	return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'x';
+}
 
 /** Safe YAML scalar (single-quoted when needed; '' for empty). */
 function yamlScalar(v) {
@@ -540,6 +558,77 @@ export function setMomentEstimate(content, momentId, minutes) {
 		lines.splice(insertAt, 0, line);
 	}
 	return { ok: true, content: lines.join('\n') };
+}
+
+/**
+ * Append one transition (`### tr-<from>-<to>` block) under `## Übergänge`,
+ * creating the section when missing and removing the scaffold placeholder
+ * "Keine Übergänge festgelegt." on first use. IDs stay unique.
+ */
+export function addTransition(content, tr) {
+	if (typeof content !== 'string') return { ok: false, reason: 'file-missing-or-absent' };
+	const from = String(tr?.from ?? '').trim();
+	const to = String(tr?.to ?? '').trim();
+	const type = String(tr?.type ?? 'required').trim();
+	const rationale = String(tr?.rationale ?? '').trim();
+	if (from === '' || to === '' || from === to) return { ok: false, reason: 'invalid-transition' };
+	if (!TRANSITION_TYPES.has(type)) return { ok: false, reason: 'invalid-type' };
+	const lines = content.split(/\r?\n/);
+	const taken = new Set();
+	for (const l of lines) {
+		const m = l.trim().match(/^### (tr-[\w-]+)$/);
+		if (m) taken.add(m[1]);
+	}
+	let id = 'tr-' + slugify(from) + '-' + slugify(to);
+	let n = 2;
+	while (taken.has(id)) { id = 'tr-' + slugify(from) + '-' + slugify(to) + '-' + n; n += 1; }
+	const block = ['### ' + id, '', '- Von: ' + from, '- Zu: ' + to, '- Typ: ' + type, '- Begründung: ' + (rationale || '(keine)')];
+	let headIdx = -1;
+	for (let i = 0; i < lines.length; i += 1) {
+		if (/^##\s*Übergänge\s*$/.test(lines[i])) { headIdx = i; break; }
+	}
+	if (headIdx === -1) {
+		let out = lines.join('\n').trimEnd();
+		if (out !== '') out += '\n\n';
+		out += '## Übergänge\n\n' + block.join('\n') + '\n';
+		return { ok: true, content: out };
+	}
+	let endIdx = lines.length;
+	for (let i = headIdx + 1; i < lines.length; i += 1) {
+		if (/^##\s+/.test(lines[i])) { endIdx = i; break; }
+	}
+	const body = [];
+	for (let i = headIdx + 1; i < endIdx; i += 1) {
+		const l = lines[i];
+		if (l.trim() === 'Keine Übergänge festgelegt.') continue;
+		if (l.trim() === '') continue;
+		body.push(l);
+	}
+	const before = lines.slice(0, headIdx + 1);
+	const after = lines.slice(endIdx);
+	const out = [...before, '', ...block, ...(body.length > 0 ? ['', ...body] : []), '', ...after];
+	return { ok: true, content: out.join('\n') };
+}
+
+/**
+ * Remove one transition block (`### <id>`) from the landscape markdown.
+ */
+export function removeTransition(content, id) {
+	if (typeof content !== 'string') return { ok: false, reason: 'file-missing-or-absent' };
+	const target = String(id ?? '').trim();
+	if (target === '') return { ok: false, reason: 'invalid-id' };
+	const lines = content.split(/\r?\n/);
+	let start = -1;
+	for (let i = 0; i < lines.length; i += 1) {
+		if (lines[i].trim() === '### ' + target) { start = i; break; }
+	}
+	if (start === -1) return { ok: false, reason: 'unknown-transition-id' };
+	let end = lines.length;
+	for (let i = start + 1; i < lines.length; i += 1) {
+		const t = lines[i].trim();
+		if (t.startsWith('### ') || t.startsWith('## ')) { end = i; break; }
+	}
+	return { ok: true, content: lines.slice(0, start).concat(lines.slice(end)).join('\n') };
 }
 
 /**
@@ -766,7 +855,7 @@ export function apply(ctx) {
 					sendJson(res, 400, { ok: false, error: 'layout fehlt' });
 					return;
 				}
-				const payload = { schema: 'ptspace.learning-landscape.layout/v1', positions: layout.positions ?? layout };
+				const payload = { schema: 'ptspace.learning-landscape.layout/v1', positions: layout.positions ?? layout, groups: Array.isArray(layout.groups) ? layout.groups : [] };
 				await atomicWriteFile(base, LAYOUT_FILE, JSON.stringify(payload, null, 2) + '\n');
 				sendJson(res, 200, { ok: true });
 			} catch (e) {
@@ -882,6 +971,61 @@ export function apply(ctx) {
 		},
 	});
 
+	// — POST /api/pts-landscape/transitions (create a teacher transition)
+	const disposeTransitions = webServer.register({
+		kind: 'exact',
+		path: '/api/pts-landscape/transitions',
+		handler: async (req, res) => {
+			try {
+				const body = JSON.parse(await readBody(req) || '{}');
+				const sessionId = typeof body.sessionId === 'string' ? body.sessionId : '';
+				const base = sessionWorkspace(sessionId) ?? fallbackRoot;
+				const file = await readWorkspaceFile(base, LANDSCAPE_FILE);
+				if (!file.ok || file.missing) {
+					sendJson(res, 404, { ok: false, error: 'learning-landscape.md nicht lesbar' });
+					return;
+				}
+				const r = addTransition(file.raw, { from: body.from, to: body.to, type: body.type, rationale: body.rationale });
+				if (!r.ok) {
+					sendJson(res, 400, { ok: false, error: r.reason === 'invalid-transition' ? 'Übergang braucht zwei verschiedene Lernmomente' : (r.reason === 'invalid-type' ? 'Übergangstyp unzulässig' : 'Datei fehlt') });
+					return;
+				}
+				await atomicWriteFile(base, LANDSCAPE_FILE, r.content);
+				sendJson(res, 200, { ok: true });
+			} catch (e) {
+				sendJson(res, 400, { ok: false, error: String(e && e.message ? e.message : e) });
+			}
+		},
+	});
+
+	// — POST /api/pts-landscape/transitions/remove (delete a transition)
+	const disposeTransitionsRemove = webServer.register({
+		kind: 'exact',
+		path: '/api/pts-landscape/transitions/remove',
+		handler: async (req, res) => {
+			try {
+				const body = JSON.parse(await readBody(req) || '{}');
+				const sessionId = typeof body.sessionId === 'string' ? body.sessionId : '';
+				const id = typeof body.id === 'string' ? body.id : '';
+				const base = sessionWorkspace(sessionId) ?? fallbackRoot;
+				const file = await readWorkspaceFile(base, LANDSCAPE_FILE);
+				if (!file.ok || file.missing) {
+					sendJson(res, 404, { ok: false, error: 'learning-landscape.md nicht lesbar' });
+					return;
+				}
+				const r = removeTransition(file.raw, id);
+				if (!r.ok) {
+					sendJson(res, 400, { ok: false, error: r.reason === 'unknown-transition-id' ? 'Übergang nicht gefunden' : 'Datei fehlt' });
+					return;
+				}
+				await atomicWriteFile(base, LANDSCAPE_FILE, r.content);
+				sendJson(res, 200, { ok: true });
+			} catch (e) {
+				sendJson(res, 400, { ok: false, error: String(e && e.message ? e.message : e) });
+			}
+		},
+	});
+
 	// — POST /api/pts-landscape/temporal (full validated timeline write)
 	const disposeTemporal = webServer.register({
 		kind: 'exact',
@@ -983,9 +1127,13 @@ export function apply(ctx) {
 	ctx.effect(() => disposeLayout, 'pts-landscape: route /api/pts-landscape/layout');
 	ctx.effect(() => disposeMaterials, 'pts-landscape: route /api/pts-landscape/materials');
 	ctx.effect(() => disposeEstimate, 'pts-landscape: route /api/pts-landscape/moment-estimate');
+	ctx.effect(() => disposeTransitions, 'pts-landscape: route /api/pts-landscape/transitions');
+	ctx.effect(() => disposeTransitionsRemove, 'pts-landscape: route /api/pts-landscape/transitions/remove');
 	ctx.effect(() => disposeTemporal, 'pts-landscape: route /api/pts-landscape/temporal');
 	ctx.effect(() => disposeRaw, 'pts-landscape: route /api/pts-artifact/raw');
 	ctx.effect(() => disposeSave, 'pts-landscape: route /api/pts-artifact/save');
+
+	console.log('[pts-landscape] host half active; routes: /api/pts-landscape (+layout, +materials, +moment-estimate, +transitions[/remove], +temporal), /api/pts-artifact/raw|save');
 
 	console.log('[pts-landscape] host half active; routes: /api/pts-landscape (+layout, +materials, +temporal), /api/pts-artifact/raw|save');
 }

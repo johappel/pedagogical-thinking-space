@@ -32,9 +32,14 @@ window.__ModuleLoader__.load({
 .pls-feedback { color:#7ec699; font-size:12px; }
 .pls-layout { display:flex; gap:14px; flex:1; min-height:0; }
 .pls-main { flex:1; min-width:0; overflow:auto; display:flex; flex-direction:column; gap:12px; padding-right:4px; }
-.pls-side { flex:0 0 380px; min-width:320px; overflow:auto; border-left:1px solid rgba(128,128,128,.2); padding-left:12px; display:flex; flex-direction:column; gap:10px; }
+.pls-side { flex:0 0 330px; min-width:300px; overflow:auto; border-left:1px solid rgba(128,128,128,.2); padding-left:12px; display:flex; flex-direction:column; gap:10px; }
 .pls-section-title { font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.5px; opacity:.6; margin-bottom:6px; }
 .pls-cards { display:flex; flex-direction:column; gap:8px; }
+.pls-canvas { position:relative; border:1px dashed rgba(128,128,128,.35); border-radius:10px; min-height:520px; background:rgba(128,128,128,.02); overflow:auto; }
+.pls-canvas .pls-card { position:absolute; width:220px; z-index:2; }
+.pls-band { position:absolute; left:0; right:0; border-top:1px solid rgba(128,128,128,.22); border-bottom:1px solid rgba(128,128,128,.22); background:rgba(128,128,128,.04); pointer-events:none; z-index:0; }
+.pls-band-title { position:absolute; left:8px; top:4px; font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; opacity:.55; pointer-events:none; }
+.pls-arrow-svg { position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; z-index:1; }
 .pls-card { border:1px solid rgba(128,128,128,.3); border-radius:8px; background:rgba(128,128,128,.06); padding:8px 12px; display:flex; flex-direction:column; gap:6px; }
 .pls-card.draggable { cursor:grab; }
 .pls-card.draggable:active { cursor:grabbing; }
@@ -131,6 +136,13 @@ window.__ModuleLoader__.load({
 			return map[k] || k || "—";
 		}
 
+		function transitionTypeLabel(t) {
+			const map = { required: "Reihenfolge", choice: "Wahl", parallel: "Parallel", return: "Zurück", meeting_point: "Treffpunkt", prerequisite: "Voraussetzung" };
+			return map[t] || t || "—";
+		}
+
+		const TRANSITION_TYPE_OPTIONS = [["required", "Reihenfolge (nacheinander)"], ["prerequisite", "Voraussetzung (baut auf)"], ["choice", "Wahl (alternative Wege)"], ["parallel", "Parallel (gleichzeitig, Gruppen)"], ["meeting_point", "Treffpunkt (läuft zusammen)"], ["return", "Zurück (Schleife)"]];
+
 		function copyText(text) {
 			const onFail = function() {
 				try { window.prompt("Hier kopieren (Strg+C) und im Chat einfügen:", text); } catch (e) {}
@@ -156,6 +168,20 @@ window.__ModuleLoader__.load({
 
 		function clamp(v, min, max) {
 			return Math.max(min, Math.min(max, v));
+		}
+
+		// Card geometry used for transition arrows (approximate collapsed height).
+		const CARD_W = 220;
+		const CARD_H = 100;
+
+		/** Point where the ray from a rect center exits the rect (arrows). */
+		function rectExitPoint(cx, cy, w, h, dx, dy) {
+			const hw = w / 2;
+			const hh = h / 2;
+			const sx = dx === 0 ? Infinity : hw / Math.abs(dx);
+			const sy = dy === 0 ? Infinity : hh / Math.abs(dy);
+			const s = Math.min(sx, sy);
+			return { x: cx + dx * s, y: cy + dy * s };
 		}
 
 		function ListField(props) {
@@ -271,10 +297,20 @@ window.__ModuleLoader__.load({
 
 			const cardProps = {
 				className: "pls-card draggable" + (assign.status === "ok" ? " pls-card-ok" : assign.status === "warn" ? " pls-card-warn" : ""),
+				style: props.position ? { left: props.position.x + "px", top: props.position.y + "px" } : undefined,
 				key: m.id,
 				draggable: true,
-				title: m.id + " — auf ein Stundenfenster ziehen, um es zuzuordnen",
+				title: m.id + " — ziehen: auf ein Stundenfenster = zuordnen · auf die freie Fläche = verschieben · auf eine andere Karte = Übergang anlegen",
 				onDragStart: onDragStart,
+				onDragOver: function(e) { e.preventDefault(); },
+				onDrop: function(e) {
+					e.preventDefault();
+					e.stopPropagation();
+					const dragged = e.dataTransfer.getData("text/plain");
+					if (dragged !== "" && dragged !== m.id && typeof props.onDropCard === "function") {
+						props.onDropCard(dragged, m.id);
+					}
+				},
 			};
 			return React.createElement("div", cardProps, children);
 		}
@@ -387,6 +423,9 @@ window.__ModuleLoader__.load({
 			const winFormState = React.useState(false);
 			const winForm = winFormState[0];
 			const setWinForm = winFormState[1];
+			const transitionState = React.useState(null);
+			const transitionForm = transitionState[0];
+			const setTransitionForm = transitionState[1];
 
 			function load() {
 				const url = "/api/pts-landscape?sessionId=" + encodeURIComponent(sessionId === null ? "" : sessionId);
@@ -641,6 +680,93 @@ window.__ModuleLoader__.load({
 				setPicker({ momentId: picker.momentId, list: picker.list, selected: sel });
 			}
 
+			// ——— Layout canvas (free vertical + horizontal positioning) ———
+			function saveLayout(positions, groups) {
+				fetch("/api/pts-landscape/layout", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ sessionId: sessionId, layout: { positions: positions, groups: groups || [] } }),
+				}).then(function(res) {
+					return res.text().then(function(body) {
+						let v = null;
+						try { v = JSON.parse(body); } catch (e) { v = null; }
+						if (!res.ok) throw new Error(v !== null && v && typeof v.error === "string" ? v.error : "HTTP " + res.status);
+						return v;
+					});
+				}).then(function() {
+					setFeedback("Landschafts-Layout gespeichert (nur Positionen — keine didaktische Änderung).");
+					load();
+				}).catch(function(e) {
+					setError("Layout: " + String(e && e.message ? e.message : e));
+				});
+			}
+
+			function onCanvasDrop(e) {
+				e.preventDefault();
+				const id = e.dataTransfer.getData("text/plain");
+				if (id === "") return;
+				const el = e.currentTarget;
+				const rect = el.getBoundingClientRect();
+				const x = clamp(Math.round(e.clientX - rect.left + el.scrollLeft - CARD_W / 2), 8, Math.max(8, rect.width + el.scrollLeft - CARD_W));
+				const y = clamp(Math.round(e.clientY - rect.top + el.scrollTop - 24), 8, Math.max(8, rect.height + el.scrollTop - CARD_H));
+				const positions = {};
+				for (const k of Object.keys(displayPos)) positions[k] = displayPos[k];
+				positions[id] = { x: x, y: y };
+				saveLayout(positions, layoutGroups);
+			}
+
+			function addPhase() {
+				const title = window.prompt("Name der Phase (Zeile), z. B. Erkundung:", "");
+				if (title === null || title.trim() === "") return;
+				const groups = layoutGroups.slice();
+				const nextY = groups.reduce(function(acc, g) { return Math.max(acc, g.y + g.height); }, 0) + 10;
+				groups.push({ id: "grp-" + (groups.length + 1), title: title.trim(), y: nextY, height: 130 });
+				saveLayout(displayPos, groups);
+			}
+
+			// ——— Transitions ———
+			function submitTransition() {
+				if (transitionForm === null) return;
+				fetch("/api/pts-landscape/transitions", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ sessionId: sessionId, from: transitionForm.from, to: transitionForm.to, type: transitionForm.type, rationale: transitionForm.rationale }),
+				}).then(function(res) {
+					return res.text().then(function(body) {
+						let v = null;
+						try { v = JSON.parse(body); } catch (e) { v = null; }
+						if (!res.ok) throw new Error(v !== null && v && typeof v.error === "string" ? v.error : "HTTP " + res.status);
+						return v;
+					});
+				}).then(function() {
+					setTransitionForm(null);
+					setFeedback("Übergang " + transitionForm.from + " → " + transitionForm.to + " angelegt.");
+					load();
+				}).catch(function(e) {
+					setError("Übergang: " + String(e && e.message ? e.message : e));
+				});
+			}
+
+			function removeTransition(id) {
+				fetch("/api/pts-landscape/transitions/remove", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ sessionId: sessionId, id: id }),
+				}).then(function(res) {
+					return res.text().then(function(body) {
+						let v = null;
+						try { v = JSON.parse(body); } catch (e) { v = null; }
+						if (!res.ok) throw new Error(v !== null && v && typeof v.error === "string" ? v.error : "HTTP " + res.status);
+						return v;
+					});
+				}).then(function() {
+					setFeedback("Übergang " + id + " entfernt.");
+					load();
+				}).catch(function(e) {
+					setError("Übergang: " + String(e && e.message ? e.message : e));
+				});
+			}
+
 			// ——— Verlaufsplan vorschlagen ———
 			function proposeVerlauf(window) {
 				const momentsById = {};
@@ -685,22 +811,89 @@ window.__ModuleLoader__.load({
 				return { status: "warn", assigned: assigned, estimated: null };
 			}
 
-			const cardEls = moments.map(function(m) {
+			const layoutGroups = data.layout && Array.isArray(data.layout.groups) ? data.layout.groups : [];
+			const basePos = data.layout && data.layout.positions ? data.layout.positions : {};
+			const displayPos = {};
+			moments.forEach(function(m, idx) {
+				if (basePos[m.id]) displayPos[m.id] = basePos[m.id];
+				else displayPos[m.id] = { x: 20 + (idx % 3) * 245, y: 20 + Math.floor(idx / 3) * 210 };
+			});
+			const maxCardY = moments.reduce(function(acc, m) { return Math.max(acc, (displayPos[m.id] ? displayPos[m.id].y : 0) + CARD_H + 40); }, 0);
+			const maxGroupBottom = layoutGroups.reduce(function(acc, g) { return Math.max(acc, g.y + g.height); }, 0);
+			const canvasHeight = Math.max(520, maxCardY + 40, maxGroupBottom + 20);
+
+			const bandEls = layoutGroups.map(function(g) {
+				return React.createElement("div", { key: g.id, className: "pls-band", style: { top: g.y, height: g.height } },
+					React.createElement("div", { className: "pls-band-title" }, esc(g.title)));
+			});
+
+			const canvasCardEls = moments.map(function(m) {
 				return React.createElement(MomentCard, {
 					key: m.id,
 					moment: m,
+					position: displayPos[m.id],
 					assign: assignStatus(m),
-					onDragStart: function(e) { e.dataTransfer.setData("text/plain", m.id); e.dataTransfer.effectAllowed = "copy"; },
+					onDragStart: function(e) { e.dataTransfer.setData("text/plain", m.id); e.dataTransfer.effectAllowed = "all"; },
 					onPickMaterials: openMaterialPicker,
 					onSaveEstimate: saveEstimate,
+					onDropCard: function(dragged, target) {
+						setTransitionForm({ from: dragged, to: target, type: "required", rationale: "" });
+					},
 				});
 			});
+
+			const arrowEls = transitions.map(function(t) {
+				if (typeof t.from !== "string" || typeof t.to !== "string") return null;
+				const sp = displayPos[t.from];
+				const tp = displayPos[t.to];
+				if (sp === undefined || tp === undefined) return null;
+				const scx = sp.x + CARD_W / 2;
+				const scy = sp.y + CARD_H / 2;
+				const tcx = tp.x + CARD_W / 2;
+				const tcy = tp.y + CARD_H / 2;
+				let dx = tcx - scx;
+				let dy = tcy - scy;
+				const len = Math.hypot(dx, dy) || 1;
+				dx /= len;
+				dy /= len;
+				const start = rectExitPoint(scx, scy, CARD_W, CARD_H, dx, dy);
+				const end = rectExitPoint(tcx, tcy, CARD_W, CARD_H, -dx, -dy);
+				return React.createElement("line", {
+					key: t.id || (t.from + "-" + t.to),
+					x1: start.x, y1: start.y, x2: end.x, y2: end.y,
+					stroke: "rgba(128,128,128,.75)", strokeWidth: 1.5,
+					markerEnd: "url(#pls-arrow)",
+				});
+			});
+
+			const momentsSection = moments.length === 0
+				? React.createElement("div", { className: "pls-empty" }, "Noch keine Lernmomente — sie entstehen im Gespräch und werden als Entwürfe hier sichtbar.")
+				: React.createElement("div", {
+					className: "pls-canvas",
+					style: { height: canvasHeight },
+					onDragOver: function(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; },
+					onDrop: onCanvasDrop,
+				}, bandEls.concat([
+					React.createElement("svg", { key: "arrows", className: "pls-arrow-svg" },
+						React.createElement("defs", null,
+							React.createElement("marker", {
+								id: "pls-arrow", markerWidth: 8, markerHeight: 8, refX: 7, refY: 4,
+								orient: "auto", markerUnits: "strokeWidth",
+							},
+								React.createElement("path", { d: "M0,0 L8,4 L0,8 z", fill: "rgba(128,128,128,.8)" }))),
+						arrowEls),
+				]).concat(canvasCardEls));
 
 			const transitionEls = transitions.map(function(t, i) {
 				return React.createElement("div", { key: t.id || i, className: "pls-transition" },
 					React.createElement("span", { className: "pls-note" }, esc(t.from || "?") + " → " + esc(t.to || "?")),
-					React.createElement("span", { className: "pls-badge" }, esc(t.type || "—")),
-					t.reason ? React.createElement("span", { className: "pls-note" }, esc(t.reason)) : null);
+					React.createElement("span", { className: "pls-badge" }, esc(transitionTypeLabel(t.type))),
+					t.reason && t.reason !== "(keine)" ? React.createElement("span", { className: "pls-note" }, esc(t.reason)) : null,
+					React.createElement("button", {
+						className: "pls-btn",
+						title: "Übergang entfernen",
+						onClick: function() { removeTransition(t.id); },
+					}, "✕"));
 			});
 
 			const windows = temporal && Array.isArray(temporal.windows) ? temporal.windows : [];
@@ -770,14 +963,15 @@ window.__ModuleLoader__.load({
 				React.createElement("div", { className: "pls-layout" },
 					React.createElement("div", { className: "pls-main" },
 						React.createElement("div", null,
-							React.createElement("div", { className: "pls-section-title" }, "Lernmomente (auf ein Stundenfenster rechts ziehen zum Zuordnen)"),
-							moments.length === 0
-								? React.createElement("div", { className: "pls-empty" }, "Noch keine Lernmomente — sie entstehen im Gespräch und werden als Entwürfe hier sichtbar.")
-								: React.createElement("div", { className: "pls-cards" }, cardEls)),
+							React.createElement("div", { className: "pls-toolbar" },
+								React.createElement("span", { className: "pls-section-title", style: { marginBottom: 0 } }, "Lernlandschaft (Karten frei verschieben)"),
+								React.createElement("button", { className: "pls-btn", onClick: addPhase }, "+ Phase")),
+							React.createElement("div", { className: "pls-note" }, "Karte ziehen: auf freie Fläche = verschieben · auf ein Stundenfenster rechts = zuordnen · auf eine andere Karte = Übergang"),
+							momentsSection),
 						React.createElement("div", null,
 							React.createElement("div", { className: "pls-section-title" }, "Übergänge"),
 							transitionEls.length === 0
-								? React.createElement("div", { className: "pls-note" }, "Keine Übergänge festgelegt.")
+								? React.createElement("div", { className: "pls-note" }, "Keine Übergänge festgelegt — ziehe eine Karte auf eine andere Karte, um z. B. Reihenfolge, Wahl oder Treffpunkt anzulegen.")
 								: React.createElement("div", null, transitionEls))),
 
 					React.createElement("div", { className: "pls-side" },
@@ -838,6 +1032,40 @@ window.__ModuleLoader__.load({
 								React.createElement("div", { className: "pls-dialog-actions" },
 									React.createElement("button", { className: "pls-btn", onClick: function() { setPicker(null); } }, "Abbrechen"),
 									React.createElement("button", { className: "pls-btn pls-btn-edit", onClick: saveMaterials }, "Übernehmen"))))
+					)
+					: null,
+
+				// ——— Transition dialog ———
+				transitionForm !== null
+					? React.createElement("div", { className: "pls-overlay" },
+						React.createElement("div", { className: "pls-dialog" },
+							React.createElement("div", { className: "pls-dialog-head" },
+								React.createElement("span", { className: "pls-title" }, "Übergang anlegen")),
+							React.createElement("div", { className: "pls-dialog-body" },
+								React.createElement("div", { className: "pls-note" },
+									esc(transitionForm.from) + " → " + esc(transitionForm.to)),
+								React.createElement("div", { className: "pls-form-row" },
+									React.createElement("label", null, "Typ"),
+									React.createElement("select", {
+										className: "pls-select",
+										style: { flex: 1 },
+										value: transitionForm.type,
+										onChange: function(e) { setTransitionForm(Object.assign({}, transitionForm, { type: e.target.value })); },
+									}, TRANSITION_TYPE_OPTIONS.map(function(o) {
+										return React.createElement("option", { key: o[0], value: o[0] }, o[1]);
+									}))),
+								React.createElement("div", { className: "pls-form-row" },
+									React.createElement("label", null, "Begründung"),
+									React.createElement("input", {
+										className: "pls-input",
+										style: { flex: 1 },
+										value: transitionForm.rationale,
+										placeholder: "optional, z. B. 'unterschiedliche Einstiege je Gruppe'",
+										onChange: function(e) { setTransitionForm(Object.assign({}, transitionForm, { rationale: e.target.value })); },
+									})),
+								React.createElement("div", { className: "pls-dialog-actions" },
+									React.createElement("button", { className: "pls-btn", onClick: function() { setTransitionForm(null); } }, "Abbrechen"),
+									React.createElement("button", { className: "pls-btn pls-btn-edit", onClick: submitTransition }, "Anlegen"))))
 					)
 					: null,
 

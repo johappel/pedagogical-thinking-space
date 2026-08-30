@@ -4,11 +4,21 @@
 das pts-web-Profil (Umsetzung Stufe 1–3 aus `docs/CONCEPT_WEB_WORKFLOW.md`).
 
 - **Tab „Lernlandschaft“** (`conversation.view`, order 30), zweispaltig:
-  - **links** eine vertikale Liste kompakter Moment-Karten (Titel + Typ-/
-    Status-Badges, aufklappbare Details mit Funktion, Lernaktivität,
-    Materialbedarfen, Offenen Fragen, Herkunft);
+  - **links** eine **Lernlandschaft-Canvas**: Moment-Karten frei verschiebbar
+    (vertikal **und** horizontal; Positionen landen nur in
+    `learning-landscape.layout.json`, nie in der Semantik), optionale
+    **Phasen-Bänder** („+ Phase“) als visuelle Zeilen, Karten kompakt mit
+    aufklappbaren Details (Funktion, Lernaktivität, Materialbedarfe, Offene
+    Fragen, Herkunft, Zeitbedarf);
   - **rechts** eine feste **Stunden-Zuordnung-Sidebar** (kein Scroll-
     Zusammenspiel beim Ziehen).
+- **Übergänge (gerichtet):** Karte auf Karte ziehen öffnet den Übergangs-
+  Dialog (`Von → Zu`, Typ, Begründung). Typen nach Schema: `required`,
+  `prerequisite`, `choice`, `parallel`, `return`, `meeting_point` — damit
+  lassen sich z. B. parallele Einstiege verschiedener Lerngruppen und ihr
+  Treffpunkt im Produkt abbilden. Die Übergangs-Liste zeigt alle Pfeile
+  (mit Entfernen-Button); erzeugt wird `### tr-<von>-<zu>` unter
+  `## Übergänge` in `learning-landscape.md`.
 - **Interaktive Stunden-Zuordnung (Stufe 2):** Lernmomente per Drag&Drop auf
   ein Stundenfenster in der Sidebar ziehen erzeugt eine Platzierung in
   `temporal-plan.yml` (Start folgt dem letzten Platzierungsende, Rolle/Modus/
@@ -47,6 +57,8 @@ das pts-web-Profil (Umsetzung Stufe 1–3 aus `docs/CONCEPT_WEB_WORKFLOW.md`).
 | `GET /api/pts-landscape/materials?sessionId=` | Dateiliste unter `materials/` + `rendered/` |
 | `POST /api/pts-landscape/materials` | `{ sessionId, momentId, materials }` — schreibt `- Materialien: [...]` |
 | `POST /api/pts-landscape/moment-estimate` | `{ sessionId, momentId, minutes }` — setzt/löscht `- Zeitbedarf: <min>` |
+| `POST /api/pts-landscape/transitions` | `{ sessionId, from, to, type, rationale }` — legt `### tr-…` unter `## Übergänge` an |
+| `POST /api/pts-landscape/transitions/remove` | `{ sessionId, id }` — entfernt einen Übergang |
 | `POST /api/pts-landscape/layout` | `{ sessionId, layout }` — nur Positionen in `learning-landscape.layout.json` |
 | `GET /api/pts-artifact/raw?sessionId=&file=` | Rohtext einer Datei für den Editor |
 | `POST /api/pts-artifact/save` | `{ sessionId, file, content }` — atomarer Schreibzugriff mit harter Pfad-Grenze |
@@ -94,12 +106,12 @@ node dsh-plugins/pts-landscape/test-landscape.mjs
 ```
 
 Abgedeckt: Host-Modulform, Landscape-Parser (reale Datei + synthetische
-Vorlage mit Flow-Listen, Übergängen und `Zeitbedarf`), Layout-Parsing,
-Pfad-Grenze der Save-Route (Traversal, absolute Pfade, Dateityp, fehlender
-Elternordner), atomarer Schreibzugriff, Temporal-/Decisions-Parser inkl.
-`proposed`, Timeline-Serializer-Roundtrip, Timeline-Validierung,
-Material-Zuordnung (`setMomentMaterials`) und Zeitbedarf
-(`setMomentEstimate`).
+Vorlage mit Flow-Listen, Übergängen und `Zeitbedarf`), Layout-Parsing
+(Positionen + Phasen-Bänder), Pfad-Grenze der Save-Route (Traversal,
+absolute Pfade, Dateityp, fehlender Elternordner), atomarer Schreibzugriff,
+Temporal-/Decisions-Parser inkl. `proposed`, Timeline-Serializer-Roundtrip,
+Timeline-Validierung, Material-Zuordnung (`setMomentMaterials`), Zeitbedarf
+(`setMomentEstimate`) und Übergänge (`addTransition`/`removeTransition`).
 
 ## Grenzen (bewusst)
 
