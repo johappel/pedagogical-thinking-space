@@ -100,6 +100,7 @@ window.__ModuleLoader__.load({
 		const EDITABLE_FILES = ["learning-landscape.md", "temporal-plan.yml", "planning-board.yml", "decisions.yml", "learning-design.md"];
 		const ROLES = ["opening", "irritation", "exploration", "deepening", "practice", "decision", "consolidation", "reflection", "closing", "transition", "buffer", "other"];
 		const MODES = ["common", "choice", "parallel", "individual", "group", "open"];
+		const MOMENT_TYPES = ["impulse", "learning_place", "positioning", "inquiry", "choice", "practice", "project", "product", "reflection", "assessment", "other"];
 
 		function esc(s) {
 			return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -201,6 +202,8 @@ window.__ModuleLoader__.load({
 			const onDragStart = props.onDragStart;
 			const onPickMaterials = props.onPickMaterials;
 			const onSaveEstimate = props.onSaveEstimate;
+			const onChat = props.onChat;
+			const onEdit = props.onEdit;
 			const expandedState = React.useState(false);
 			const expanded = expandedState[0];
 			const setExpanded = expandedState[1];
@@ -217,7 +220,6 @@ window.__ModuleLoader__.load({
 			const head = [
 				React.createElement("span", { key: "t", className: "pls-card-title" }, esc(m.title || m.id)),
 				React.createElement("span", { key: "ty", className: "pls-badge" }, esc(typeLabel(m.type))),
-				React.createElement("span", { key: "st", className: statusClass(m.status) }, esc(statusLabel(m.status))),
 			];
 			if (m.time_estimate != null) {
 				head.push(React.createElement("span", { key: "te", className: "pls-chip" }, "≈ " + m.time_estimate + " min"));
@@ -226,6 +228,18 @@ window.__ModuleLoader__.load({
 				head.push(React.createElement("span", { key: "as", className: "pls-chip" },
 					"zugeordnet " + assign.assigned + " min" + (assign.estimated != null ? " / " + assign.estimated + " min" : "")));
 			}
+			head.push(React.createElement("button", {
+				key: "chat",
+				className: "pls-btn",
+				title: "Diesen Lernmoment mit dem Companion besprechen",
+				onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); props.onChat(m); },
+			}, "💬 Chat"));
+			head.push(React.createElement("button", {
+				key: "edit",
+				className: "pls-btn pls-btn-edit",
+				title: "Diesen Lernmoment bearbeiten (nur dieser Moment, nicht das ganze Dokument)",
+				onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); props.onEdit(m); },
+			}, "✎ Edit"));
 			head.push(React.createElement("button", {
 				key: "ex",
 				className: "pls-btn",
@@ -360,16 +374,6 @@ window.__ModuleLoader__.load({
 					},
 				}),
 				React.createElement("span", { key: "l", className: "pls-note" }, esc(p.moment_id)),
-				p.status === "proposed"
-					? React.createElement("button", {
-						key: "adopt",
-						className: "pls-btn",
-						style: { color: "#7ec699" },
-						title: "Vorschlag als verbindlich übernehmen",
-						disabled: disabled,
-						onClick: onAdopt,
-					}, "✓ Übernehmen")
-					: null,
 				React.createElement("button", {
 					key: "x",
 					className: "pls-btn",
@@ -426,6 +430,9 @@ window.__ModuleLoader__.load({
 			const transitionState = React.useState(null);
 			const transitionForm = transitionState[0];
 			const setTransitionForm = transitionState[1];
+			const momentEditState = React.useState(null);
+			const momentEdit = momentEditState[0];
+			const setMomentEdit = momentEditState[1];
 
 			function load() {
 				const url = "/api/pts-landscape?sessionId=" + encodeURIComponent(sessionId === null ? "" : sessionId);
@@ -501,11 +508,19 @@ window.__ModuleLoader__.load({
 			}
 
 			function saveTemporal(state, okMsg) {
+				// The teacher's action (drag/edit/remove) IS the decision: any
+				// timeline save adopts the visible flow as binding. No separate
+				// approval gate.
+				const owned = {
+					title: state.title,
+					windows: (Array.isArray(state.windows) ? state.windows : []).map(function(w) { return Object.assign({}, w, { status: "binding" }); }),
+					placements: (Array.isArray(state.placements) ? state.placements : []).map(function(p) { return Object.assign({}, p, { status: "binding" }); }),
+				};
 				setSaving(true);
 				fetch("/api/pts-landscape/temporal", {
 					method: "POST",
 					headers: { "content-type": "application/json" },
-					body: JSON.stringify({ sessionId: sessionId, title: state.title, windows: state.windows, placements: state.placements }),
+					body: JSON.stringify({ sessionId: sessionId, title: owned.title, windows: owned.windows, placements: owned.placements }),
 				}).then(function(res) {
 					return res.text().then(function(body) {
 						let v = null;
@@ -712,16 +727,7 @@ window.__ModuleLoader__.load({
 				const positions = {};
 				for (const k of Object.keys(displayPos)) positions[k] = displayPos[k];
 				positions[id] = { x: x, y: y };
-				saveLayout(positions, layoutGroups);
-			}
-
-			function addPhase() {
-				const title = window.prompt("Name der Phase (Zeile), z. B. Erkundung:", "");
-				if (title === null || title.trim() === "") return;
-				const groups = layoutGroups.slice();
-				const nextY = groups.reduce(function(acc, g) { return Math.max(acc, g.y + g.height); }, 0) + 10;
-				groups.push({ id: "grp-" + (groups.length + 1), title: title.trim(), y: nextY, height: 130 });
-				saveLayout(displayPos, groups);
+				saveLayout(positions, []);
 			}
 
 			// ——— Transitions ———
@@ -764,6 +770,44 @@ window.__ModuleLoader__.load({
 					load();
 				}).catch(function(e) {
 					setError("Übergang: " + String(e && e.message ? e.message : e));
+				});
+			}
+
+			function chatMoment(m) {
+				const qs = Array.isArray(m.open_questions) ? m.open_questions : [];
+				const text = "Lass uns den Lernmoment " + m.id + " „" + m.title + "“ besprechen.\n" +
+					(m.function ? "Funktion: " + m.function + "\n" : "") +
+					(m.learning_activity ? "Lernaktivität: " + m.learning_activity + "\n" : "") +
+					(qs.length > 0 ? "Offene Fragen: " + qs.join("; ") + "\n" : "");
+				const inputActions = props !== null && props !== undefined ? props.inputActions : undefined;
+				if (inputActions !== undefined && typeof inputActions.setDraft === "function") {
+					inputActions.setDraft(text);
+					setFeedback("Prompt für den Moment „" + m.title + "“ ins Chat-Input übernommen.");
+				} else {
+					copyText(text);
+					setFeedback("Chat-Input nicht erreichbar — Prompt kopiert.");
+				}
+			}
+
+			function saveMoment(fields) {
+				if (momentEdit === null) return;
+				fetch("/api/pts-landscape/moment", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ sessionId: sessionId, momentId: momentEdit.id, fields: fields }),
+				}).then(function(res) {
+					return res.text().then(function(body) {
+						let v = null;
+						try { v = JSON.parse(body); } catch (e) { v = null; }
+						if (!res.ok) throw new Error(v !== null && v && typeof v.error === "string" ? v.error : "HTTP " + res.status);
+						return v;
+					});
+				}).then(function() {
+					setMomentEdit(null);
+					setFeedback("Lernmoment „" + momentEdit.title + "“ aktualisiert.");
+					load();
+				}).catch(function(e) {
+					setError("Moment: " + String(e && e.message ? e.message : e));
 				});
 			}
 
@@ -811,21 +855,15 @@ window.__ModuleLoader__.load({
 				return { status: "warn", assigned: assigned, estimated: null };
 			}
 
-			const layoutGroups = data.layout && Array.isArray(data.layout.groups) ? data.layout.groups : [];
 			const basePos = data.layout && data.layout.positions ? data.layout.positions : {};
 			const displayPos = {};
 			moments.forEach(function(m, idx) {
 				if (basePos[m.id]) displayPos[m.id] = basePos[m.id];
-				else displayPos[m.id] = { x: 20 + (idx % 3) * 245, y: 20 + Math.floor(idx / 3) * 210 };
+				// Default: staggered vertical flow (the left column is taller than wide).
+				else displayPos[m.id] = { x: 24 + (idx % 2) * 245, y: 20 + idx * 215 };
 			});
 			const maxCardY = moments.reduce(function(acc, m) { return Math.max(acc, (displayPos[m.id] ? displayPos[m.id].y : 0) + CARD_H + 40); }, 0);
-			const maxGroupBottom = layoutGroups.reduce(function(acc, g) { return Math.max(acc, g.y + g.height); }, 0);
-			const canvasHeight = Math.max(520, maxCardY + 40, maxGroupBottom + 20);
-
-			const bandEls = layoutGroups.map(function(g) {
-				return React.createElement("div", { key: g.id, className: "pls-band", style: { top: g.y, height: g.height } },
-					React.createElement("div", { className: "pls-band-title" }, esc(g.title)));
-			});
+			const canvasHeight = Math.max(520, maxCardY + 40);
 
 			const canvasCardEls = moments.map(function(m) {
 				return React.createElement(MomentCard, {
@@ -836,6 +874,8 @@ window.__ModuleLoader__.load({
 					onDragStart: function(e) { e.dataTransfer.setData("text/plain", m.id); e.dataTransfer.effectAllowed = "all"; },
 					onPickMaterials: openMaterialPicker,
 					onSaveEstimate: saveEstimate,
+					onChat: chatMoment,
+					onEdit: setMomentEdit,
 					onDropCard: function(dragged, target) {
 						setTransitionForm({ from: dragged, to: target, type: "required", rationale: "" });
 					},
@@ -867,13 +907,13 @@ window.__ModuleLoader__.load({
 			});
 
 			const momentsSection = moments.length === 0
-				? React.createElement("div", { className: "pls-empty" }, "Noch keine Lernmomente — sie entstehen im Gespräch und werden als Entwürfe hier sichtbar.")
+				? React.createElement("div", { className: "pls-empty" }, "Noch keine Lernmomente — sie entstehen im Gespräch und werden hier sichtbar.")
 				: React.createElement("div", {
 					className: "pls-canvas",
 					style: { height: canvasHeight },
 					onDragOver: function(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; },
 					onDrop: onCanvasDrop,
-				}, bandEls.concat([
+				}, [
 					React.createElement("svg", { key: "arrows", className: "pls-arrow-svg" },
 						React.createElement("defs", null,
 							React.createElement("marker", {
@@ -882,7 +922,7 @@ window.__ModuleLoader__.load({
 							},
 								React.createElement("path", { d: "M0,0 L8,4 L0,8 z", fill: "rgba(128,128,128,.8)" }))),
 						arrowEls),
-				]).concat(canvasCardEls));
+				].concat(canvasCardEls));
 
 			const transitionEls = transitions.map(function(t, i) {
 				return React.createElement("div", { key: t.id || i, className: "pls-transition" },
@@ -919,13 +959,7 @@ window.__ModuleLoader__.load({
 						? React.createElement("span", { key: "d", className: "pls-note" },
 							"Budget " + sumMinutes + " / " + w.duration_minutes + " min")
 						: null,
-					w.status === "proposed"
-						? React.createElement("span", { key: "s", className: "pls-badge pls-proposed" }, "Vorschlag")
-						: null,
 				];
-				if (w.status === "proposed") {
-					head.push(React.createElement("button", { key: "adopt", className: "pls-btn", style: { color: "#7ec699" }, disabled: saving, onClick: function() { adoptWindow(w.id); } }, "✓ Übernehmen"));
-				}
 				head.push(React.createElement("button", { key: "v", className: "pls-btn pls-btn-edit", disabled: saving || winPlacements.length === 0, title: "Prompt für einen Verlaufsplan dieser Stunde ins Chat-Input setzen", onClick: function() { proposeVerlauf(w); } }, "Stundenverlauf vorschlagen"));
 				head.push(React.createElement("button", { key: "x", className: "pls-btn", disabled: saving, title: "Fenster inkl. Platzierungen entfernen", onClick: function() { removeWindow(w.id); } }, "✕"));
 				if (over) {
@@ -954,8 +988,7 @@ window.__ModuleLoader__.load({
 						React.createElement("span", null, moments.length + " Lernmomente"),
 						React.createElement("span", null, windows.length + " Stundenfenster"),
 						React.createElement("span", null, decisionCount + " Entscheidungen")),
-					React.createElement("button", { className: "pls-btn", onClick: load }, "Aktualisieren"),
-					React.createElement("button", { className: "pls-btn pls-btn-edit", onClick: function() { openEditor("learning-landscape.md"); } }, "✎ Bearbeiten")),
+					React.createElement("button", { className: "pls-btn", onClick: load }, "Aktualisieren")),
 				React.createElement("div", { className: "pls-path" }, data.root || ""),
 				errEls.length > 0 ? errEls : null,
 				feedback !== null ? React.createElement("div", { className: "pls-feedback" }, esc(feedback)) : null,
@@ -964,8 +997,7 @@ window.__ModuleLoader__.load({
 					React.createElement("div", { className: "pls-main" },
 						React.createElement("div", null,
 							React.createElement("div", { className: "pls-toolbar" },
-								React.createElement("span", { className: "pls-section-title", style: { marginBottom: 0 } }, "Lernlandschaft (Karten frei verschieben)"),
-								React.createElement("button", { className: "pls-btn", onClick: addPhase }, "+ Phase")),
+								React.createElement("span", { className: "pls-section-title", style: { marginBottom: 0 } }, "Lernlandschaft (Karten frei verschieben)")),
 							React.createElement("div", { className: "pls-note" }, "Karte ziehen: auf freie Fläche = verschieben · auf ein Stundenfenster rechts = zuordnen · auf eine andere Karte = Übergang"),
 							momentsSection),
 						React.createElement("div", null,
@@ -1069,10 +1101,73 @@ window.__ModuleLoader__.load({
 					)
 					: null,
 
+				// ——— Moment editor (single moment, structured) ———
+				momentEdit !== null
+					? React.createElement(MomentEditor, { moment: momentEdit, onCancel: function() { setMomentEdit(null); }, onSave: saveMoment })
+					: null,
+
 				// ——— New window form ———
 				winForm
 					? React.createElement(NewWindowForm, { onCancel: function() { setWinForm(false); }, onAdd: addWindow })
 					: null);
+		}
+
+		function MomentEditor(props) {
+			const m = props.moment;
+			const titleState = React.useState(m.title || "");
+			const title = titleState[0];
+			const setTitle = titleState[1];
+			const typeState = React.useState(m.type || "other");
+			const type = typeState[0];
+			const setType = typeState[1];
+			const fnState = React.useState(m.function || "");
+			const fn = fnState[0];
+			const setFn = fnState[1];
+			const laState = React.useState(m.learning_activity || "");
+			const la = laState[0];
+			const setLa = laState[1];
+			const eeState = React.useState(m.expected_experience || "");
+			const ee = eeState[0];
+			const setEe = eeState[1];
+			const needsState = React.useState((Array.isArray(m.material_needs) ? m.material_needs : []).join("\n"));
+			const needs = needsState[0];
+			const setNeeds = needsState[1];
+			const qsState = React.useState((Array.isArray(m.open_questions) ? m.open_questions : []).join("\n"));
+			const qs = qsState[0];
+			const setQs = qsState[1];
+
+			function submit() {
+				props.onSave({
+					title: title.trim(),
+					type: type,
+					function: fn.trim(),
+					learning_activity: la.trim(),
+					expected_experience: ee.trim(),
+					material_needs: needs.split(/\r?\n/).map(function(s) { return s.trim(); }).filter(Boolean),
+					open_questions: qs.split(/\r?\n/).map(function(s) { return s.trim(); }).filter(Boolean),
+				});
+			}
+
+			const field = function(label, control) {
+				return React.createElement("div", { className: "pls-form-row" },
+					React.createElement("label", null, label), control);
+			};
+
+			return React.createElement("div", { className: "pls-overlay" },
+				React.createElement("div", { className: "pls-dialog" },
+					React.createElement("div", { className: "pls-dialog-head" },
+						React.createElement("span", { className: "pls-title" }, "Lernmoment „" + (m.title || m.id) + "“")),
+					React.createElement("div", { className: "pls-dialog-body" },
+						field("Titel", React.createElement("input", { className: "pls-input", style: { flex: 1 }, value: title, onChange: function(e) { setTitle(e.target.value); } })),
+						field("Typ", React.createElement("select", { className: "pls-select", style: { flex: 1 }, value: type, onChange: function(e) { setType(e.target.value); } }, MOMENT_TYPES.map(function(t) { return React.createElement("option", { key: t, value: t }, typeLabel(t)); }))),
+						field("Funktion", React.createElement("input", { className: "pls-input", style: { flex: 1 }, value: fn, onChange: function(e) { setFn(e.target.value); } })),
+						field("Lernaktivität", React.createElement("textarea", { className: "pls-editor-text", style: { height: "48px" }, value: la, onChange: function(e) { setLa(e.target.value); } })),
+						field("Erwartete Lernerfahrung", React.createElement("textarea", { className: "pls-editor-text", style: { height: "48px" }, value: ee, onChange: function(e) { setEe(e.target.value); } })),
+						field("Materialbedarfe (eine pro Zeile)", React.createElement("textarea", { className: "pls-editor-text", style: { height: "48px" }, value: needs, onChange: function(e) { setNeeds(e.target.value); } })),
+						field("Offene Fragen (eine pro Zeile)", React.createElement("textarea", { className: "pls-editor-text", style: { height: "48px" }, value: qs, onChange: function(e) { setQs(e.target.value); } })),
+						React.createElement("div", { className: "pls-dialog-actions" },
+							React.createElement("button", { className: "pls-btn", onClick: props.onCancel }, "Abbrechen"),
+							React.createElement("button", { className: "pls-btn pls-btn-edit", onClick: submit }, "Speichern")))));
 		}
 
 		function NewWindowForm(props) {

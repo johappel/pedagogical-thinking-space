@@ -632,6 +632,102 @@ export function removeTransition(content, id) {
 }
 
 /**
+ * Rebuild one moment block from current values merged with an update
+ * (`fields` may carry any of title/type/function/learning_activity/
+ * expected_experience/material_needs/open_questions; everything else,
+ * including materials/status/provenance, is preserved).
+ */
+export function updateMoment(content, momentId, fields) {
+	if (typeof content !== 'string') return { ok: false, reason: 'file-missing-or-absent' };
+	const id = String(momentId ?? '').trim();
+	const lines = content.split(/\r?\n/);
+	let start = -1;
+	for (let i = 0; i < lines.length; i += 1) {
+		if (lines[i].trim() === '### ' + id) { start = i; break; }
+	}
+	if (start === -1) return { ok: false, reason: 'unknown-moment-id' };
+	let end = lines.length;
+	for (let i = start + 1; i < lines.length; i += 1) {
+		const t = lines[i].trim();
+		if (t.startsWith('### ') || t.startsWith('## ')) { end = i; break; }
+	}
+	const cur = readMomentBlock(lines, start, end);
+	const merged = {
+		title: fields.title !== undefined ? fields.title : cur.title,
+		type: fields.type !== undefined ? fields.type : cur.type,
+		function: fields.function !== undefined ? fields.function : cur.function,
+		learning_activity: fields.learning_activity !== undefined ? fields.learning_activity : cur.learning_activity,
+		expected_experience: fields.expected_experience !== undefined ? fields.expected_experience : cur.expected_experience,
+		material_needs: Array.isArray(fields.material_needs) ? fields.material_needs : cur.material_needs,
+		materials: cur.materials,
+		open_questions: Array.isArray(fields.open_questions) ? fields.open_questions : cur.open_questions,
+		status: cur.status,
+		provenance: cur.provenance,
+	};
+	const block = buildMomentBlock(id, merged);
+	return { ok: true, content: lines.slice(0, start).concat(block).concat(lines.slice(end)).join('\n') };
+}
+
+function buildMomentBlock(id, m) {
+	const lines = ['### ' + id, ''];
+	lines.push('- Titel: ' + yamlScalar(m.title || ''));
+	lines.push('- Typ: ' + yamlScalar(m.type || 'other'));
+	lines.push('- Funktion: ' + yamlScalar(m.function || ''));
+	lines.push('- Lernaktivität: ' + yamlScalar(m.learning_activity || ''));
+	lines.push('- Erwartete Lernerfahrung: ' + yamlScalar(m.expected_experience || ''));
+	if (Array.isArray(m.material_needs) && m.material_needs.length > 0) {
+		lines.push('- Materialbedarfe:');
+		for (const x of m.material_needs) lines.push('  - ' + x);
+	} else {
+		lines.push('- Materialbedarfe: []');
+	}
+	lines.push('- Materialien: ' + (Array.isArray(m.materials) && m.materials.length > 0
+		? '[' + m.materials.map((x) => yamlScalar(x)).join(', ') + ']'
+		: '[]'));
+	if (Array.isArray(m.open_questions) && m.open_questions.length > 0) {
+		lines.push('- Offene Fragen:');
+		for (const x of m.open_questions) lines.push('  - ' + x);
+	} else {
+		lines.push('- Offene Fragen: []');
+	}
+	lines.push('- Status: ' + yamlScalar(m.status || 'draft'));
+	if (m.provenance) lines.push('- Herkunft: ' + yamlScalar(m.provenance));
+	return lines;
+}
+
+/** Read one moment block's fields (for updateMoment merge). */
+function readMomentBlock(lines, start, end) {
+	const m = { title: '', type: '', function: '', learning_activity: '', expected_experience: '', material_needs: [], materials: [], open_questions: [], status: 'draft', provenance: '' };
+	for (let i = start + 1; i < end; i += 1) {
+		const t = lines[i].trim();
+		if (!t.startsWith('- ')) continue;
+		const fm = t.slice(2).match(/^([^:]+):\s*(.*)$/);
+		if (fm === null) continue;
+		const lab = fm[1].trim();
+		const val = fm[2].trim();
+		if (lab === 'Titel' || lab === 'Typ' || lab === 'Funktion' || lab === 'Lernaktivität'
+			|| lab === 'Erwartete Lernerfahrung' || lab === 'Status' || lab === 'Herkunft') {
+			const parsed = parseScalar(val);
+			const key = { Titel: 'title', Typ: 'type', Funktion: 'function', Lernaktivität: 'learning_activity', 'Erwartete Lernerfahrung': 'expected_experience', Status: 'status', Herkunft: 'provenance' }[lab];
+			m[key] = parsed === null ? '' : String(parsed);
+		} else if (lab === 'Materialien') {
+			m.materials = Array.isArray(parseValue(val)) ? parseValue(val).filter((x) => typeof x === 'string' && x.trim() !== '') : [];
+		} else if (lab === 'Materialbedarfe' || lab === 'Offene Fragen') {
+			const items = [];
+			let j = i + 1;
+			while (j < end && (lines[j].startsWith('  - ') || lines[j].startsWith('    - '))) {
+				items.push(lines[j].trim().replace(/^- /, '').trim());
+				j += 1;
+			}
+			if (lab === 'Materialbedarfe') m.material_needs = items;
+			else m.open_questions = items;
+			i = j - 1;
+		}
+	}
+	return m;
+}
+
+/**
  * Set the `- Materialien: [...]` line of one moment block in the landscape
  * markdown (creates the line when missing, before `- Status:` if present).
  */
@@ -971,6 +1067,35 @@ export function apply(ctx) {
 		},
 	});
 
+	// — POST /api/pts-landscape/moment (structured update of one moment)
+	const disposeMoment = webServer.register({
+		kind: 'exact',
+		path: '/api/pts-landscape/moment',
+		handler: async (req, res) => {
+			try {
+				const body = JSON.parse(await readBody(req) || '{}');
+				const sessionId = typeof body.sessionId === 'string' ? body.sessionId : '';
+				const momentId = typeof body.momentId === 'string' ? body.momentId : '';
+				const fields = body.fields && typeof body.fields === 'object' ? body.fields : {};
+				const base = sessionWorkspace(sessionId) ?? fallbackRoot;
+				const file = await readWorkspaceFile(base, LANDSCAPE_FILE);
+				if (!file.ok || file.missing) {
+					sendJson(res, 404, { ok: false, error: 'learning-landscape.md nicht lesbar' });
+					return;
+				}
+				const r = updateMoment(file.raw, momentId, fields);
+				if (!r.ok) {
+					sendJson(res, 400, { ok: false, error: r.reason === 'unknown-moment-id' ? 'Lernmoment nicht gefunden' : 'Datei fehlt' });
+					return;
+				}
+				await atomicWriteFile(base, LANDSCAPE_FILE, r.content);
+				sendJson(res, 200, { ok: true });
+			} catch (e) {
+				sendJson(res, 400, { ok: false, error: String(e && e.message ? e.message : e) });
+			}
+		},
+	});
+
 	// — POST /api/pts-landscape/transitions (create a teacher transition)
 	const disposeTransitions = webServer.register({
 		kind: 'exact',
@@ -1127,13 +1252,14 @@ export function apply(ctx) {
 	ctx.effect(() => disposeLayout, 'pts-landscape: route /api/pts-landscape/layout');
 	ctx.effect(() => disposeMaterials, 'pts-landscape: route /api/pts-landscape/materials');
 	ctx.effect(() => disposeEstimate, 'pts-landscape: route /api/pts-landscape/moment-estimate');
+	ctx.effect(() => disposeMoment, 'pts-landscape: route /api/pts-landscape/moment');
 	ctx.effect(() => disposeTransitions, 'pts-landscape: route /api/pts-landscape/transitions');
 	ctx.effect(() => disposeTransitionsRemove, 'pts-landscape: route /api/pts-landscape/transitions/remove');
 	ctx.effect(() => disposeTemporal, 'pts-landscape: route /api/pts-landscape/temporal');
 	ctx.effect(() => disposeRaw, 'pts-landscape: route /api/pts-artifact/raw');
 	ctx.effect(() => disposeSave, 'pts-landscape: route /api/pts-artifact/save');
 
-	console.log('[pts-landscape] host half active; routes: /api/pts-landscape (+layout, +materials, +moment-estimate, +transitions[/remove], +temporal), /api/pts-artifact/raw|save');
+	console.log('[pts-landscape] host half active; routes: /api/pts-landscape (+layout, +materials, +moment-estimate, +moment, +transitions[/remove], +temporal), /api/pts-artifact/raw|save');
 
 	console.log('[pts-landscape] host half active; routes: /api/pts-landscape (+layout, +materials, +temporal), /api/pts-artifact/raw|save');
 }

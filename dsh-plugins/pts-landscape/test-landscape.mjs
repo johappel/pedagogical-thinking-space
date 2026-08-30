@@ -206,5 +206,16 @@ const trRem = pls.removeTransition(trDup.content, 'tr-lm-b-lm-c');
 check('transition removed', trRem.ok && !trRem.content.includes('### tr-lm-b-lm-c') && trRem.content.includes('### tr-lm-a-lm-b'));
 check('remove unknown id', pls.removeTransition(noSection, 'tr-xyz').ok === false);
 
+// 15. updateMoment (structured single-moment edit, preserves other fields)
+const upd = pls.updateMoment(sample, 'lm-impuls', { title: 'KI begegnet Menschenbildern (neu)', type: 'positioning', function: 'Neue Funktion', learning_activity: 'Neu', expected_experience: 'Neu', material_needs: ['A', 'B'], open_questions: ['Q1'] });
+check('updateMoment ok', upd.ok);
+const um = pls.parseLandscape(upd.content).moments[0];
+check('updateMoment fields', um.title === 'KI begegnet Menschenbildern (neu)' && um.type === 'positioning' && um.material_needs.join(',') === 'A,B' && um.open_questions[0] === 'Q1');
+check('updateMoment preserves materials', um.materials.join(',') === 'mat-a,mat-b');
+const updPartial = pls.updateMoment(upd.content, 'lm-impuls', { title: 'Nur der Titel' });
+const up2 = pls.parseLandscape(updPartial.content).moments[0];
+check('updateMoment partial keeps others', up2.title === 'Nur der Titel' && up2.type === 'positioning');
+check('updateMoment unknown moment', pls.updateMoment(sample, 'lm-nix', { title: 'x' }).ok === false);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

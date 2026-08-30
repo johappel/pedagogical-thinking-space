@@ -6,12 +6,28 @@ das pts-web-Profil (Umsetzung Stufe 1–3 aus `docs/CONCEPT_WEB_WORKFLOW.md`).
 - **Tab „Lernlandschaft“** (`conversation.view`, order 30), zweispaltig:
   - **links** eine **Lernlandschaft-Canvas**: Moment-Karten frei verschiebbar
     (vertikal **und** horizontal; Positionen landen nur in
-    `learning-landscape.layout.json`, nie in der Semantik), optionale
-    **Phasen-Bänder** („+ Phase“) als visuelle Zeilen, Karten kompakt mit
-    aufklappbaren Details (Funktion, Lernaktivität, Materialbedarfe, Offene
-    Fragen, Herkunft, Zeitbedarf);
+    `learning-landscape.layout.json`, nie in der Semantik). Standard-
+    Anordnung ist ein **vertikal versetzter Fluss** (weil die linke Spalte
+    höher als breit ist); die Lehrkraft kann frei umsortieren. Übergänge
+    (Pfeile) visualisieren den Lernfluss — **Phasen-Bänder sind daher
+    entfernt** (der Fluss ist durch die Pfeile ablesbar).
+    Jede Karte hat **„💬 Chat“** (Prompt für genau diesen Lernmoment ins
+    Chat-Input, um ihn mit dem Companion zu besprechen) und **„✎ Edit“**
+    (**strukturierter Editor nur für diesen Moment** — Titel, Typ, Funktion,
+    Lernaktivität, Erwartete Lernerfahrung, Materialbedarfe, Offene Fragen;
+    Materialien/Status/Herkunft bleiben erhalten). Ein „Gesamtdokument“-
+    Editor für `learning-landscape.md` wird bewusst nicht mehr prominent
+    angeboten (fehleranfällig);
   - **rechts** eine feste **Stunden-Zuordnung-Sidebar** (kein Scroll-
     Zusammenspiel beim Ziehen).
+- **Kein Genehmigungs-Gate:** Ein Lernmoment wird dadurch akzeptiert, dass
+  die Lehrkraft ihn in ein Stundenfenster zieht (die Platzierung wird damit
+  `binding`); Übergänge sind als Visualisierung des Flusses direkt gesetzt.
+  Es gibt **weder „ENTWURF“- noch „Vorschlag → Übernehmen“-Schritte** im UI —
+  die Handlung der Lehrkraft ist die Entscheidung. Der interne `status`
+  (`proposed`/`binding`) bleibt im Datenmodell, wird aber nicht als Hürde
+  präsentiert; ein Timeline-Save übernimmt den sichtbaren Fluss als
+  verbindlich.
 - **Übergänge (gerichtet):** Karte auf Karte ziehen öffnet den Übergangs-
   Dialog (`Von → Zu`, Typ, Begründung). Typen nach Schema: `required`,
   `prerequisite`, `choice`, `parallel`, `return`, `meeting_point` — damit
@@ -57,6 +73,7 @@ das pts-web-Profil (Umsetzung Stufe 1–3 aus `docs/CONCEPT_WEB_WORKFLOW.md`).
 | `GET /api/pts-landscape/materials?sessionId=` | Dateiliste unter `materials/` + `rendered/` |
 | `POST /api/pts-landscape/materials` | `{ sessionId, momentId, materials }` — schreibt `- Materialien: [...]` |
 | `POST /api/pts-landscape/moment-estimate` | `{ sessionId, momentId, minutes }` — setzt/löscht `- Zeitbedarf: <min>` |
+| `POST /api/pts-landscape/moment` | `{ sessionId, momentId, fields }` — strukturierte Aktualisierung **eines** Moments (Materialien/Status/Herkunft bleiben erhalten) |
 | `POST /api/pts-landscape/transitions` | `{ sessionId, from, to, type, rationale }` — legt `### tr-…` unter `## Übergänge` an |
 | `POST /api/pts-landscape/transitions/remove` | `{ sessionId, id }` — entfernt einen Übergang |
 | `POST /api/pts-landscape/layout` | `{ sessionId, layout }` — nur Positionen in `learning-landscape.layout.json` |
@@ -111,7 +128,8 @@ Vorlage mit Flow-Listen, Übergängen und `Zeitbedarf`), Layout-Parsing
 absolute Pfade, Dateityp, fehlender Elternordner), atomarer Schreibzugriff,
 Temporal-/Decisions-Parser inkl. `proposed`, Timeline-Serializer-Roundtrip,
 Timeline-Validierung, Material-Zuordnung (`setMomentMaterials`), Zeitbedarf
-(`setMomentEstimate`) und Übergänge (`addTransition`/`removeTransition`).
+(`setMomentEstimate`), Übergänge (`addTransition`/`removeTransition`) und
+strukturierte Moment-Aktualisierung (`updateMoment`).
 
 ## Grenzen (bewusst)
 
