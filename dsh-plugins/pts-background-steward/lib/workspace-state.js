@@ -9,8 +9,9 @@
 //   before spawning the background agent and re-checks them immediately
 //   before applying; a stale result is never applied.
 // - decisions.yml entries require an explicit, evidence-backed teacher
-//   decision (enforced in patch-validator.js); temporal-plan.yml is never a
-//   target. Both rules are mirrored here as defense in depth.
+//   decision (enforced in patch-validator.js); temporal-plan.yml is writable
+//   only as a proposal (windows/placements are forced to `status: proposed`).
+//   Both rules are mirrored here as defense in depth.
 
 import { createHash } from 'node:crypto';
 import { promises as fsp } from 'node:fs';
@@ -24,12 +25,13 @@ export const CANONICAL_FILES = Object.freeze([
 	'temporal-plan.yml',
 ]);
 
-/** Files the steward may actually modify (temporal-plan is read-only context). */
+/** Files the steward may actually modify (temporal-plan only as proposal). */
 export const WRITABLE_FILES = Object.freeze([
 	'learning-design.md',
 	'learning-landscape.md',
 	'decisions.yml',
 	'planning-board.yml',
+	'temporal-plan.yml',
 ]);
 
 /** Allowed learning-moment types per specs/LEARNING_LANDSCAPE_SCHEMA.md. */
@@ -42,6 +44,23 @@ export const MOMENT_TYPES = Object.freeze([
 export const BOARD_KINDS = Object.freeze([
 	'clarify', 'research', 'design', 'intervention', 'observe',
 	'produce', 'review', 'render', 'export',
+]);
+
+/** Allowed teaching-window kinds per specs/TEMPORAL_PLAN_SCHEMA.md. */
+export const WINDOW_KINDS = Object.freeze([
+	'lesson', 'double_lesson', 'project_block', 'open_learning_time',
+]);
+
+/** Allowed dramaturgical roles per specs/TEMPORAL_PLAN_SCHEMA.md. */
+export const DRAMATURGICAL_ROLES = Object.freeze([
+	'opening', 'irritation', 'exploration', 'deepening', 'practice',
+	'decision', 'consolidation', 'reflection', 'closing', 'transition',
+	'buffer', 'other',
+]);
+
+/** Allowed placement modes per specs/TEMPORAL_PLAN_SCHEMA.md. */
+export const PLACEMENT_MODES = Object.freeze([
+	'common', 'choice', 'parallel', 'individual', 'group', 'open',
 ]);
 
 export function hashContent(content) {
@@ -299,6 +318,89 @@ export function boardAppendItem(content, item) {
 }
 
 /**
+ * Append one proposed teaching window to temporal-plan.yml. The entry is
+ * forced to `status: proposed` — the steward never creates binding windows.
+ * Same conservative YAML layout contract as decisions/board.
+ */
+export function temporalPlanAppendWindow(content, window) {
+	if (typeof content !== 'string') return { ok: false, reason: 'file-missing-or-absent' };
+	const w = window ?? {};
+	for (const field of ['id', 'title', 'kind', 'duration_minutes']) {
+		if (singleLine(w[field]) === '') return { ok: false, reason: `missing-field:${field}` };
+	}
+	if (!WINDOW_KINDS.includes(w.kind)) return { ok: false, reason: 'invalid-window-kind' };
+	const comment = singleLine(w.provenance) ? ['', `  # ${singleLine(w.provenance)}`] : [];
+	const entry = [
+		`  - id: ${singleLine(w.id)}`,
+		`    title: ${singleLine(w.title)}`,
+		`    kind: ${w.kind}`,
+		`    duration_minutes: ${w.duration_minutes}`,
+		`    note: ${singleLine(w.note) || ''}`,
+		'    status: proposed',
+	];
+	return yamlListAppend(content, 'windows', comment, entry);
+}
+
+/**
+ * Append one proposed placement to temporal-plan.yml (forced status
+ * `proposed`). Defense in depth: the referenced window must already exist in
+ * the temporal plan and the learning moment in the landscape content.
+ */
+export function temporalPlanAppendPlacement(content, placement, { landscapeContent } = {}) {
+	if (typeof content !== 'string') return { ok: false, reason: 'file-missing-or-absent' };
+	const p = placement ?? {};
+	for (const field of ['id', 'moment_id', 'window_id', 'start_minute', 'duration_minutes', 'dramaturgical_role', 'mode']) {
+		if (singleLine(p[field]) === '') return { ok: false, reason: `missing-field:${field}` };
+	}
+	if (!DRAMATURGICAL_ROLES.includes(p.dramaturgical_role)) return { ok: false, reason: 'invalid-role' };
+	if (!PLACEMENT_MODES.includes(p.mode)) return { ok: false, reason: 'invalid-mode' };
+	const windowExists = new RegExp(`^\\s*-\\s*id:\\s*${escapeRegExp(p.window_id)}\\s*$`, 'm').test(content);
+	if (!windowExists) return { ok: false, reason: 'unknown-window-id' };
+	const momentExists = typeof landscapeContent === 'string'
+		&& new RegExp(`^###\\s*${escapeRegExp(p.moment_id)}\\s*$`, 'm').test(landscapeContent);
+	if (!momentExists) return { ok: false, reason: 'unknown-moment-id' };
+	const comment = singleLine(p.provenance) ? ['', `  # ${singleLine(p.provenance)}`] : [];
+	const entry = [
+		`  - id: ${singleLine(p.id)}`,
+		`    moment_id: ${singleLine(p.moment_id)}`,
+		`    window_id: ${singleLine(p.window_id)}`,
+		`    start_minute: ${p.start_minute}`,
+		`    duration_minutes: ${p.duration_minutes}`,
+		`    dramaturgical_role: ${p.dramaturgical_role}`,
+		`    mode: ${p.mode}`,
+		`    note: ${singleLine(p.note) || ''}`,
+		'    status: proposed',
+	];
+	return yamlListAppend(content, 'placements', comment, entry);
+}
+
+/**
+ * Shared YAML list append: `key: []` is expanded, an existing
+ * two-space-indented list extending to the end of the file receives new
+ * entries; anything else is rejected rather than guessed at.
+ */
+function yamlListAppend(content, key, commentLines, entryLines) {
+	const emptyPattern = new RegExp(`^${key}:\\s*\\[\\]\\s*$`, 'm');
+	if (emptyPattern.test(content)) {
+		const replaced = content.replace(emptyPattern, [key, ...commentLines, ...entryLines].join('\n'));
+		return { ok: true, content: replaced.endsWith('\n') ? replaced : `${replaced}\n` };
+	}
+	const lines = toLines(content);
+	const headingPattern = new RegExp(`^${key}:\\s*$`);
+	let last = -1;
+	for (let i = 0; i < lines.length; i += 1) if (headingPattern.test(lines[i])) last = i;
+	if (last !== -1) {
+		const rest = lines.slice(last + 1);
+		const extendsToEndOfFile = rest.every((l) => l.trim() === '' || l.startsWith('  '));
+		if (extendsToEndOfFile) {
+			while (lines.length > 0 && lines[lines.length - 1].trim() === '') lines.pop();
+			return { ok: true, content: joinLines([...lines, ...commentLines, ...entryLines, '']) };
+		}
+	}
+	return { ok: false, reason: 'unsupported-yaml-layout' };
+}
+
+/**
  * Apply a validated operation batch against the current canonical contents.
  * @param {Map<string, string|null>} baseFiles - file name → current content (null = absent)
  * @param {Array<object>} ops - normalized, policy-checked operations
@@ -324,10 +426,6 @@ export function applyOperations(baseFiles, ops, ctx) {
 			const name = op.target;
 			if (!CANONICAL_FILES.includes(name)) {
 				rejected.push({ op, reason: 'non-canonical-target' });
-				continue;
-			}
-			if (name === 'temporal-plan.yml') {
-				rejected.push({ op, reason: 'temporal-plan-is-not-a-steward-target' });
 				continue;
 			}
 			const content = current(name);
@@ -384,6 +482,37 @@ export function applyOperations(baseFiles, ops, ctx) {
 						rationale: op.value,
 						turn_ref: ctx.turnRef,
 					});
+					if (!r.ok) { rejected.push({ op, reason: r.reason }); break; }
+					stage(name, r.content, { target: name, kind: op.kind, id });
+					break;
+				}
+				case 'temporal-plan.yml:propose-window': {
+					const id = ctx.makeId('tw-steward');
+					const r = temporalPlanAppendWindow(content, {
+						id,
+						title: op.title,
+						kind: op.window_kind,
+						duration_minutes: op.duration_minutes,
+						note: op.value,
+						provenance: `Hintergrund-Steward-Vorschlag (${ctx.turnRef}), Beleg: ${op.evidence}`,
+					});
+					if (!r.ok) { rejected.push({ op, reason: r.reason }); break; }
+					stage(name, r.content, { target: name, kind: op.kind, id });
+					break;
+				}
+				case 'temporal-plan.yml:propose-placement': {
+					const id = ctx.makeId('tp-steward');
+					const r = temporalPlanAppendPlacement(content, {
+						id,
+						moment_id: op.moment_id,
+						window_id: op.window_id,
+						start_minute: op.start_minute,
+						duration_minutes: op.duration_minutes,
+						dramaturgical_role: op.dramaturgical_role,
+						mode: op.mode,
+						note: op.value,
+						provenance: `Hintergrund-Steward-Vorschlag (${ctx.turnRef}), Beleg: ${op.evidence}`,
+					}, { landscapeContent: current('learning-landscape.md') });
 					if (!r.ok) { rejected.push({ op, reason: r.reason }); break; }
 					stage(name, r.content, { target: name, kind: op.kind, id });
 					break;

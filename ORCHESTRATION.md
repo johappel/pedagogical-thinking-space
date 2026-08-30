@@ -15,9 +15,10 @@ audience and expected result are clear enough.
 - Returned result needs checking -> `pts_review`
 - Approved content needs another representation -> `pts_renderer`
 
-The Companion may frame the task in a small domain envelope as described in
-`specs/SERVICE_REQUEST_SCHEMA.md`. It passes that envelope directly in the DSH
-subagent prompt. PTS does not persist or route it through a queue.
+The Companion may frame the task in a small domain envelope (intention,
+expected output, constraints) as described in `specs/PLANNING_BOARD_SCHEMA.md`.
+It passes that envelope directly in the DSH subagent prompt. PTS does not
+persist or route it through a queue.
 
 ## Authorization
 

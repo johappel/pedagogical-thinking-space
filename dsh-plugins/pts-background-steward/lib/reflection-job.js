@@ -34,7 +34,7 @@ export function buildStewardPersona() {
 		'- Du triffst KEINE pädagogischen Entscheidungen und formulierst keine Empfehlungen über die pädagogische Richtung.',
 		'- decisions.yml wird nur verändert, wenn die Lehrkraft eine Entscheidung eindeutig und erkennbar getroffen hat; sonst unterbleibt der Eintrag.',
 		'- Lernmomente werden ausschließlich als vollständige Entwürfe mit Status draft erfasst; stable vergibst du nie.',
-		'- temporal-plan.yml ist für dich tabu; bindende zeitliche Platzierungen brauchen die Lehrkraft.',
+		'- temporal-plan.yml darfst du nur als VORSCHLAG beschreiben (propose-window / propose-placement); Fenster und Platzierungen werden mit Status "proposed" angelegt und binden nichts. Bindende Terminierung bleibt Lehrkraft-Sache.',
 		'- Du produzierst keine Unterrichtsmaterialien, startest keine Recherchen oder Worker und schreibst nichts in Memory oder kuratiertes Wissen.',
 		'- Du schreibst NICHT selbst Dateien; du lieferst ausschließlich dein strukturiertes Ergebnis zurück. Die Anwendung prüft es und wendet es an.',
 		'- Halte Beobachtung, wiedergegebene Aussage, Deutung, Hypothese und offene Frage begrifflich auseinander.',
@@ -92,7 +92,7 @@ ${dialogueText}
    - learning-landscape.md: nur \`add-draft-moment\`, und nur wenn ALLE Pflichtfelder eines vollständigen Entwurfs belastbar aus dem Gespräch belegbar sind (Titel, Typ, Funktion, Lernaktivität, Erwartete Lernerfahrung). Sonst unterlassen.
    - decisions.yml: nur \`add-decision\`, wenn die Lehrkraft sich eindeutig entschieden hat UND du das Feld \`teacher_decisions\` mit \`explicit: true\` und passender Evidence füllst. Im Zweifel: unterlassen.
    - planning-board.yml: höchstens ein \`propose-board-item\` pro Lauf; der Eintrag wird mit Status "proposed" und Spalte "clarify" angelegt. Nur wenn echte Klärungsarbeit sichtbar wurde.
-   - temporal-plan.yml: niemals als Ziel.
+   - temporal-plan.yml: höchstens ein Fenster-Vorschlag (propose-window) und ein Platzierungs-Vorschlag (propose-placement) pro Lauf — nur wenn die Lehrkraft im Gespräch konkrete Stunden/Fenster oder Verortungen genannt hat. Der Status wird zwangsläufig "proposed"; Platzierungen brauchen ein vorhandenes Fenster und einen vorhandenen Lernmoment. Im Zweifel: unterlassen.
 5. Leere \`operations\` sind ausdrücklich erlaubt und oft richtig (z. B. nach reinen Begrüßungen).
 6. \`next_turn_hint\`: höchstens eine offene Frage, die sich aus dem Gespräch ergibt — oder null. Die Frage ist ein Angebot an den Begleiter, keine Vorgabe.
 7. \`forbidden_effects\`: liste hier auf, was du bewusst NICHT getan hast (z. B. "keine Entscheidung erkannt").

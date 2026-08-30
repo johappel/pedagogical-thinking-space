@@ -16,8 +16,7 @@
 // DSH_NATIVE_WORKSPACE.md and workspace/dsh-native-smoke):
 //
 //   learning-design.md / learning-landscape.md / temporal-plan.yml /
-//   planning-board.yml / decisions.yml + materials/ + drafts/ +
-//   service-requests/
+//   planning-board.yml / decisions.yml + materials/ + drafts/
 //
 // Deletion NEVER hard-deletes teacher content: the endpoint only MOVES a
 // direct child of <PTS>/workspace/ into <PTS>/workspace/.trash/<slug>--<stamp>
@@ -309,7 +308,6 @@ export function apply(ctx) {
 		await fsp.writeFile(path.join(target, 'decisions.yml'), DECISIONS_TEMPLATE, 'utf8');
 		await fsp.mkdir(path.join(target, 'materials'), { recursive: true });
 		await fsp.mkdir(path.join(target, 'drafts'), { recursive: true });
-		await fsp.mkdir(path.join(target, 'service-requests'), { recursive: true });
 
 		// Canonical identity for the client's workspace adoption call.
 		const real = await fsp.realpath(target);

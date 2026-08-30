@@ -17,7 +17,6 @@ REQUIRED_FILES = [
     "services/RENDERER.md",
     "services/STEWARDSHIP.md",
     "specs/LEARNING_DESIGN_SCHEMA.md",
-    "specs/SERVICE_REQUEST_SCHEMA.md",
     "dsh-presets/pts-companion/agent.cordis.yml",
     "dsh-presets/pts-companion/preset.yml",
     "dsh-presets/pts-companion/companion-tool-boundary.mjs",
@@ -27,7 +26,6 @@ REQUIRED_FILES = [
 FORBIDDEN_PATHS = [
     "AGENTS_MINIMAL.md",
     ".hermes.md",
-    ".opencode",
     "harness",
     "hermes-profiles",
     "capabilities/registry.yml",
@@ -42,7 +40,6 @@ FORBIDDEN_PATHS = [
 MUST_CONTAIN = {
     "AGENTS.md": ["Native DSH delegation", "pts_research", "pts_material", "Architecture guard"],
     "ARCHITECTURE.md": ["PTS is a pedagogical metaharness", "DSH owns", "Deliberately absent"],
-    "specs/SERVICE_REQUEST_SCHEMA.md": ["not a queue, registry or runtime protocol"],
     "dsh-presets/pts-companion/agent.cordis.yml": [
         "toolName: pts_research",
         "toolName: pts_material",

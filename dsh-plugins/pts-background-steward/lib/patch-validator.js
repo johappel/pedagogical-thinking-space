@@ -12,7 +12,7 @@
 //    ids) and against the stewardship policy from services/STEWARDSHIP.md —
 //    independent of whatever the provider enforced.
 
-import { CANONICAL_FILES, WRITABLE_FILES, MOMENT_TYPES, BOARD_KINDS } from './workspace-state.js';
+import { CANONICAL_FILES, WRITABLE_FILES, MOMENT_TYPES, BOARD_KINDS, WINDOW_KINDS, DRAMATURGICAL_ROLES, PLACEMENT_MODES } from './workspace-state.js';
 
 export const STEWARDSHIP_SCHEMA_VERSION = 'ptspace.stewardship-result/v1';
 
@@ -32,6 +32,8 @@ export const OPERATION_KINDS = Object.freeze([
 	'add-draft-moment',
 	'add-decision',
 	'propose-board-item',
+	'propose-window',
+	'propose-placement',
 ]);
 
 const VALUE_MAX_CHARS = 4000;
@@ -83,7 +85,14 @@ export const STEWARDSHIP_RESULT_SCHEMA = Object.freeze({
 					open_questions: { type: 'string' },
 					material_needs: { type: 'string' },
 					board_kind: { type: 'string', enum: [...BOARD_KINDS] },
-					evidence: { type: 'string', description: 'Pflicht bei add-decision: Beleg-Nachrichten-ID der expliziten Lehrkraftentscheidung.' },
+					window_kind: { type: 'string', enum: [...WINDOW_KINDS] },
+					duration_minutes: { type: 'integer', description: 'Fenster-/Platzierungsdauer in Minuten (propose-window / propose-placement).' },
+					moment_id: { type: 'string', description: 'Lernmoment-ID für propose-placement.' },
+					window_id: { type: 'string', description: 'Fenster-ID für propose-placement.' },
+					start_minute: { type: 'integer', description: 'Startminute innerhalb des Fensters (propose-placement).' },
+					dramaturgical_role: { type: 'string', enum: [...DRAMATURGICAL_ROLES] },
+					mode: { type: 'string', enum: [...PLACEMENT_MODES] },
+					evidence: { type: 'string', description: 'Pflicht bei add-decision: Beleg-Nachrichten-ID der expliziten Lehrkraftentscheidung; bei propose-window/propose-placement: Beleg aus dem Gesprächsfenster.' },
 				},
 			},
 		},
@@ -194,13 +203,14 @@ export function validateResult(structured, expectation) {
 		.filter((d) => isPlainObject(d) && d.explicit === true && typeof d.evidence === 'string')
 		.map((d) => d.evidence.trim()));
 	let boardItems = 0;
+	let windowProposals = 0;
+	let placementProposals = 0;
 	let opIdx = 0;
 	for (const op of r.operations ?? []) {
 		opIdx += 1;
 		const label = `operations[${opIdx}]`;
 		if (!isPlainObject(op)) { errors.push(`${label} ist kein Objekt`); continue; }
 		if (!CANONICAL_FILES.includes(op.target)) { errors.push(`${label}.target ist keine kanonische Datei`); continue; }
-		if (op.target === 'temporal-plan.yml') { errors.push(`${label}: temporal-plan.yml ist kein Steward-Ziel (bindende Terminierung braucht Lehrkraft-Freigabe)`); continue; }
 		if (!WRITABLE_FILES.includes(op.target)) { errors.push(`${label}.target ist schreibgeschützt für den Steward`); continue; }
 		if (typeof op.value !== 'string' || op.value.trim() === '') { errors.push(`${label}.value fehlt`); continue; }
 		if (op.value.length > VALUE_MAX_CHARS) { errors.push(`${label}.value überschreitet ${VALUE_MAX_CHARS} Zeichen`); }
@@ -237,6 +247,31 @@ export function validateResult(structured, expectation) {
 				if (typeof op.title !== 'string' || op.title.trim() === '') errors.push(`${label}.title fehlt`);
 				else if (op.title.length > TITLE_MAX_CHARS) errors.push(`${label}.title ist zu lang`);
 				if (op.board_kind !== undefined && !BOARD_KINDS.includes(op.board_kind)) errors.push(`${label}.board_kind ist unzulässig`);
+				break;
+			}
+			case 'propose-window': {
+				if (op.target !== 'temporal-plan.yml') { errors.push(`${label}: propose-window ist nur an temporal-plan.yml erlaubt`); break; }
+				windowProposals += 1;
+				if (windowProposals > 1) errors.push(`${label}: höchstens ein Fenster-Vorschlag pro Lauf`);
+				if (typeof op.title !== 'string' || op.title.trim() === '') errors.push(`${label}.title fehlt`);
+				else if (op.title.length > TITLE_MAX_CHARS) errors.push(`${label}.title ist zu lang`);
+				if (!WINDOW_KINDS.includes(op.window_kind)) errors.push(`${label}.window_kind ist unzulässig`);
+				if (!Number.isInteger(op.duration_minutes) || op.duration_minutes <= 0) errors.push(`${label}.duration_minutes fehlt oder ist ungültig`);
+				if (!evidenceOk(op.evidence)) errors.push(`${label}.evidence verweist nicht auf das angebotene Gesprächsfenster`);
+				break;
+			}
+			case 'propose-placement': {
+				if (op.target !== 'temporal-plan.yml') { errors.push(`${label}: propose-placement ist nur an temporal-plan.yml erlaubt`); break; }
+				placementProposals += 1;
+				if (placementProposals > 1) errors.push(`${label}: höchstens ein Platzierungs-Vorschlag pro Lauf`);
+				for (const field of ['moment_id', 'window_id']) {
+					if (typeof op[field] !== 'string' || op[field].trim() === '') errors.push(`${label}.${field} fehlt`);
+				}
+				if (!Number.isInteger(op.start_minute) || op.start_minute < 0) errors.push(`${label}.start_minute ist ungültig`);
+				if (!Number.isInteger(op.duration_minutes) || op.duration_minutes <= 0) errors.push(`${label}.duration_minutes ist ungültig`);
+				if (!DRAMATURGICAL_ROLES.includes(op.dramaturgical_role)) errors.push(`${label}.dramaturgical_role ist unzulässig`);
+				if (!PLACEMENT_MODES.includes(op.mode)) errors.push(`${label}.mode ist unzulässig`);
+				if (!evidenceOk(op.evidence)) errors.push(`${label}.evidence verweist nicht auf das angebotene Gesprächsfenster`);
 				break;
 			}
 			default:

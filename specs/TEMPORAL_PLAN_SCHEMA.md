@@ -44,6 +44,16 @@ Allowed modes: `common`, `choice`, `parallel`, `individual`, `group`, `open`.
 `choice` represents alternatives, and `parallel` represents simultaneous
 paths; neither may be displayed as one compulsory sequence.
 
+## Proposal status
+
+Both windows and placements may carry an optional `status` field:
+
+- `proposed` — AI/Steward suggestion, not yet teacher-approved;
+- `binding` — default when absent, teacher-approved timing.
+
+The Steward writes only `proposed` entries; converting them to `binding`
+requires a recognizable teacher decision.
+
 ## Validation
 
 IDs are unique. Every placement references an existing learning moment and an

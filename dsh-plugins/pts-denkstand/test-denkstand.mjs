@@ -24,10 +24,10 @@ check('clarify items carry title', clarify.length >= 1 && typeof clarify[0].titl
 check('clarify items carry kind label', clarify.every((x) => x.kind_label === 'Klärung'));
 check('clarify items carry status', clarify.every((x) => x.status_label === 'Vorschlag'));
 
-// 3. Temporal plan parser (currently empty file)
+// 3. Temporal plan parser (backfilled timeline from the workspace)
 const traw = await fs.readFile('F:/code/pedagogical-thinking-space/workspace/hoffnung/temporal-plan.yml', 'utf8');
 const t = denk._parseTemporal(traw);
-check('temporal reports empty', t.empty === true);
+check('temporal parses backfilled timeline', t.empty === false && t.windows.length >= 1);
 
 // 4. Synthetic temporal sample with a window + placement
 const sampleTp = `schema: ptspace.temporal-plan/v1

@@ -33,10 +33,9 @@ test('steward is post-turn state maintenance only', async () => {
   assert.match(steward, /without affecting the conversation or any Worker job/);
 });
 
-test('task envelope contains no runtime lifecycle', async () => {
-  const schema = await read('specs/SERVICE_REQUEST_SCHEMA.md');
-  assert.match(schema, /not a queue, registry or runtime protocol/);
-  assert.match(schema, /no model id, tool list, retry state, job state or output/);
+test('planning board carries no competing runtime lifecycle', async () => {
+  const schema = await read('specs/PLANNING_BOARD_SCHEMA.md');
+  assert.match(schema, /must not invent a competing task list/);
   assert.doesNotMatch(schema, /proposed -> authorized -> running/);
 });
 

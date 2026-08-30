@@ -23,8 +23,8 @@ A planned lesson or learning node is not automatically a Planning Board item.
 
 - The sidebar shows at most one recommended, actionable Board item and optionally a count of further items.
 - Selecting it opens the Planning Board focused on that card.
-- A Board item may represent an approved Service Request, but the request remains an internal implementation detail.
-- Legacy `service-requests/` are rendered as transitional Board items; the app must not invent a competing task list.
+- A Board item may represent an approved request, but the request remains an internal implementation detail.
+- The app must not invent a competing task list.
 - The recommended item should respect the current support mode: stabilise, orient, explore, implement or review.
 
 ## Canonical file
@@ -137,7 +137,6 @@ A Board item may reference:
 - `related_decisions`
 - `related_materials`
 - `related_items`
-- `related_service_requests`
 
 For work arising from a learning moment, it may record `material_need`. This is an identified need, not a material and not an implicit Worker command.
 

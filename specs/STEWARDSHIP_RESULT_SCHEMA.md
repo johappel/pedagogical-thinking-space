@@ -109,12 +109,19 @@ forbidden_effects:
 | `learning-landscape.md` + `add-draft-moment` | `title`, `moment_type`, `moment_function`, `learning_activity`, `expected_experience`, `value` | Vollständiger Entwurf; Status wird zwangsläufig `draft`; ID und Herkunft generiert die Anwendung. |
 | `decisions.yml` + `add-decision` | `value`, `evidence` | Nur mit passendem `teacher_decisions`-Eintrag `explicit: true`; sonst abgelehnt. |
 | `planning-board.yml` + `propose-board-item` | `title`, `board_kind`, `value` | Höchstens einer pro Lauf; wird mit `status: proposed`, `column: clarify`, `requires_teacher_approval: true` angelegt. |
+| `temporal-plan.yml` + `propose-window` | `title`, `window_kind`, `duration_minutes`, `evidence`, `value` | Höchstens einer pro Lauf; Fenster wird mit `status: proposed` angelegt; `evidence` muss aus dem Gesprächsfenster stammen. |
+| `temporal-plan.yml` + `propose-placement` | `moment_id`, `window_id`, `start_minute`, `duration_minutes`, `dramaturgical_role`, `mode`, `evidence`, `value` | Höchstens einer pro Lauf; Platzierung nur auf vorhandenes Fenster und vorhandenen Lernmoment, `status: proposed`. |
 
 Unabhängig davon gilt:
 
-- `temporal-plan.yml` ist als Ziel immer unzulässig;
+- `temporal-plan.yml` wird nur als **Vorschlag** beschrieben (Fenster und
+  Platzierungen mit erzwungenem `status: proposed`); bindende Terminierung
+  bleibt Lehrkraft-Sache;
 - `moment_type` muss dem Lerntyp-Vokabular von `specs/LEARNING_LANDSCAPE_SCHEMA.md`
   folgen (`impulse` … `other`);
+- `window_kind` folgt `specs/TEMPORAL_PLAN_SCHEMA.md` (`lesson`,
+  `double_lesson`, `project_block`, `open_learning_time`), ebenso
+  `dramaturgical_role` und `mode`;
 - `board_kind` folgt `specs/PLANNING_BOARD_SCHEMA.md`;
 - `value` ist auf 4000 Zeichen begrenzt, Titel auf 200;
 - unbekannte Ziel-/Art-Kombinationen werden einzeln abgelehnt und protokolliert.

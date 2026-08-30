@@ -1,0 +1,112 @@
+# pts-landscape
+
+**Lernlandschaft-View + Artefakt-Editor + interaktive Stunden-Zuordnung** für
+das pts-web-Profil (Umsetzung Stufe 1–3 aus `docs/CONCEPT_WEB_WORKFLOW.md`).
+
+- **Tab „Lernlandschaft“** (`conversation.view`, order 30), zweispaltig:
+  - **links** eine vertikale Liste kompakter Moment-Karten (Titel + Typ-/
+    Status-Badges, aufklappbare Details mit Funktion, Lernaktivität,
+    Materialbedarfen, Offenen Fragen, Herkunft);
+  - **rechts** eine feste **Stunden-Zuordnung-Sidebar** (kein Scroll-
+    Zusammenspiel beim Ziehen).
+- **Interaktive Stunden-Zuordnung (Stufe 2):** Lernmomente per Drag&Drop auf
+  ein Stundenfenster in der Sidebar ziehen erzeugt eine Platzierung in
+  `temporal-plan.yml` (Start folgt dem letzten Platzierungsende, Rolle/Modus/
+  Dauer direkt editierbar). Mehrere Momente pro Stunde, ein Moment über
+  mehrere Stunden — genau das Platzierungs-Modell. Lehrkraft-Züge werden
+  `binding` geschrieben; Steward-/Backfill-Vorschläge bleiben `proposed` und
+  sind per „✓ Übernehmen“ adoptierbar. „+ Stundenfenster“ liegt direkt über
+  der Stunden-Zuordnung.
+- **Zeitbedarf + Vollständigkeits-Status:** Jeder Lernmoment kann eine
+  Zeitschätzung bekommen (`- Zeitbedarf: <min>`, Feld im aufklappbaren
+  Detail). Zugeordnete Momente bekommen einen farbigen Rand: **grün**, wenn
+  die zugeordnete Zeit den Zeitbedarf deckt (eine Stunde reicht oder die
+  Summe über mehrere Stunden genügt); **orange**, wenn noch etwas fehlt
+  (keine Schätzung oder Unterdeckung). Unzugeordnete Momente bleiben neutral.
+- **Stunden-Budget:** Jedes Fenster zeigt „Budget X / Y min“; wird das
+  Zeitbudget der Stunde überschritten, bekommt das Fenster eine **rote
+  Umrandung** mit Hinweis „⚠ Zeitbudget um N min überzogen“.
+- **„Stundenverlauf vorschlagen“ (Stufe 3):** Button je Stunde schreibt
+  einen konkreten Prompt (Fenster + Platzierungen + Momente) ins
+  Chat-Input (`inputActions.setDraft`); die Lehrkraft schickt ab, der
+  Companion beauftragt `pts_material`.
+- **Material↔Moment-Zuordnung (Stufe 2):** „Material wählen“ im Moment-Kärtchen
+  listet Dateien aus `materials/` und `rendered/` und schreibt die Auswahl in
+  `- Materialien: [...]`.
+- **Artefakt-Editor**: „✎ Bearbeiten“ öffnet einen Inline-Editor (md/yml)
+  für die fünf kanonischen Dateien. Speichern schreibt die Datei **atomar**
+  in den Denkraum zurück — eine Lehrkraft-Handlung, kein
+  Approval-Zwischenschritt, kein KI-Schreibpfad.
+
+## Host-Routen
+
+| Route | Zweck |
+| --- | --- |
+| `GET /api/pts-landscape?sessionId=` | Landscape (Momente, Übergänge, Layout), Temporal-Plan, Entscheidungen als JSON |
+| `POST /api/pts-landscape/temporal` | `{ sessionId, title, windows, placements }` — validiert + serialisiert die komplette Timeline |
+| `GET /api/pts-landscape/materials?sessionId=` | Dateiliste unter `materials/` + `rendered/` |
+| `POST /api/pts-landscape/materials` | `{ sessionId, momentId, materials }` — schreibt `- Materialien: [...]` |
+| `POST /api/pts-landscape/moment-estimate` | `{ sessionId, momentId, minutes }` — setzt/löscht `- Zeitbedarf: <min>` |
+| `POST /api/pts-landscape/layout` | `{ sessionId, layout }` — nur Positionen in `learning-landscape.layout.json` |
+| `GET /api/pts-artifact/raw?sessionId=&file=` | Rohtext einer Datei für den Editor |
+| `POST /api/pts-artifact/save` | `{ sessionId, file, content }` — atomarer Schreibzugriff mit harter Pfad-Grenze |
+
+Der Denkraum wird pro Anfrage aus der Session abgeleitet
+(`sessions.get(id).header.cwd`, Fallback `sandboxPolicy.workspaceRoot` bzw.
+`process.cwd()`), wie bei `pts-denkstand` und `pts-artifact-panel`. Die
+Save-/Raw-Routen prüfen realpath-basiert, dass die Zieldatei innerhalb des
+Denkraums liegt (`..`/absolute Pfade/fehlende Eltern → abgelehnt), erlauben
+nur `md/yml/yaml/json/txt` und begrenzen die Größe (512 KB). Die
+Temporal-Route validiert Schemas (Fensterarten, Rollen, Modi, IDs, Minuten)
+und schreibt atomar im kanonischen Format — Kommentare aus
+Steward-/Backfill-Schrieben gehen bei einer Lehrkraft-Speicherung verloren
+(Status `proposed` bleibt erhalten).
+
+## Installation (einmalig pro Rechner)
+
+1. **Junction** ins pts-web-Profil (Muster der bestehenden PTS-Plugins):
+
+   ```powershell
+   New-Item -ItemType Junction `
+     -Path "$env:USERPROFILE\.dsh\profiles\pts-web\node_modules\pts-landscape" `
+     -Target "F:\code\pedagogical-thinking-space\dsh-plugins\pts-landscape"
+   ```
+
+2. **Patch-Row** in `$env:USERPROFILE\.dsh\profiles\pts-web\cordis.patch.yml`
+   (in den bestehenden `- insert:`-Block):
+
+   ```yaml
+   # PTS Lernlandschaft: Moment-Karten + Artefakt-Editor
+   # (conversation.view-Tab "Lernlandschaft", order 30; Host-Routen
+   # /api/pts-landscape, /api/pts-artifact/raw|save, /api/pts-landscape/layout).
+   - id: pts-landscape
+     name: pts-landscape
+     inject: [webServer]
+   ```
+
+3. **DSH neu starten.** Kein HMR im Web-Profil; nach dem Neustart ggf.
+   hart aktualisieren (Strg+Umschalt+R).
+
+## Tests
+
+```bash
+node dsh-plugins/pts-landscape/test-landscape.mjs
+```
+
+Abgedeckt: Host-Modulform, Landscape-Parser (reale Datei + synthetische
+Vorlage mit Flow-Listen, Übergängen und `Zeitbedarf`), Layout-Parsing,
+Pfad-Grenze der Save-Route (Traversal, absolute Pfade, Dateityp, fehlender
+Elternordner), atomarer Schreibzugriff, Temporal-/Decisions-Parser inkl.
+`proposed`, Timeline-Serializer-Roundtrip, Timeline-Validierung,
+Material-Zuordnung (`setMomentMaterials`) und Zeitbedarf
+(`setMomentEstimate`).
+
+## Grenzen (bewusst)
+
+- Der Editor und die Drag&Drop-Zuordnung ersetzen keine Delegation: Der
+  Companion selbst schreibt weiterhin nur über `pts_edit` nach erkennbarer
+  Entscheidung; die UI ist das Werkzeug der Lehrkraft.
+- Die Temporal-Route schreibt die komplette Timeline deterministisch neu
+  (Kommentare gehen verloren, `status` bleibt erhalten).
+- Offene-Fragen-Panel, „Nächster Schritt“-Karte und Dokument-Buttons sind
+  Stufe 4 (`docs/CONCEPT_WEB_WORKFLOW.md`).

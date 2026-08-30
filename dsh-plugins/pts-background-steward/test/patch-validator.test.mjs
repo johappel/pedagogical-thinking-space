@@ -156,13 +156,83 @@ test('decisions.yml ohne explizite belegte Lehrkraftentscheidung wird abgelehnt'
 	assert.equal(r.ok, true);
 });
 
-test('temporal-plan.yml ist als Ziel tabu', () => {
-	const result = validResult({
+test('temporal-plan.yml wird nur als Vorschlag beschrieben', () => {
+	// Freie Section-Operation auf temporal-plan bleibt abgelehnt.
+	const free = validResult({
 		operations: [{ target: 'temporal-plan.yml', kind: 'set-section', section: 'Windows', value: 'x' }],
 	});
-	const r = validateResult(result, expectation());
+	let r = validateResult(free, expectation());
 	assert.equal(r.ok, false);
-	assert.ok(r.errors.some((e) => e.includes('temporal-plan')));
+
+	// Gültiger Fenster-Vorschlag mit Beleg besteht.
+	const window = validResult({
+		operations: [{
+			target: 'temporal-plan.yml', kind: 'propose-window',
+			title: 'Stunde 1 – Irritation', window_kind: 'lesson',
+			duration_minutes: 45, evidence: 'm3', value: 'Fenster aus dem Gespräch.',
+		}],
+	});
+	r = validateResult(window, expectation());
+	assert.equal(r.ok, true);
+});
+
+test('propose-window: ungültige Art, fehlender Beleg oder Dopplung wird abgelehnt', () => {
+	const badKind = validResult({
+		operations: [{
+			target: 'temporal-plan.yml', kind: 'propose-window',
+			title: 'X', window_kind: 'block', duration_minutes: 45, evidence: 'm3', value: 'Begründung.',
+		}],
+	});
+	let r = validateResult(badKind, expectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('window_kind')));
+
+	const noEvidence = validResult({
+		operations: [{
+			target: 'temporal-plan.yml', kind: 'propose-window',
+			title: 'X', window_kind: 'lesson', duration_minutes: 45, value: 'Begründung.',
+		}],
+	});
+	r = validateResult(noEvidence, expectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('evidence')));
+
+	const two = validResult({
+		operations: [
+			{ target: 'temporal-plan.yml', kind: 'propose-window', title: 'A', window_kind: 'lesson', duration_minutes: 45, evidence: 'm3', value: 'x' },
+			{ target: 'temporal-plan.yml', kind: 'propose-window', title: 'B', window_kind: 'lesson', duration_minutes: 45, evidence: 'm3', value: 'x' },
+		],
+	});
+	r = validateResult(two, expectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('höchstens ein Fenster-Vorschlag')));
+});
+
+test('propose-placement: gültig mit Beleg; fehlende Pflichtfelder abgelehnt', () => {
+	const placement = validResult({
+		operations: [{
+			target: 'temporal-plan.yml', kind: 'propose-placement',
+			moment_id: 'lm-impuls', window_id: 'tw-01',
+			start_minute: 0, duration_minutes: 8,
+			dramaturgical_role: 'opening', mode: 'common',
+			evidence: 'm3', value: 'Platzierung aus dem Gespräch.',
+		}],
+	});
+	let r = validateResult(placement, expectation());
+	assert.equal(r.ok, true);
+
+	const missing = validResult({
+		operations: [{
+			target: 'temporal-plan.yml', kind: 'propose-placement',
+			moment_id: 'lm-impuls', window_id: 'tw-01',
+			start_minute: 0, duration_minutes: 8,
+			dramaturgical_role: 'opening',
+			evidence: 'm3', value: 'Platzierung.',
+		}],
+	});
+	r = validateResult(missing, expectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('mode')));
 });
 
 test('set-section gilt nur für learning-design.md', () => {

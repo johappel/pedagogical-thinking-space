@@ -19,6 +19,8 @@ import {
 	landscapeAppendMoment,
 	decisionsAppendEntry,
 	boardAppendItem,
+	temporalPlanAppendWindow,
+	temporalPlanAppendPlacement,
 	applyOperations,
 	makeIdFactory,
 } from '../lib/workspace-state.js';
@@ -204,7 +206,50 @@ test('readCanonicalFiles kappt lange Inhalte ehrlich', async () => {
 	}
 });
 
-test('applyOperations: Batch mit Ablehnungen (temporal-plan, fehlende Datei, falsches Ziel)', () => {
+test('temporalPlanAppendWindow/Placement: Vorschläge mit Status proposed, Referenzprüfung', () => {
+	const empty = 'schema: ptspace.temporal-plan/v1\nwindows: []\nplacements: []\n';
+	const w = temporalPlanAppendWindow(empty, {
+		id: 'tw-01', title: 'Stunde 1 – Irritation', kind: 'lesson',
+		duration_minutes: 45, note: 'Erste Begegnung.', provenance: 'Hintergrund-Steward-Vorschlag (Turn 7)',
+	});
+	assert.ok(w.ok);
+	assert.ok(w.content.includes('- id: tw-01'));
+	assert.ok(w.content.includes('status: proposed'));
+	assert.ok(w.content.includes('Hintergrund-Steward-Vorschlag'));
+
+	const landscape = '## Lernmomente\n\n### lm-impuls\n\n- Titel: Impuls\n';
+	const p = temporalPlanAppendPlacement(w.content, {
+		id: 'tp-01', moment_id: 'lm-impuls', window_id: 'tw-01',
+		start_minute: 0, duration_minutes: 8,
+		dramaturgical_role: 'opening', mode: 'common', note: '',
+		provenance: 'Hintergrund-Steward-Vorschlag (Turn 7)',
+	}, { landscapeContent: landscape });
+	assert.ok(p.ok);
+	assert.ok(p.content.includes('- id: tp-01'));
+	assert.ok(p.content.includes('moment_id: lm-impuls'));
+	assert.ok(p.content.includes('status: proposed'));
+
+	// Unbekanntes Fenster oder Lernmoment wird abgelehnt statt geraten.
+	const badWindow = temporalPlanAppendPlacement(w.content, {
+		id: 'tp-02', moment_id: 'lm-impuls', window_id: 'tw-99',
+		start_minute: 0, duration_minutes: 8,
+		dramaturgical_role: 'opening', mode: 'common',
+	});
+	assert.equal(badWindow.ok, false);
+	assert.equal(badWindow.reason, 'unknown-window-id');
+	const badMoment = temporalPlanAppendPlacement(w.content, {
+		id: 'tp-03', moment_id: 'lm-fantasy', window_id: 'tw-01',
+		start_minute: 0, duration_minutes: 8,
+		dramaturgical_role: 'opening', mode: 'common',
+	}, { landscapeContent: landscape });
+	assert.equal(badMoment.ok, false);
+	assert.equal(badMoment.reason, 'unknown-moment-id');
+
+	// Ungültige Art ablehnen.
+	assert.equal(temporalPlanAppendWindow(empty, { id: 'tw-x', title: 't', kind: 'block', duration_minutes: 45 }).ok, false);
+});
+
+test('applyOperations: Batch mit Ablehnungen (temporal-plan-Section, leere Werte) und Vorschlags-Anwendung', () => {
 	const base = new Map([
 		['learning-design.md', LEARNING_DESIGN],
 		['learning-landscape.md', LANDSCAPE],
@@ -219,6 +264,7 @@ test('applyOperations: Batch mit Ablehnungen (temporal-plan, fehlende Datei, fal
 		{ target: 'learning-design.md', kind: 'set-section', section: 'Context', value: '' }, // leer → abgelehnt
 		{ target: 'learning-landscape.md', kind: 'add-draft-moment', title: 'Moment', moment_type: 'reflection', moment_function: 'f', learning_activity: 'a', expected_experience: 'e' },
 		{ target: 'decisions.yml', kind: 'add-decision', value: 'Fall auf 14 Jahre festgelegt.', evidence: 'm3' },
+		{ target: 'temporal-plan.yml', kind: 'propose-window', title: 'Stunde 1 – Irritation', window_kind: 'lesson', duration_minutes: 45, value: 'Erste Begegnung.' },
 	];
 	const { updates, applied, rejected } = applyOperations(base, ops, {
 		dateIso: '2026-09-08',
@@ -226,18 +272,20 @@ test('applyOperations: Batch mit Ablehnungen (temporal-plan, fehlende Datei, fal
 		turnRef: 'Turn 42',
 	});
 
-	assert.deepEqual([...updates.keys()].sort(), ['decisions.yml', 'learning-design.md', 'learning-landscape.md']);
-	assert.equal(applied.length, 3);
+	assert.deepEqual([...updates.keys()].sort(), ['decisions.yml', 'learning-design.md', 'learning-landscape.md', 'temporal-plan.yml']);
+	assert.equal(applied.length, 4);
 	assert.equal(rejected.length, 2);
-	assert.equal(rejected[0].reason, 'temporal-plan-is-not-a-steward-target');
+	assert.ok(rejected[0].reason.includes('kind-not-allowed-for-target'));
 
 	assert.ok(updates.get('learning-design.md').includes('Neuer Kontext'));
 	const decisionBlock = updates.get('decisions.yml');
 	assert.ok(decisionBlock.includes('- id: dec-steward-20260908-1'));
 	assert.ok(decisionBlock.includes('evidence: m3'));
 	assert.ok(updates.get('learning-landscape.md').includes('Status: draft'));
+	assert.ok(updates.get('temporal-plan.yml').includes('status: proposed'));
+	assert.ok(updates.get('temporal-plan.yml').includes('kind: lesson'));
 
-	// WRITABLE_FILES darf temporal-plan nie enthalten.
-	assert.ok(!WRITABLE_FILES.includes('temporal-plan.yml'));
+	// temporal-plan ist jetzt als Vorschlag schreibbar.
+	assert.ok(WRITABLE_FILES.includes('temporal-plan.yml'));
 });
 
