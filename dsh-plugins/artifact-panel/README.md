@@ -2,10 +2,16 @@
 
 DSH-Plugin, das alle im Session-Workspace entstandenen Artefakte sichtbar macht:
 
-- **„Artefakte"-Tab** im Session-Header (neben Chat/Trajectory): Galerie aller
-  `.md`, `.pdf`, `.png/.jpg/.jpeg/.gif/.webp/.svg`, `.html/.htm`-Dateien mit
-  Auto-Aktualisierung (5 s) und Klick-Vorschau (PDF/HTML im gesandboxten iframe,
-  Bilder als `<img>`, Markdown gerendert als HTML).
+- **„Artefakte"-Tab** im Session-Header (neben Chat/Trajectory): **Ordner-Tree**
+  (links, gruppiert nach `materials/`, `drafts/`, `rendered/`, `knowledge-proposals/`
+  und Denkraum-Wurzel) + **Vorschau** (rechts, PDF/HTML im gesandboxten iframe,
+  Bilder als `<img>`, Markdown gerendert als HTML). Auto-Aktualisierung (5 s).
+- **„Neu erstellt“-Strip** (`shell.overlay`, oben zentriert): frisch entstandene
+  Dateien (aus der geteilten `/artifacts/v2/list`-Registry, die write/edit-Tool-
+  Ergebnisse sofort erfasst und per Scan auch Subagent-Ergebnisse nachzieht)
+  gleiten als Mini-Cards von links ein; Klick öffnet denselben Dokument-Viewer in
+  einem Modal. Cards blenden sich nach ~18 s aus. `prefers-reduced-motion` wird
+  respektiert.
 - **Rechte Panel-Vorschau (Details-Spalte)**: Die Spalte wird komplett übernommen
   (Slot-Priorität −1). Klick auf einen `write`/`edit`-Tool-Call zeigt den
   Dateiinhalt; alle anderen Tools behalten eine generische Eingabe-/Ergebnis-

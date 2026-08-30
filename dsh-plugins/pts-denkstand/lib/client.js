@@ -55,6 +55,62 @@ window.__ModuleLoader__.load({
 .dks-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .dks-btn { border:1px solid rgba(128,128,128,.4); background:transparent; color:inherit; border-radius:6px; padding:3px 10px; font-size:12px; cursor:pointer; }
 .dks-btn:hover { background:rgba(128,128,128,.15); }
+.dks-nextstep { border:1px solid rgba(126,198,153,.55); border-radius:8px; background:rgba(126,198,153,.07); padding:10px 12px; display:flex; flex-direction:column; gap:6px; }
+.dks-nextstep-label { font-size:10.5px; text-transform:uppercase; letter-spacing:.6px; color:#7ec699; opacity:.9; }
+.dks-nextstep-desc { font-size:12px; opacity:.85; line-height:1.5; }
+.dks-openq { border:1px solid rgba(128,128,128,.22); border-radius:7px; padding:8px 10px; display:flex; flex-direction:column; gap:4px; background:rgba(128,128,128,.03); }
+.dks-openq-source-row { display:flex; align-items:center; gap:6px; }
+.dks-openq-text { font-size:12px; opacity:.8; line-height:1.5; }
+.dks-nohint { font-size:12.5px; opacity:.7; line-height:1.6; }
+.dks-group-head { display:flex; align-items:center; gap:6px; padding:3px 2px; cursor:pointer; user-select:none; font-size:12px; }
+.dks-group-head:hover { opacity:.85; }
+.dks-subgroup { display:flex; flex-direction:column; gap:6px; margin-top:6px; }
+.dks-split { display:flex; gap:14px; align-items:flex-start; }
+.dks-thought { flex:0 0 300px; min-width:240px; display:flex; flex-direction:column; gap:8px; border-right:1px solid rgba(128,128,128,.18); padding-right:10px; }
+.dks-thought-focus { border:1px dashed rgba(126,198,153,.5); border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:4px; background:rgba(126,198,153,.05); }
+.dks-thought-focus-label { font-size:10px; text-transform:uppercase; letter-spacing:.6px; color:#7ec699; opacity:.9; }
+.dks-thought-focus-text { font-size:12px; opacity:.85; line-height:1.5; }
+.dks-thought-card { border:1px solid rgba(128,128,128,.25); border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:6px; background:rgba(128,128,128,.03); }
+.dks-thought-badge { align-self:flex-start; }
+.dks-thought-text { font-size:12px; opacity:.85; line-height:1.5; }
+.dks-thought-vote { display:flex; align-items:center; gap:6px; }
+.dks-vote-btn { border:1px solid rgba(128,128,128,.35); background:transparent; color:inherit; border-radius:5px; width:22px; height:22px; line-height:1; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; justify-content:center; }
+.dks-vote-btn:hover { background:rgba(128,128,128,.15); }
+.dks-vote-count { font-variant-numeric:tabular-nums; font-size:12px; opacity:.8; min-width:20px; text-align:center; }
+.dks-thought-link { font-size:12px; color:#7ec699; border:1px solid rgba(126,198,153,.4); border-radius:6px; padding:5px 8px; cursor:pointer; background:transparent; text-align:left; }
+.dks-thought-link:hover { background:rgba(126,198,153,.12); }
+.dks-board-col { flex:1; min-width:0; }
+.dks-threerow { display:flex; gap:14px; align-items:flex-start; }
+.dks-clarify { flex:0 0 280px; min-width:240px; display:flex; flex-direction:column; gap:8px; border-right:1px solid rgba(128,128,128,.18); padding-right:10px; }
+.dks-clarified-list { display:flex; flex-direction:column; gap:6px; }
+.dks-clarified { display:flex; align-items:baseline; gap:6px; border:1px solid rgba(126,198,153,.3); border-radius:7px; padding:6px 8px; background:rgba(126,198,153,.04); }
+.dks-openq-col { flex:1; min-width:0; display:flex; flex-direction:column; gap:8px; }
+.dks-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:2050; }
+.dks-dialog { width:min(92vw, 880px); max-height:88vh; display:flex; flex-direction:column; overflow:hidden; background:var(--editor-bg,#1e1e1e); border:1px solid rgba(128,128,128,.4); border-radius:10px; color:inherit; }
+.dks-dialog-head { display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid rgba(128,128,128,.25); }
+.dks-dialog-head .dks-title { flex:1; }
+.dks-dialog-body { flex:1; min-height:0; overflow:auto; padding:12px; }
+.dks-md { font-size:12.5px; line-height:1.6; overflow-wrap:break-word; }
+.dks-md h1,.dks-md h2,.dks-md h3,.dks-md h4,.dks-md h5,.dks-md h6 { margin:.9em 0 .4em; line-height:1.3; }
+.dks-md h1 { font-size:1.35em; border-bottom:1px solid rgba(128,128,128,.25); padding-bottom:.25em; }
+.dks-md h2 { font-size:1.22em; }
+.dks-md h3 { font-size:1.1em; }
+.dks-md h4,.dks-md h5,.dks-md h6 { font-size:1em; }
+.dks-md p { margin:.45em 0; }
+.dks-md ul,.dks-md ol { margin:.45em 0; padding-left:1.4em; }
+.dks-md li { margin:.15em 0; }
+.dks-md blockquote { margin:.5em 0; padding:.2em .8em; border-left:3px solid rgba(128,128,128,.4); opacity:.85; }
+.dks-md code { font-family:ui-monospace,Consolas,monospace; font-size:.92em; background:rgba(128,128,128,.18); border-radius:4px; padding:.08em .3em; }
+.dks-md pre { margin:.5em 0; background:rgba(128,128,128,.14); border:1px solid rgba(128,128,128,.22); border-radius:6px; padding:8px 10px; overflow:auto; }
+.dks-md pre code { background:none; padding:0; }
+.dks-md table { border-collapse:collapse; margin:.5em 0; font-size:.95em; width:100%; }
+.dks-md th,.dks-md td { border:1px solid rgba(128,128,128,.3); padding:3px 7px; text-align:left; }
+.dks-md th { background:rgba(128,128,128,.12); }
+.dks-md hr { border:none; border-top:1px solid rgba(128,128,128,.3); margin:.8em 0; }
+.dks-md a { color:inherit; }
+.dks-md img { max-width:100%; border-radius:4px; }
+.dks-md strong { font-weight:600; }
+.dks-md em { font-style:italic; }
 `;
 
 		const STYLE_TAG_ID = "pts-denkstand-css";
@@ -96,6 +152,203 @@ window.__ModuleLoader__.load({
 			}
 			onFail();
 			return false;
+		}
+
+		// Extract a markdown section's non-empty lines (paragraph or list text).
+		function extractMdSection(content, heading) {
+			const needle = String(heading).trim().toLowerCase();
+			const out = [];
+			let inSection = false;
+			for (const line of String(content).replace(/\r\n?/g, "\n").split("\n")) {
+				if (/^#{1,6}\s+/.test(line)) {
+					if (inSection) break;
+					if (line.replace(/^#{1,6}\s+/, "").trim().toLowerCase() === needle) { inSection = true; continue; }
+					continue;
+				}
+				if (inSection && line.trim() !== "") out.push(line.trim());
+			}
+			return out;
+		}
+
+		// Keep only `- ` list items, dropping the marker.
+		function mdListItems(lines) {
+			return (Array.isArray(lines) ? lines : []).filter(function(l) { return /^-\s+/.test(l); }).map(function(l) { return l.replace(/^-\s+/, "").trim(); });
+		}
+
+		// A design "Open Question" that already carries a resolved marker (✔/✅/✓)
+		// has been clarified by the planning -> it is a decision, not an open item.
+		function isResolvedQuestion(q) {
+			return /^[✅✔✓☑]\s*/.test(q) || /^\[x\]\s*/i.test(q);
+		}
+
+		function splitDesignQuestions(qs) {
+			const open = [];
+			const resolved = [];
+			for (const q of (Array.isArray(qs) ? qs : [])) {
+				if (isResolvedQuestion(q)) resolved.push(q);
+				else open.push(q);
+			}
+			return { open: open, resolved: resolved };
+		}
+
+		// Value of a "key: value" line (e.g. "Current focus: ...").
+		function valueLine(content, prefix) {
+			const needle = String(prefix).toLowerCase();
+			for (const line of String(content).replace(/\r\n?/g, "\n").split("\n")) {
+				const t = line.trim();
+				if (t.toLowerCase().startsWith(needle)) return t.slice(prefix.length).trim();
+			}
+			return "";
+		}
+
+		// First contiguous prose paragraph under a `## heading` (stops at blank
+		// line, list item or another heading). Used for the pinboard "tragende
+		// Aussagen".
+		function sectionFirstPara(content, heading) {
+			const needle = String(heading).trim().toLowerCase();
+			const lines = String(content).replace(/\r\n?/g, "\n").split("\n");
+			const out = [];
+			let inSection = false;
+			let started = false;
+			for (const line of lines) {
+				if (/^#{1,6}\s+/.test(line)) {
+					if (inSection) break;
+					if (line.replace(/^#{1,6}\s+/, "").trim().toLowerCase() === needle) { inSection = true; continue; }
+					continue;
+				}
+				if (!inSection) continue;
+				const t = line.trim();
+				if (t === "") { if (started) break; continue; }
+				if (/^[-*]\s+/.test(t) || /^\d+[.)]\s+/.test(t)) { if (started) break; continue; }
+				out.push(t);
+				started = true;
+				if (out.join(" ").length > 420) break;
+			}
+			return out.join(" ");
+		}
+
+		function isPlaceholder(text) {
+			const t = String(text || "").trim().toLowerCase();
+			return t === "" || t.startsWith("noch nicht") || t.startsWith("noch keine");
+		}
+
+		function shorten(s, n) {
+			const str = String(s == null ? "" : s);
+			if (str.length <= n) return str;
+			return str.slice(0, n - 1).replace(/\s+$/, "") + "…";
+		}
+
+		// Markdown -> HTML (robust viewer, same as pts-artifact-panel).
+		function mdEscapeHtml(s) {
+			return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+		}
+		function mdSafeUrl(u) {
+			const t = String(u).trim();
+			if (/^(https?:|mailto:|#|\/)/i.test(t)) return t;
+			if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(t)) return t; // scheme-less = relative
+			return "#";
+		}
+		function mdInline(s) {
+			let out = mdEscapeHtml(s);
+			const codes = [];
+			out = out.replace(/`([^`]+)`/g, function(_, c) { codes.push("<code>" + c + "</code>"); return "\u0000" + (codes.length - 1) + "\u0000"; });
+			out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, function(_, alt, src) { return '<img alt="' + alt + '" src="' + mdEscapeHtml(mdSafeUrl(src)) + '" class="dks-md-img">'; });
+			out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, function(_, txt, href) { return '<a href="' + mdEscapeHtml(mdSafeUrl(href)) + '" target="_blank" rel="noopener noreferrer">' + txt + "</a>"; });
+			out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+			out = out.replace(/(^|[\s(>])\*([^*\n]+)\*(?=[\s.,;:!?)<]|$)/g, "$1<em>$2</em>");
+			out = out.replace(/(^|[\s(>])_([^_\n]+)_(?=[\s.,;:!?)<]|$)/g, "$1<em>$2</em>");
+			out = out.replace(/~~([^~]+)~~/g, "<del>$1</del>");
+			out = out.replace(/(^|[\s(])((?:https?:\/\/)[^\s<]+)/g, function(_, pre, rawUrl) {
+				let url = rawUrl; let trail = ""; const tail = url.match(/[.,;:!?)\]]+$/);
+				if (tail !== null) { trail = tail[0]; url = url.slice(0, url.length - trail.length); }
+				return pre + '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + "</a>" + mdEscapeHtml(trail);
+			});
+			out = out.replace(/\u0000(\d+)\u0000/g, function(_, i) { return codes[Number(i)]; });
+			return out;
+		}
+		function mdToHtml(md) {
+			if (typeof md !== "string" || md === "") return "";
+			const src = md.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, ""); // strip YAML frontmatter
+			const lines = src.replace(/\r\n?/g, "\n").split("\n");
+			const html = [];
+			let para = [];
+			let codeFence = null;
+			const listStack = [];
+			function flushPara() { if (para.length > 0) { html.push("<p>" + para.map(mdInline).join("<br>") + "</p>"); para = []; } }
+			function closeListFrame() { const f = listStack.pop(); html.push(f.type === "ul" ? "</li></ul>" : "</li></ol>"); }
+			function closeAllLists() { while (listStack.length > 0) closeListFrame(); }
+			function pushListItem(indent, type, content) {
+				while (listStack.length > 0 && (listStack[listStack.length - 1].indent > indent ||
+					(listStack[listStack.length - 1].indent === indent && listStack[listStack.length - 1].type !== type))) { closeListFrame(); }
+				if (listStack.length === 0 || listStack[listStack.length - 1].indent < indent) { html.push(type === "ul" ? "<ul>" : "<ol>"); listStack.push({ type: type, indent: indent }); }
+				else { html.push("</li>"); }
+				html.push("<li>" + mdInline(content));
+			}
+			for (let i = 0; i < lines.length; i++) {
+				const line = lines[i];
+				if (codeFence !== null) {
+					if (/^```/.test(line)) { html.push("</code></pre>"); codeFence = null; }
+					else { html.push(mdEscapeHtml(line) + "\n"); }
+					continue;
+				}
+				const fence = line.match(/^```(\w*)/);
+				if (fence !== null) { flushPara(); closeAllLists(); codeFence = fence[1]; html.push("<pre><code" + (fence[1] !== "" ? ' data-lang="' + fence[1] + '"' : "") + ">"); continue; }
+				const heading = line.match(/^(#{1,6})\s+(.*)$/);
+				if (heading !== null) { flushPara(); closeAllLists(); const level = heading[1].length; html.push("<h" + level + ">" + mdInline(heading[2]) + "</h" + level + ">"); continue; }
+				if (/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { flushPara(); closeAllLists(); html.push("<hr>"); continue; }
+				const quote = line.match(/^\s*>\s?(.*)$/);
+				if (quote !== null) { flushPara(); closeAllLists(); html.push("<blockquote><p>" + mdInline(quote[1]) + "</p></blockquote>"); continue; }
+				if (line.indexOf("|") >= 0 && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1])) {
+					flushPara(); closeAllLists();
+					const splitRow = function(row) { return row.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map(function(c) { return c.trim(); }); };
+					const headCells = splitRow(line);
+					i += 1;
+					html.push("<table><thead><tr>");
+					for (const hc of headCells) html.push("<th>" + mdInline(hc) + "</th>");
+					html.push("</tr></thead><tbody>");
+					while (i + 1 < lines.length && lines[i + 1].indexOf("|") >= 0) {
+						i += 1;
+						const cells = splitRow(lines[i]);
+						html.push("<tr>");
+						for (const cc of cells) html.push("<td>" + mdInline(cc) + "</td>");
+						html.push("</tr>");
+					}
+					html.push("</tbody></table>");
+					continue;
+				}
+				const item = line.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/);
+				if (item !== null) { flushPara(); const indent = Math.floor(item[1].replace(/\t/g, "  ").length / 2) * 2; pushListItem(indent, /\d/.test(item[2]) ? "ol" : "ul", item[3]); continue; }
+				if (line.trim() === "") { flushPara(); continue; }
+				para.push(line);
+			}
+			flushPara();
+			if (codeFence !== null) html.push("</code></pre>");
+			closeAllLists();
+			return html.join("");
+		}
+
+		// Numbered list items of a section, e.g. Educational Intention:
+		//   1. **Leitidee** — Ausführende Aussage.
+		// Returns [{ label, text }] (label = the bolded "tragende Aussage").
+		function numberedAccents(content, heading) {
+			const needle = String(heading).trim().toLowerCase();
+			const lines = String(content).replace(/\r\n?/g, "\n").split("\n");
+			const out = [];
+			let inS = false;
+			for (const line of lines) {
+				if (/^#{1,6}\s+/.test(line)) {
+					if (inS) break;
+					if (line.replace(/^#{1,6}\s+/, "").trim().toLowerCase() === needle) { inS = true; continue; }
+					continue;
+				}
+				if (!inS) continue;
+				const t = line.trim();
+				const m = t.match(/^\d+[.)]\s+(\*\*[^*]+\*\*)?\s*(?:—|[-:])?\s*(.*)$/);
+				if (m !== null && (m[1] !== undefined || m[2] !== "")) {
+					out.push({ label: m[1] ? m[1].replace(/\*\*/g, "").trim() : "", text: m[2].trim() });
+				}
+			}
+			return out;
 		}
 
 		// Builds a teacher-ready chat prompt for a board action.
@@ -244,16 +497,349 @@ window.__ModuleLoader__.load({
 
 		function DecisionsView(props) {
 			const decisions = props.decisions;
-			if (!decisions || decisions.empty) {
-				return React.createElement("div", { className: "dks-empty" },
-					"Noch keine pädagogischen Entscheidungen festgehalten.");
+			const design = props.design;
+			const designDecisions = Array.isArray(design && design.decisions) ? design.decisions : [];
+			const hasYml = decisions !== null && decisions !== undefined && decisions.empty !== true;
+			const hasDesign = designDecisions.length > 0;
+			const children = [];
+			if (hasYml) {
+				children.push(React.createElement("div", { key: "yml", className: "dks-section" },
+					React.createElement("div", { className: "dks-section-title" }, "Entscheidungen (decisions.yml)"),
+					decisions.decisions.map(function(d, idx) {
+						const inner = [React.createElement("div", { key: "t", className: "dks-dec-title" }, d.title)];
+						if (d.detail) inner.push(React.createElement("div", { key: "d", className: "dks-dec-detail" }, d.detail));
+						return React.createElement("div", { key: d.id || idx, className: "dks-decision" }, inner);
+					})));
+			} else {
+				children.push(React.createElement("div", { key: "empty", className: "dks-empty" },
+					"Noch keine Entscheidung festgehalten (decisions.yml)."));
 			}
-			const els = decisions.decisions.map(function(d, idx) {
-				const children = [React.createElement("div", { key: "t", className: "dks-dec-title" }, d.title)];
-				if (d.detail) children.push(React.createElement("div", { key: "d", className: "dks-dec-detail" }, d.detail));
-				return React.createElement("div", { key: d.id || idx, className: "dks-decision" }, children);
+			// The design-doc "Design Decisions" summary is a mirror of decisions.yml;
+			// only show it as a fallback when decisions.yml is empty, to avoid
+			// showing the same decisions twice (the "two states" confusion).
+			if (hasDesign && !hasYml) {
+				children.push(React.createElement("div", { key: "design", className: "dks-decision" },
+					React.createElement("div", { className: "dks-dec-title" }, "Im Learning Design festgehalten"),
+					designDecisions.map(function(d, i) { return React.createElement("div", { key: i, className: "dks-dec-detail" }, "• " + d); })));
+			}
+			children.push(React.createElement("div", { key: "note", className: "dks-note" },
+				"Entscheidungen werden in decisions.yml festgehalten (kanonisch; kein paralleles decisions.md)." +
+				" Offene, noch nicht beantwortete Fragen stehen im Learning Design („Open Questions“) und werden dort beantwortet (Einverstanden/Verwerfen)."));
+			return React.createElement("div", { className: "dks-section" }, children);
+		}
+
+		function buildMomentQuestionPrompt(m, q) {
+			return "Lass uns die offene Frage zum Lernmoment " + (m.id || "") + " „" + (m.title || "unbenannt") + "“ klären:\n" +
+				q + "\nWas ist dein Vorschlag?";
+		}
+
+		function buildDesignQuestionPrompt(q) {
+			return "Lass uns die offene Frage aus dem Learning Design klären:\n" +
+				q + "\nWas ist dein Vorschlag?";
+		}
+
+		function isBoardItemSettled(it) {
+			return it.status === "approved" || it.status === "ready" || it.status === "discarded";
+		}
+
+		// The single most actionable board item: a Klärung (decide) beats an
+		// approval-required proposal (accept). Settled items are ignored.
+		function nextBoardStep(board) {
+			const cols = board !== null && board !== undefined && typeof board === "object" && board.columns ? board.columns : {};
+			const all = [];
+			for (let c = 0; c < COLUMN_ORDER.length; c++) {
+				const items = cols[COLUMN_ORDER[c]] || [];
+				for (let i = 0; i < items.length; i++) all.push(items[i]);
+			}
+			const actionable = all.filter(function(it) { return !isBoardItemSettled(it); });
+			const clarify = actionable.find(function(it) { return it.kind === "clarify"; });
+			if (clarify !== undefined) {
+				return { kind: "clarify", action: "💬 Entscheiden", title: clarify.title, desc: (typeof clarify.description === "string" && clarify.description.trim() !== "" ? clarify.description.trim() : ""), prompt: buildPrompt("clarify", clarify) };
+			}
+			const approval = actionable.find(function(it) { return it.requires_teacher_approval === true; });
+			if (approval !== undefined) {
+				return { kind: "approve", action: "✓ Annehmen", title: approval.title, desc: (typeof approval.description === "string" && approval.description.trim() !== "" ? approval.description.trim() : ""), prompt: buildPrompt("approve", approval) };
+			}
+			return null;
+		}
+
+		// Determines exactly ONE "next step". Priority: a board Klärung/Antrag,
+		// then a Learning-Design open question, then the first open moment
+		// question. Falls back to null (nothing urgent).
+		function computeNextStep(board, moments, design) {
+			const fromBoard = nextBoardStep(board);
+			if (fromBoard !== null) return fromBoard;
+			const dq = splitDesignQuestions(Array.isArray(design && design.open_questions) ? design.open_questions : []).open;
+			if (dq.length > 0) {
+				return { kind: "question", action: "💬 Besprechen", title: "Offene Frage im Learning Design", desc: dq[0], prompt: buildDesignQuestionPrompt(dq[0]) };
+			}
+			for (const m of (Array.isArray(moments) ? moments : [])) {
+				const qs = Array.isArray(m.open_questions) ? m.open_questions : [];
+				if (qs.length > 0) {
+					return { kind: "question", action: "💬 Zum Moment", title: m.title || m.id, desc: qs[0], prompt: buildMomentQuestionPrompt(m, qs[0]) };
+				}
+			}
+			return null;
+		}
+
+		function NextStepCard(props) {
+			const step = props.step;
+			if (step === null) {
+				return React.createElement("div", { className: "dks-nohint" },
+					"Kein dringender nächster Schritt — alles ist entscheidungsreif. Schau gern ins Planning Board.");
+			}
+			const children = [
+				React.createElement("div", { key: "l", className: "dks-nextstep-label" }, "Nächster Schritt"),
+				React.createElement("div", { key: "t", className: "dks-card-title" }, esc(step.title)),
+			];
+			if (step.desc !== "") {
+				children.push(React.createElement("div", { key: "d", className: "dks-nextstep-desc" }, esc(step.desc)));
+			}
+			children.push(React.createElement("div", { key: "a", className: "dks-card-actions" },
+				React.createElement("button", {
+					className: step.kind === "approve" ? "dks-action-btn dks-action-approve" : "dks-action-btn",
+					title: "Prompt ins Chat-Input setzen",
+					onClick: function() { if (typeof props.onSetDraft === "function") props.onSetDraft(step.prompt); },
+				}, step.action)));
+			return React.createElement("div", { className: "dks-nextstep" }, children);
+		}
+
+		function OpenQuestionItem(props) {
+			const it = props.item;
+			const children = [
+				React.createElement("div", { key: "t", className: "dks-card-title" }, esc(it.title)),
+				React.createElement("div", { key: "x", className: "dks-openq-text" }, esc(it.text)),
+			];
+			children.push(React.createElement("div", { key: "a", className: "dks-card-actions" },
+				React.createElement("button", {
+					className: "dks-action-btn",
+					title: "Prompt ins Chat-Input setzen",
+					onClick: function() { if (typeof props.onAction === "function") props.onAction(it.prompt); },
+				}, it.action)));
+			return React.createElement("div", { className: "dks-openq" }, children);
+		}
+
+		// A design "Open Question" with an explicit path: clarify (move to the
+		// planning board's Klären column), agree (accept -> decision) or discard.
+		function DesignQuestionItem(props) {
+			const q = props.q;
+			const children = [
+				React.createElement("div", { key: "t", className: "dks-card-title" }, "Offene Frage im Learning Design"),
+				React.createElement("div", { key: "x", className: "dks-openq-text" }, esc(q)),
+			];
+			children.push(React.createElement("div", { key: "a", className: "dks-card-actions" },
+				React.createElement("button", {
+					className: "dks-action-btn",
+					title: "Die Frage in den Klären-Bereich (Planning Board) verschieben",
+					onClick: function() { props.onClarify(q); },
+				}, "💬 Klären"),
+				React.createElement("button", {
+					className: "dks-action-btn dks-action-approve",
+					title: "Frage mit „ja“ beantworten → als Entscheidung im Denkstand festhalten",
+					onClick: function() { props.onAccept(q); },
+				}, "✓ Einverstanden"),
+				React.createElement("button", {
+					className: "dks-action-btn",
+					title: "Frage verwerfen (nicht mehr relevant)",
+					onClick: function() { props.onDiscard(q); },
+				}, "✕ Verwerfen")));
+			return React.createElement("div", { className: "dks-openq" }, children);
+		}
+
+		function OpenQuestionsPanel(props) {
+			const moments = props.moments;
+			const designOpen = Array.isArray(props.designOpen) ? props.designOpen : [];
+			const onAction = props.onAction;
+			const onResolve = props.onResolve;
+			const momCollapsedState = React.useState(true);
+			const momCollapsed = momCollapsedState[0];
+			const setMomCollapsed = momCollapsedState[1];
+
+			const momentBounds = [];
+			for (const m of (Array.isArray(moments) ? moments : [])) {
+				const qs = Array.isArray(m.open_questions) ? m.open_questions : [];
+				for (const q of qs) momentBounds.push({ title: m.title || m.id, text: q, prompt: buildMomentQuestionPrompt(m, q) });
+			}
+			if (designOpen.length === 0 && momentBounds.length === 0) {
+				return React.createElement("div", { className: "dks-empty" },
+					"Aktuell keine offenen Fragen. Offene Klärungen/Entscheidungen siehst du im Planning Board.");
+			}
+			const childEls = [
+				React.createElement("div", { key: "note", className: "dks-note" },
+					"Zwei verschiedene Arten offener Punkte — nicht dasselbe: (1) „Offene Fragen“ stehen im Learning Design und verarbeitest du hier (Klären → Planning Board, Einverstanden → Entscheidung, Verwerfen); (2) „Fragen am Lernmoment“ hängen am jeweiligen Moment (Tab Lernlandschaft). Bereits geklärte Fragen (✔) sind als Entscheidung in decisions.yml festgehalten."),
+			];
+			if (designOpen.length > 0) {
+				childEls.push(React.createElement("div", { key: "sub-dq", className: "dks-subgroup" },
+					React.createElement("div", { className: "dks-section-title" }, "Offene Fragen (Learning Design)"),
+					designOpen.map(function(q, i) {
+						return React.createElement(DesignQuestionItem, {
+							key: "dq-" + i,
+							q: q,
+							onClarify: function(x) { onResolve(x, "clarify"); },
+							onAccept: function(x) { onResolve(x, "accept"); },
+							onDiscard: function(x) { onResolve(x, "discard"); },
+						});
+					})));
+			}
+			if (momentBounds.length > 0) {
+				childEls.push(React.createElement("div", { key: "sub-mom", className: "dks-subgroup" },
+					React.createElement("div", { className: "dks-group-head", onClick: function() { setMomCollapsed(!momCollapsed); } },
+						React.createElement("span", null, momCollapsed ? "▸" : "▾"),
+						React.createElement("span", { className: "dks-section-title", style: { marginBottom: 0 } }, "Fragen am Lernmoment (" + momentBounds.length + ")"),
+						React.createElement("span", { className: "dks-note" }, "im Tab Lernlandschaft am Moment")),
+					momCollapsed
+						? null
+						: momentBounds.map(function(it, i) {
+							return React.createElement(OpenQuestionItem, { key: "me-" + i, item: { title: it.title, text: it.text, action: "💬 Zum Moment", prompt: it.prompt }, onAction: onAction });
+						})));
+			}
+			return React.createElement("div", { className: "dks-section" }, childEls);
+		}
+
+		// "Wo wir gerade gedanklich dran sind" — pinboard of the most
+		// forward-carrying statements. These are the concrete "tragende Aussagen":
+		// the Leitideen of the Educational Intention (numbered accents) and the
+		// board working hypotheses. Not the long prose trims.
+		function buildThoughtCards(design, board) {
+			const cards = [];
+			for (const a of (Array.isArray(design && design.accents) ? design.accents : [])) {
+				cards.push({ badge: "Leitidee", title: a.label, text: (a.text || "").trim() });
+			}
+			const cols = board !== null && board !== undefined && typeof board === "object" && board.columns ? board.columns : {};
+			for (const key of Object.keys(cols)) {
+				for (const it of cols[key]) {
+					if (typeof it.summary === "string" && it.summary.trim() !== "" && it.summary !== "—") {
+						cards.push({ badge: "Hypothese", title: "", text: it.summary });
+					}
+				}
+			}
+			return cards;
+		}
+
+		function ThoughtBoard(props) {
+			const design = props.design;
+			const board = props.board;
+			const thoughts = props.thoughts;
+			const votes = thoughts && thoughts.votes ? thoughts.votes : {};
+			const onVote = props.onVote;
+			const openDesign = props.openDesign;
+			const cards = buildThoughtCards(design, board);
+			const scored = cards.map(function(c, i) {
+				return { badge: c.badge, title: c.title || "", text: c.text, votes: typeof votes[c.text] === "number" ? votes[c.text] : 0, idx: i };
 			});
-			return React.createElement("div", { className: "dks-section" }, els);
+			scored.sort(function(a, b) { return (b.votes - a.votes) || (a.idx - b.idx); });
+			const els = scored.map(function(c, i) {
+				return React.createElement("div", { key: i, className: "dks-thought-card" },
+					React.createElement("span", { className: "dks-badge dks-thought-badge" }, esc(c.badge)),
+					c.title
+						? React.createElement("div", { className: "dks-card-title" }, esc(c.title))
+						: null,
+					React.createElement("div", { className: "dks-thought-text", title: c.text }, esc(c.text)),
+					React.createElement("div", { className: "dks-thought-vote" },
+						React.createElement("button", { className: "dks-vote-btn", title: "Wichtiger machen", onClick: function() { onVote(c.text, 1); } }, "▲"),
+						React.createElement("span", { className: "dks-vote-count" }, String(c.votes)),
+						React.createElement("button", { className: "dks-vote-btn", title: "Weniger wichtig", onClick: function() { onVote(c.text, -1); } }, "▼")));
+			});
+			return React.createElement("div", { className: "dks-thought" },
+				React.createElement("div", { className: "dks-section-title" }, "Wo wir gerade gedanklich dran sind"),
+				design && design.focus && !isPlaceholder(design.focus)
+					? React.createElement("div", { className: "dks-thought-focus" },
+						React.createElement("div", { className: "dks-thought-focus-label" }, "Aktueller Fokus"),
+						React.createElement("div", { className: "dks-thought-focus-text" }, esc(design.focus)))
+					: null,
+				els.length === 0
+					? React.createElement("div", { className: "dks-note" }, "Noch keine tragenden Aussagen (Leitideen, Hypothesen) — sie erscheinen, sobald im Learning Design Inhalte stehen.")
+					: els,
+				React.createElement("button", { className: "dks-thought-link", onClick: openDesign }, "Zum vollständigen Learning Design →"));
+		}
+
+		// "Klären" — the planning board's Klären column (the clarification queue),
+		// plus a collapsible view of the other board columns, and — below — the
+		// **geklärten Fragen** (the decisions from decisions.yml).
+		function ClarifyPanel(props) {
+			const board = props.board;
+			const onSetDraft = props.onSetDraft;
+			const decisions = props.decisions;
+			const cols = board !== null && board !== undefined && typeof board === "object" && board.columns ? board.columns : {};
+			const clarify = cols["clarify"] || [];
+			const otherKeys = COLUMN_ORDER.filter(function(k) { return k !== "clarify" && k !== "other" && Array.isArray(cols[k]) && cols[k].length > 0; });
+			const otherState = React.useState(true);
+			const otherCollapsed = otherState[0];
+			const setOtherCollapsed = otherState[1];
+
+			const els = clarify.map(function(it, idx) {
+				const children = [
+					React.createElement("div", { key: "t", className: "dks-card-title" }, esc(it.title)),
+					React.createElement("div", { key: "m", className: "dks-card-meta" },
+						React.createElement("span", { className: "dks-badge" }, esc(it.kind_label)),
+						React.createElement("span", { className: "dks-badge" }, esc(it.status_label))),
+				];
+				const desc = typeof it.description === "string" ? it.description.trim() : "";
+				if (desc !== "") children.push(React.createElement("div", { key: "d", className: "dks-card-note" }, desc));
+				if (it.requires_teacher_approval === true) children.push(React.createElement("div", { key: "a", className: "dks-approval dks-approval-yes" }, "Freigabe erforderlich"));
+				children.push(React.createElement("div", { key: "ax", className: "dks-card-actions" },
+					React.createElement("button", {
+						className: "dks-action-btn dks-action-approve",
+						title: "Prompt ins Chat-Input setzen — Freigabe vorschlagen",
+						onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); onSetDraft(buildPrompt("approve", it)); },
+					}, "✓ Annehmen"),
+					React.createElement("button", {
+						className: "dks-action-btn",
+						title: "Prompt ins Chat-Input setzen — Frage klären",
+						onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); onSetDraft(buildPrompt("clarify", it)); },
+					}, "💬 Klären")));
+				return React.createElement("div", { key: it.id || idx, className: "dks-card" }, children);
+			});
+
+			const otherEls = otherKeys.length > 0
+				? React.createElement("div", { className: "dks-subgroup" },
+					React.createElement("div", { className: "dks-group-head", onClick: function() { setOtherCollapsed(!otherCollapsed); } },
+						React.createElement("span", null, otherCollapsed ? "▸" : "▾"),
+						React.createElement("span", { className: "dks-section-title", style: { marginBottom: 0 } }, "Weitere Spalten (" + otherKeys.length + ")")),
+					otherCollapsed ? null : otherKeys.map(function(k) {
+						const label = ({ prepare: "Vorbereiten", review: "Auswerten", ready: "Bereit" }[k] || k);
+						return React.createElement("div", { key: k, className: "dks-openq" },
+							React.createElement("div", { className: "dks-card-title" }, label),
+							cols[k].map(function(it, idx) {
+								return React.createElement("div", { key: it.id || idx, className: "dks-card-note" }, "• " + esc(it.title));
+							}));
+					}))
+				: null;
+
+			const decisionRows = (decisions !== null && decisions !== undefined && decisions.empty !== true ? decisions.decisions : []).map(function(d, idx) {
+				return React.createElement("div", { key: d.id || idx, className: "dks-clarified" },
+					React.createElement("span", { className: "dks-badge" }, esc(d.id || "")),
+					React.createElement("span", { className: "dks-openq-text" }, esc(d.title)));
+			});
+
+			return React.createElement("div", { className: "dks-clarify" },
+				React.createElement("div", { className: "dks-section-title" }, "Klären"),
+				els.length === 0
+					? React.createElement("div", { className: "dks-note" }, "Keine offenen Klärungen. Verschiebe eine Frage mit „Klären“ hierher.")
+					: React.createElement("div", { className: "dks-columns" },
+						React.createElement("div", { className: "dks-col" },
+							React.createElement("div", { className: "dks-col-head" },
+								React.createElement("span", null, "Klären"),
+								React.createElement("span", { className: "dks-col-count" }, "(" + clarify.length + ")")),
+							els)),
+				otherEls,
+				React.createElement("div", { className: "dks-subgroup" },
+					React.createElement("div", { className: "dks-section-title" }, "Geklärt (Entscheidungen)"),
+					decisionRows.length === 0
+						? React.createElement("div", { className: "dks-note" }, "Noch keine geklärte Entscheidung (decisions.yml).")
+						: React.createElement("div", { className: "dks-clarified-list" }, decisionRows)));
+		}
+
+		function DesignDocModal(props) {
+			const content = props.content;
+			const onClose = props.onClose;
+			return React.createElement("div", { className: "dks-overlay", onClick: onClose },
+				React.createElement("div", { className: "dks-dialog", onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); } },
+					React.createElement("div", { className: "dks-dialog-head" },
+						React.createElement("span", { className: "dks-title" }, "Learning Design (vollständig)"),
+						React.createElement("button", { className: "dks-btn", onClick: onClose }, "Schließen")),
+					React.createElement("div", { className: "dks-dialog-body" },
+						React.createElement("div", { className: "dks-md", dangerouslySetInnerHTML: { __html: mdToHtml(content) } }))));
 		}
 
 		function DenkstandView(props) {
@@ -267,9 +853,19 @@ window.__ModuleLoader__.load({
 			const feedbackState = React.useState(null);
 			const feedback = feedbackState[0];
 			const setFeedback = feedbackState[1];
+			const momentsState = React.useState([]);
+			const moments = momentsState[0];
+			const setMoments = momentsState[1];
+			const designState = React.useState({ open_questions: [], decisions: [] });
+			const design = designState[0];
+			const setDesign = designState[1];
+			const designDocState = React.useState(null);
+			const designDoc = designDocState[0];
+			const setDesignDoc = designDocState[1];
 
 			function load() {
-				const url = "/api/pts-denkstand?sessionId=" + encodeURIComponent(sessionId === null ? "" : sessionId);
+				const sid = sessionId === null ? "" : sessionId;
+				const url = "/api/pts-denkstand?sessionId=" + encodeURIComponent(sid);
 				fetch(url).then(function(res) {
 					return res.text().then(function(body) {
 						let v = null;
@@ -283,6 +879,40 @@ window.__ModuleLoader__.load({
 				}).catch(function(e) {
 					setError(String(e && e.message ? e.message : e));
 				});
+				// Landscape moments carry the per-moment "Offene Fragen" (the
+				// denkstand route only reads the three YAML control files). This
+				// is best-effort: if the landscape plugin or file is missing, the
+				// panel degrades to board clarifications only.
+				fetch("/api/pts-landscape?sessionId=" + encodeURIComponent(sid)).then(function(res) {
+					return res.text().then(function(body) {
+						let v = null;
+						try { v = JSON.parse(body); } catch (e) { v = null; }
+						return { res: res, v: v };
+					});
+				}).then(function(r) {
+					if (r.res.ok && r.v !== null && Array.isArray(r.v.moments)) setMoments(r.v.moments);
+					else setMoments([]);
+				}).catch(function() { setMoments([]); });
+				// Learning-design.md holds the design-level "Open Questions" and
+				// "Design Decisions" (distinct from decisions.yml). Fetch the raw
+				// file via the landscape editor route and parse both sections.
+				fetch("/api/pts-artifact/raw?sessionId=" + encodeURIComponent(sid) + "&file=" + encodeURIComponent("learning-design.md")).then(function(res) {
+					return res.text().then(function(body) {
+						let v = null;
+						try { v = JSON.parse(body); } catch (e) { v = null; }
+						return { res: res, v: v };
+					});
+				}).then(function(r) {
+					if (r.res.ok && r.v !== null && typeof r.v.content === "string") {
+						const content = r.v.content;
+						setDesign({
+							focus: valueLine(content, "Current focus:"),
+							accents: numberedAccents(content, "Educational Intention"),
+							open_questions: mdListItems(extractMdSection(content, "Open Questions")),
+							decisions: mdListItems(extractMdSection(content, "Design Decisions")),
+						});
+					}
+				}).catch(function() { /* best effort */ });
 			}
 
 			React.useEffect(function() {
@@ -307,6 +937,7 @@ window.__ModuleLoader__.load({
 			const temporal = data.temporal;
 			const decisions = data.decisions;
 			const errors = Array.isArray(data.errors) ? data.errors : [];
+			const dqSplit = splitDesignQuestions(design.open_questions);
 			const errEls = errors.map(function(e, i) {
 				return React.createElement("div", { key: i, className: "dks-errmsg" },
 					e.file + ": " + e.message);
@@ -326,24 +957,88 @@ window.__ModuleLoader__.load({
 				}
 			};
 
+			// Teacher decides a Learning-Design "Open Question": accept records it
+			// as a decision (decisions.yml) and removes it from the open list;
+			// discard removes it as no longer relevant.
+			const resolveQuestion = function(question, action) {
+				fetch("/api/pts-denkstand/design-question", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ sessionId: sessionId, question: question, action: action }),
+				}).then(function(res) {
+					return res.text().then(function(body) {
+						let v = null;
+						try { v = JSON.parse(body); } catch (e) { v = null; }
+						if (!res.ok) throw new Error(v !== null && v && typeof v.error === "string" ? v.error : "HTTP " + res.status);
+						return v;
+					});
+				}).then(function() {
+					setFeedback(action === "accept"
+						? "Als Entscheidung übernommen (decisions.yml) und aus den offenen Fragen entfernt."
+						: action === "clarify"
+							? "Zur Klärung ins Planning Board („Klären“) verschoben — aus den offenen Fragen entfernt."
+							: "Frage verworfen — aus den offenen Fragen entfernt.");
+					load();
+				}).catch(function(e) {
+					setError("Frage: " + String(e && e.message ? e.message : e));
+				});
+			};
+
+			// Pinboard vote: adjust the importance count for one statement.
+			const voteThought = function(statement, delta) {
+				fetch("/api/pts-denkstand/thoughts", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ sessionId: sessionId, statement: statement, delta: delta }),
+				}).then(function(res) {
+					return res.text().then(function(body) {
+						let v = null;
+						try { v = JSON.parse(body); } catch (e) { v = null; }
+						if (!res.ok) throw new Error(v !== null && v && typeof v.error === "string" ? v.error : "HTTP " + res.status);
+						return v;
+					});
+				}).then(function() {
+					load();
+				}).catch(function(e) {
+					setError("Vote: " + String(e && e.message ? e.message : e));
+				});
+			};
+
+			// View the full learning-design.md in a read-only modal ("link").
+			const openDesign = function() {
+				fetch("/api/pts-artifact/raw?sessionId=" + encodeURIComponent(sessionId === null ? "" : sessionId) + "&file=" + encodeURIComponent("learning-design.md"))
+					.then(function(res) {
+						return res.text().then(function(body) {
+							let v = null;
+							try { v = JSON.parse(body); } catch (e) { v = null; }
+							return { res: res, v: v };
+						});
+					}).then(function(r) {
+						if (r.res.ok && r.v !== null && typeof r.v.content === "string") setDesignDoc(r.v.content);
+						else setError("Learning Design: " + (r.v && r.v.error ? r.v.error : "HTTP " + r.res.status));
+					}).catch(function(e) {
+						setError("Learning Design: " + String(e && e.message ? e.message : e));
+					});
+			};
+
 			return React.createElement("div", { className: "dks-root" },
 				React.createElement("div", { className: "dks-toolbar" },
 					React.createElement("span", { className: "dks-title" }, "Denkstand"),
+					React.createElement("span", { className: "dks-note" }, "Planung, Klärungen und Entscheidungen - die Lernlandschaft (Momente, Stunden) liegt im Tab „Lernlandschaft“."),
 					React.createElement("button", { className: "dks-btn", onClick: load }, "Aktualisieren")),
 				React.createElement("div", { className: "dks-path" }, data.root || ""),
 				errEls.length > 0 ? errEls : null,
 				feedback !== null
 					? React.createElement("div", { className: "dks-action-ok" }, feedback)
 					: null,
-				React.createElement("div", { className: "dks-section" },
-					React.createElement("div", { className: "dks-section-title" }, "Nächste Schritte (Planning Board)"),
-					React.createElement(BoardView, { board: board, onSetDraft: setDraftFn })),
-				React.createElement("div", { className: "dks-section" },
-					React.createElement("div", { className: "dks-section-title" }, "Timeline (Temporal Plan)"),
-					React.createElement(TimelineView, { temporal: temporal })),
-				React.createElement("div", { className: "dks-section" },
-					React.createElement("div", { className: "dks-section-title" }, "Entscheidungen"),
-					React.createElement(DecisionsView, { decisions: decisions })));
+				React.createElement("div", { className: "dks-threerow" },
+					React.createElement(ThoughtBoard, { design: design, board: board, thoughts: data.thoughts, onVote: voteThought, openDesign: openDesign }),
+					React.createElement(ClarifyPanel, { board: board, decisions: decisions, onSetDraft: setDraftFn }),
+					React.createElement("div", { className: "dks-openq-col" },
+						React.createElement(OpenQuestionsPanel, { moments: moments, designOpen: dqSplit.open, onAction: setDraftFn, onResolve: resolveQuestion }))),
+				designDoc !== null
+					? React.createElement(DesignDocModal, { content: designDoc, onClose: function() { setDesignDoc(null); } })
+					: null);
 		}
 
 		return {

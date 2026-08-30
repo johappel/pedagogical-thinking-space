@@ -60,6 +60,36 @@ window.__ModuleLoader__.load({
 .apx-chip:hover { border-color:rgba(128,128,128,.65); background:rgba(128,128,128,.14); }
 .apx-chip-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .apx-empty { margin:auto; text-align:center; opacity:.6; font-size:12.5px; line-height:1.7; padding:24px; }
+.apx-layout { display:flex; gap:12px; flex:1; min-height:0; }
+.apx-tree { flex:0 0 250px; min-width:200px; overflow:auto; border-right:1px solid rgba(128,128,128,.18); padding-right:8px; display:flex; flex-direction:column; gap:4px; }
+.apx-tree-group { display:flex; flex-direction:column; gap:2px; }
+.apx-group-head { display:flex; align-items:center; gap:6px; padding:4px 2px; cursor:pointer; user-select:none; font-size:12px; font-weight:600; opacity:.85; border-radius:5px; }
+.apx-group-head:hover { background:rgba(128,128,128,.08); }
+.apx-group-count { font-size:11px; opacity:.55; font-weight:400; margin-left:auto; }
+.apx-file { display:flex; flex-direction:column; gap:2px; padding:5px 6px 5px 18px; border-radius:5px; cursor:pointer; font-size:12px; color:inherit; text-align:left; font:inherit; border:none; background:transparent; width:100%; }
+.apx-file:hover { background:rgba(128,128,128,.1); }
+.apx-file-sel { background:rgba(126,198,153,.15); box-shadow:inset 0 0 0 1px rgba(126,198,153,.5); }
+.apx-file-title { font-weight:600; line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.apx-file-meta { display:flex; align-items:center; gap:6px; font-size:10.5px; opacity:.72; }
+.apx-file-kind { border:1px solid rgba(128,128,128,.35); border-radius:4px; padding:0 4px; font-size:9.5px; text-transform:uppercase; letter-spacing:.4px; }
+.apx-file-changed { color:#d19a66; }
+.apx-pane { flex:1; min-width:0; overflow:auto; }
+.apx-pane-empty { margin:auto; text-align:center; opacity:.6; font-size:12.5px; line-height:1.7; padding:24px; }
+.apx-strip { position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:2040; display:flex; gap:8px; align-items:center; max-width:92vw; pointer-events:none; }
+.apx-strip-label { font-size:11px; text-transform:uppercase; letter-spacing:.6px; opacity:.7; white-space:nowrap; pointer-events:none; }
+.apx-strip-card { pointer-events:auto; display:inline-flex; align-items:center; gap:6px; color:inherit; font:inherit; border:1px solid rgba(126,198,153,.55); background:rgba(126,198,153,.12); color:inherit; border-radius:999px; padding:4px 10px 4px 8px; font-size:11.5px; cursor:pointer; max-width:220px; white-space:nowrap; }
+.apx-strip-card:hover { border-color:#7ec699; background:rgba(126,198,153,.22); }
+.apx-strip-name { overflow:hidden; text-overflow:ellipsis; }
+.apx-strip-card-enter { animation:apxStripIn .45s ease-out; }
+@keyframes apxStripIn { from { transform:translateX(-40px); opacity:0; } to { transform:translateX(0); opacity:1; } }
+.apx-strip-card-leaving { opacity:0; transition:opacity .5s ease, transform .5s ease; transform:translateX(24px); }
+@media (prefers-reduced-motion: reduce) { .apx-strip-card-enter { animation:none; } .apx-strip-card-leaving { transition:none; opacity:0; } }
+.apx-strip-modal { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:2050; pointer-events:auto; }
+.apx-strip-dialog { width:min(92vw, 900px); max-height:88vh; display:flex; flex-direction:column; overflow:hidden; background:var(--editor-bg,#1e1e1e); border:1px solid rgba(128,128,128,.4); border-radius:10px; color:inherit; }
+.apx-strip-dialog-head { display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid rgba(128,128,128,.25); flex-wrap:wrap; }
+.apx-strip-dialog-title { font-weight:600; font-size:13px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.apx-strip-dialog-body { flex:1; min-height:0; overflow:auto; padding:12px; display:flex; flex-direction:column; }
+.apx-strip-dialog-body .apx-mdc { max-height:none; }
 .apx-mdc { font-size:12.5px; line-height:1.6; overflow-wrap:break-word; max-height:70vh; overflow:auto; border:1px solid rgba(128,128,128,.25); border-radius:8px; padding:12px 14px; background:rgba(128,128,128,.05); }
 .apx-mdc h1,.apx-mdc h2,.apx-mdc h3,.apx-mdc h4,.apx-mdc h5,.apx-mdc h6 { margin:.9em 0 .4em; line-height:1.3; }
 .apx-mdc h1 { font-size:1.35em; border-bottom:1px solid rgba(128,128,128,.25); padding-bottom:.25em; }
@@ -807,8 +837,183 @@ window.__ModuleLoader__.load({
 		}
 
 		// ------------------------------------------------------------------
-		// Gallery tab (conversation.view list entry)
+		// "Neu erstellt" strip (shell.overlay): freshly produced documents slide
+		// in as mini cards at the top of the frame; clicking opens the same
+		// ArtifactPreview in a modal. Uses the sharing /artifacts/v2/list
+		// registry, which write-tool results update immediately.
 		// ------------------------------------------------------------------
+		function pickActiveSession(list) {
+			if (list === null || list === undefined) return null;
+			if (list.activeId !== null && list.activeId !== undefined) return String(list.activeId);
+			if (typeof list.active === "string" && list.active !== "") return list.active;
+			if (Array.isArray(list.order) && list.order.length > 0) return String(list.order[0]);
+			return null;
+		}
+
+		function StripModal(props) {
+			const artifact = props.artifact;
+			const cwd = props.cwd;
+			const onClose = props.onClose;
+			return React.createElement("div", { className: "apx-strip-modal", onClick: onClose },
+				React.createElement("div", { className: "apx-strip-dialog", onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); } },
+					React.createElement("div", { className: "apx-strip-dialog-head" },
+						React.createElement("span", { className: "apx-strip-dialog-title" }, artifact.name),
+						React.createElement("span", { className: "apx-path", style: { flex: 1, minWidth: 0 } }, artifact.path),
+						React.createElement("button", { className: "apx-dpclose", "aria-label": "Schließen", title: "Schließen", onClick: onClose }, "\u00d7")),
+					React.createElement("div", { className: "apx-strip-dialog-body" },
+						React.createElement(ArtifactPreview, { artifact: artifact, cwd: cwd }))));
+		}
+
+		function ProductionsStrip(props) {
+			const useSessions = props.useSessions;
+			const sessionId = useSessions(pickActiveSession);
+			const cwd = useSessions(function(list) {
+				if (sessionId === null || sessionId === undefined) return null;
+				const e = list !== null && list !== undefined && list.byId ? list.byId[sessionId] : null;
+				return e !== null && e !== undefined && typeof e.cwd === "string" ? e.cwd : null;
+			});
+			const cardsState = React.useState([]);
+			const cards = cardsState[0];
+			const setCards = cardsState[1];
+			const modalState = React.useState(null);
+			const modal = modalState[0];
+			const setModal = modalState[1];
+			const seenRef = React.useRef(new Set());
+			const seededRef = React.useRef(false);
+
+			React.useEffect(function() {
+				if (sessionId === null || sessionId === undefined) return undefined;
+				let alive = true;
+				// New workspace/session: reseed the seen-set so pre-existing files
+				// do not animate in, and clear stale cards.
+				seededRef.current = false;
+				seenRef.current = new Set();
+				setCards([]);
+				function poll() {
+					const url = "/artifacts/v2/list?sessionId=" + encodeURIComponent(sessionId);
+					fetchJson(url).then(function(r) {
+						if (!alive) return;
+						const list = r !== null && typeof r === "object" && Array.isArray(r.items) ? r.items : [];
+						if (!seededRef.current) {
+							seededRef.current = true;
+							for (const a of list) seenRef.current.add(a.path);
+							return;
+						}
+						const fresh = [];
+						for (const a of list) {
+							if (!seenRef.current.has(a.path)) fresh.push(a);
+						}
+						if (fresh.length === 0) return;
+						for (const f of fresh) seenRef.current.add(f.path);
+						setCards(function(prev) { return prev.concat(fresh.map(function(a) { return { artifact: a, leaving: false }; })); });
+					}).catch(function() { /* best effort */ });
+				}
+				poll();
+				const timer = setInterval(poll, 4000);
+				return function() { alive = false; clearInterval(timer); };
+			}, [sessionId]);
+
+			// Auto-dismiss: mark a card as leaving after it has been visible.
+			React.useEffect(function() {
+				if (cards.length === 0) return undefined;
+				const timers = cards.map(function(c) {
+					if (c.leaving) return null;
+					return setTimeout(function() {
+						setCards(function(prev) { return prev.map(function(x) { return x.artifact.path === c.artifact.path && !x.leaving ? { artifact: x.artifact, leaving: true } : x; }); });
+					}, 18000);
+				});
+				return function() { for (const t of timers) if (t !== null) clearTimeout(t); };
+			}, [cards]);
+
+			// Remove fully-faded cards.
+			React.useEffect(function() {
+				const leaving = cards.filter(function(c) { return c.leaving; });
+				if (leaving.length === 0) return undefined;
+				const timers = leaving.map(function(c) {
+					return setTimeout(function() {
+						setCards(function(prev) { return prev.filter(function(x) { return x.artifact.path !== c.artifact.path; }); });
+					}, 550);
+				});
+				return function() { for (const t of timers) clearTimeout(t); };
+			}, [cards]);
+
+			if (cards.length === 0 && modal === null) return null;
+			const cardEls = cards.map(function(c) {
+				return React.createElement("button", {
+					key: c.artifact.path,
+					className: "apx-strip-card" + (c.leaving ? " apx-strip-card-leaving" : " apx-strip-card-enter"),
+					title: c.artifact.path,
+					onClick: function() { setModal(c.artifact); },
+				},
+					React.createElement("span", { className: "apx-badge" }, KIND_LABEL[c.artifact.kind] || c.artifact.ext || "file"),
+					React.createElement("span", { className: "apx-strip-name" }, c.artifact.name));
+			});
+			const children = [React.createElement("span", { key: "label", className: "apx-strip-label" }, "Neu erstellt:")].concat(cardEls);
+			return React.createElement("div", { style: { pointerEvents: "none" } },
+				React.createElement("div", { className: "apx-strip" }, children),
+				modal !== null
+					? React.createElement(StripModal, { artifact: modal, cwd: cwd, onClose: function() { setModal(null); } })
+					: null);
+		}
+
+		// ------------------------------------------------------------------
+		// Gallery tab (conversation.view list entry) — folder tree + preview
+		// ------------------------------------------------------------------
+		function groupArtifacts(list) {
+			const groups = {};
+			for (const a of (Array.isArray(list) ? list : [])) {
+				const p = a.path || "";
+				const slash = p.indexOf("/");
+				const key = slash >= 0 ? p.slice(0, slash) : "(root)";
+				if (!groups[key]) groups[key] = [];
+				groups[key].push(a);
+			}
+			// Root first, then the known PTS dirs, then the rest alphabetically.
+			const order = ["(root)", "materials", "drafts", "rendered", "knowledge-proposals"];
+			const keys = Object.keys(groups).sort(function(x, y) {
+				const ix = order.indexOf(x);
+				const iy = order.indexOf(y);
+				const ax = ix < 0 ? 999 : ix;
+				const ay = iy < 0 ? 999 : iy;
+				if (ax !== ay) return ax - ay;
+				return x < y ? -1 : x > y ? 1 : 0;
+			});
+			return { groups: groups, keys: keys };
+		}
+
+		function FolderTree(props) {
+			const list = props.list;
+			const selectedPath = props.selectedPath;
+			const onSelect = props.onSelect;
+			const collapsedState = React.useState({});
+			const collapsed = collapsedState[0];
+			const setCollapsed = collapsedState[1];
+			const grouped = groupArtifacts(list);
+			const KIND_SHORT = { markdown: "MD", pdf: "PDF", image: "IMG", html: "HTML", file: "FILE" };
+			const els = grouped.keys.map(function(key) {
+				const items = grouped.groups[key].slice().sort(function(a, b) { return a.path < b.path ? -1 : a.path > b.path ? 1 : 0; });
+				const isCollapsed = collapsed[key] === true;
+				const label = key === "(root)" ? "Denkraum" : key;
+				const childEls = items.map(function(a) {
+					const cls = "apx-file" + (selectedPath === a.path ? " apx-file-sel" : "");
+					const kindShort = KIND_SHORT[a.kind] || (a.ext ? String(a.ext).replace(".", "").toUpperCase() : "FILE");
+					return React.createElement("button", { key: a.path, className: cls, title: a.path, onClick: function() { onSelect(a.path); } },
+						React.createElement("span", { className: "apx-file-title" }, a.name),
+						React.createElement("span", { className: "apx-file-meta" },
+							React.createElement("span", { className: "apx-file-kind" }, kindShort),
+							React.createElement("span", null, fmtSize(a.size)),
+							a.revision > 0 ? React.createElement("span", { className: "apx-file-changed" }, "geändert") : null));
+				});
+				return React.createElement("div", { key: key, className: "apx-tree-group" },
+					React.createElement("div", { className: "apx-group-head", onClick: function() { setCollapsed(Object.assign({}, collapsed, (function() { const o = {}; o[key] = !isCollapsed; return o; })())); } },
+						React.createElement("span", null, isCollapsed ? "\u25b8" : "\u25be"),
+						React.createElement("span", null, label),
+						React.createElement("span", { className: "apx-group-count" }, items.length + " Datei(en)")),
+					isCollapsed ? null : childEls);
+			});
+			return React.createElement("div", { className: "apx-tree" }, els);
+		}
+
 		function ArtifactsView(props) {
 			const sessionId = props !== null && props !== undefined && typeof props.sessionId === "string" ? props.sessionId : null;
 			const itemsState = React.useState(null);
@@ -858,49 +1063,32 @@ window.__ModuleLoader__.load({
 			}
 
 			let body;
-			if (selected !== null) {
-				body = React.createElement("div", { className: "apx-previewwrap" },
-					React.createElement("div", { className: "apx-preview-head" },
-						React.createElement("button", { className: "apx-btn", onClick: function() { setSelectedPath(null); } }, "\u2190 Zur\u00fcck"),
-						React.createElement("span", { className: "apx-title" }, selected.name),
-						React.createElement("span", { className: "apx-badge" }, KIND_LABEL[selected.kind] || selected.ext),
-						React.createElement("span", { className: "apx-count" }, fmtSize(selected.size))),
-					React.createElement("div", { className: "apx-path" }, selected.path),
-					React.createElement(ArtifactPreview, { artifact: selected, cwd: activeRoot }));
-			} else if (list === null) {
+			if (list === null) {
 				body = React.createElement("div", { className: "apx-note" }, "Lade Artefakte\u2026");
 			} else if (list.length === 0) {
 				body = React.createElement("div", { className: "apx-note" },
 					"Noch keine Artefakte gefunden. Dateien mit den Endungen md, pdf, png/jpg/gif/webp/svg oder html erscheinen hier automatisch, sobald sie im Workspace entstehen (auch per Bash/Skript erzeugte).");
 			} else {
-				const cards = [];
-				for (let j = 0; j < list.length; j++) {
-					(function(a) {
-						cards.push(React.createElement("button", { key: a.path, className: "apx-card", onClick: function() { setSelectedPath(a.path); } },
-							React.createElement("span", { className: "apx-card-name" }, a.name),
-							React.createElement("span", { className: "apx-card-meta" },
-								React.createElement("span", { className: "apx-badge" }, KIND_LABEL[a.kind] || a.ext),
-								React.createElement("span", null, fmtSize(a.size)),
-								a.revision > 0 ? React.createElement("span", null, "ge\u00e4ndert") : null)));
-					})(list[j]);
-				}
-				body = React.createElement("div", { className: "apx-grid" }, cards);
+				const preview = selected !== null
+					? React.createElement("div", { className: "apx-pane" },
+						React.createElement("div", { className: "apx-preview-head" },
+							React.createElement("button", { className: "apx-btn", onClick: function() { setSelectedPath(null); } }, "\u2190 Zur\u00fcck"),
+							React.createElement("span", { className: "apx-title" }, selected.name),
+							React.createElement("span", { className: "apx-badge" }, KIND_LABEL[selected.kind] || selected.ext),
+							React.createElement("span", { className: "apx-count" }, fmtSize(selected.size))),
+						React.createElement("div", { className: "apx-path" }, selected.path),
+						React.createElement(ArtifactPreview, { artifact: selected, cwd: activeRoot }))
+					: React.createElement("div", { className: "apx-pane apx-pane-empty" },
+						"W\u00e4hle links eine Datei, um sie im Vorschaufenster zu \u00f6ffnen.");
+				body = React.createElement("div", { className: "apx-layout" },
+					React.createElement(FolderTree, { list: list, selectedPath: selectedPath, onSelect: setSelectedPath }),
+					preview);
 			}
 
 			return React.createElement("div", { className: "apx-root" },
 				React.createElement("div", { className: "apx-toolbar" },
 					React.createElement("span", { className: "apx-title" }, "Artefakte"),
-					React.createElement("span", { className: "apx-count" }, list === null ? "" : String(list.length) + " Datei(en)"),
-					selected === null && list !== null ? React.createElement("button", {
-						className: "apx-btn",
-						onClick: function() {
-							setItems(null);
-							const url = "/artifacts/v2/list?sessionId=" + encodeURIComponent(sessionId === null ? "" : sessionId);
-							fetchJson(url).then(function(r) {
-								setItems(r !== null && typeof r === "object" && Array.isArray(r.items) ? r.items : []);
-							}).catch(function() {});
-						},
-					}, "Aktualisieren") : null),
+					React.createElement("span", { className: "apx-count" }, list === null ? "" : String(list.length) + " Datei(en)")),
 				body);
 		}
 
@@ -971,6 +1159,14 @@ window.__ModuleLoader__.load({
 				ctx.slots.register(
 					{ name: "conversation.view", id: "artifacts", order: 30, label: "Artefakte" },
 					function(props) { return React.createElement(ArtifactsView, props); },
+				);
+			});
+
+			// "Neu erstellt" strip: frame-wide top overlay, additive cell.
+			ctx.slots.inject("shell.overlay", function() {
+				ctx.slots.register(
+					{ name: "shell.overlay", id: "pts-produced-strip", order: 45 },
+					function(props) { return React.createElement(ProductionsStrip, props); },
 				);
 			});
 		}

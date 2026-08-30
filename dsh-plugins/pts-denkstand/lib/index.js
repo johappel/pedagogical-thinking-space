@@ -19,6 +19,7 @@ import path from 'node:path';
 export const inject = ['webServer'];
 
 const DENKSTAND_FILES = ['planning-board.yml', 'temporal-plan.yml', 'decisions.yml'];
+const THOUGHTS_FILE = 'thoughts.json';
 
 /** Minimal YAML parser for the PTS Denkstand subset. */
 function parseYaml(source) {
@@ -298,6 +299,18 @@ export function _parseDecisions(raw) {
   return parseDecisions(raw);
 }
 
+export function _removeDesignQuestion(content, question) {
+  return removeDesignQuestion(content, question);
+}
+
+export function _appendDecisionYaml(yml, question) {
+  return appendDecisionYaml(yml, question);
+}
+
+export function _appendBoardClarify(yml, question) {
+  return appendBoardClarify(yml, question);
+}
+
 function toPosix(p) {
   return String(p).split(path.sep).join('/');
 }
@@ -372,6 +385,103 @@ function parseDecisions(raw) {
   };
 }
 
+// Remove a single `- ` list item (matched by its stripped text) from the
+// "## Open Questions" section of learning-design.md. Returns whether it was
+// found; multi-line items are not handled (the design doc uses one line each).
+function removeDesignQuestion(content, question) {
+  const lines = String(content).replace(/\r\n?/g, '\n').split('\n');
+  const out = [];
+  let inOQ = false;
+  let removed = false;
+  for (const line of lines) {
+    if (/^#{1,6}\s+/.test(line)) {
+      inOQ = /^#{1,6}\s+Open Questions\s*$/i.test(line.trim());
+      out.push(line);
+      continue;
+    }
+    if (inOQ && /^-\s+/.test(line.trim())) {
+      const text = line.trim().replace(/^-\s*/, '').trim();
+      if (text === question) { removed = true; continue; }
+    }
+    out.push(line);
+  }
+  return { removed, content: out.join('\n') };
+}
+
+// Append a minimal decision block to decisions.yml (next E<NN> id, binding).
+function appendDecisionYaml(yml, question) {
+  const src = String(yml);
+  const ids = [];
+  const re = /^\s*-\s*id:\s*(E\d+)/gim;
+  let m;
+  while ((m = re.exec(src)) !== null) ids.push(parseInt(m[1].replace(/^E/i, ''), 10));
+  const next = 'E' + String((ids.length ? Math.max.apply(null, ids) : 0) + 1).padStart(3, '0');
+  const today = new Date().toISOString().slice(0, 10);
+  const cleanQ = question.replace(/^[✅✔✓☑]\s*/, '').replace(/"/g, '\\"');
+  const title = cleanQ.split(':')[0].replace(/[*_]+/g, '').trim() || 'Entscheidung';
+  const base = src.replace(/\s*$/, '');
+  return base + '\n' +
+    '  - id: ' + next + '\n' +
+    '    title: ' + title + '\n' +
+    '    date: ' + today + '\n' +
+    '    category: design\n' +
+    '    status: binding\n' +
+    '    description: "Vom Denkstand bestätigt: ' + cleanQ + '"\n';
+}
+
+// Append a `kind: clarify` board item (planning-board.yml) to the Klären column.
+// Creates the file skeleton if it is missing.
+function appendBoardClarify(yml, question) {
+  const src = String(yml);
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const ids = [];
+  const re = /^\s*-\s*id:\s*(pb-clarify-\d{8}-\d+)/gim;
+  let m;
+  while ((m = re.exec(src)) !== null) ids.push(m[1]);
+  let n = 0;
+  for (const id of ids) { const mm = id.match(/-(\d+)$/); if (mm) n = Math.max(n, parseInt(mm[1], 10)); }
+  const nextId = 'pb-clarify-' + today + '-' + (n + 1);
+  const cleanQ = question.replace(/^[✅✔✓☑]\s*/, '').replace(/[*_]+/g, '').trim().replace(/"/g, '\\"');
+  const base = src.replace(/\s*$/, '');
+  const block = '  - id: ' + nextId + '\n' +
+    '    title: ' + cleanQ + '\n' +
+    '    kind: clarify\n' +
+    '    column: clarify\n' +
+    '    status: proposed\n' +
+    '    requires_teacher_approval: true';
+  return base + '\n' + block + '\n';
+}
+
+function readBody(req) {
+  return new Promise(function(resolve, reject) {
+    let data = '';
+    req.on('data', function(chunk) {
+      data += chunk;
+      if (data.length > 1024 * 1024) { reject(new Error('body too large')); req.destroy(); }
+    });
+    req.on('end', function() { resolve(data); });
+    req.on('error', reject);
+  });
+}
+
+async function atomicWriteFile(dir, name, content) {
+  const tmp = path.join(dir, '.' + name + '.tmp-' + Date.now());
+  await fsp.writeFile(tmp, content, 'utf8');
+  try {
+    await fsp.rename(tmp, path.join(dir, name));
+  } catch (e) {
+    await fsp.unlink(tmp).catch(function() {});
+    throw e;
+  }
+}
+
+function sendJson(res, status, value) {
+  res.statusCode = status;
+  res.setHeader('content-type', 'application/json; charset=utf-8');
+  res.setHeader('cache-control', 'no-store');
+  res.end(JSON.stringify(value));
+}
+
 export function apply(ctx) {
   const webServer = ctx.get('webServer');
   if (webServer === undefined) {
@@ -410,6 +520,18 @@ export function apply(ctx) {
     }
   }
 
+  /** Pinboard votes: { votes: { <statement>: <count> } } from thoughts.json. */
+  async function readThoughts(base) {
+    const file = await readWorkspaceFile(base, THOUGHTS_FILE);
+    if (!file.ok || file.missing) return { votes: {} };
+    try {
+      const v = JSON.parse(file.raw);
+      return { votes: (v && typeof v.votes === 'object' && v.votes !== null) ? v.votes : {} };
+    } catch (e) {
+      return { votes: {} };
+    }
+  }
+
   const dispose = webServer.register({
     kind: 'exact',
     path: '/api/pts-denkstand',
@@ -429,7 +551,7 @@ export function apply(ctx) {
 
         const base = sessionWorkspace(sessionId) ?? fallbackRoot;
 
-        const result = { root: toPosix(base), board: null, temporal: null, decisions: null, errors: [] };
+        const result = { root: toPosix(base), board: null, temporal: null, decisions: null, thoughts: { votes: {} }, errors: [] };
         for (const name of DENKSTAND_FILES) {
           const file = await readWorkspaceFile(base, name);
           if (file.missing) continue;
@@ -445,6 +567,7 @@ export function apply(ctx) {
             result.errors.push({ file: name, message: 'YAML-Parsing fehlgeschlagen: ' + String(e && e.message ? e.message : e) });
           }
         }
+        result.thoughts = await readThoughts(base);
 
         res.statusCode = 200;
         res.setHeader('content-type', 'application/json; charset=utf-8');
@@ -460,5 +583,69 @@ export function apply(ctx) {
 
   ctx.effect(() => dispose, 'pts-denkstand: route');
 
-  console.log('[pts-denkstand] host half active; route /api/pts-denkstand registered');
+  // Teacher decides a Learning-Design "Open Question": 'accept' records it as a
+  // binding decision (decisions.yml) and removes it from the open list;
+  // 'discard' removes it as no longer relevant. Both rewrite learning-design.md.
+  const disposeQuestion = webServer.register({
+    kind: 'exact',
+    path: '/api/pts-denkstand/design-question',
+    handler: async (req, res) => {
+      try {
+        const method = typeof req.method === 'string' ? req.method.toUpperCase() : 'GET';
+        if (method !== 'POST') { sendJson(res, 405, { ok: false, error: 'Methode nicht erlaubt' }); return; }
+        const body = JSON.parse((await readBody(req)) || '{}');
+        const sessionId = typeof body.sessionId === 'string' ? body.sessionId : '';
+        const question = typeof body.question === 'string' ? body.question : '';
+        const action = body.action === 'accept' ? 'accept' : body.action === 'clarify' ? 'clarify' : 'discard';
+        if (question.trim() === '') { sendJson(res, 400, { ok: false, error: 'question fehlt' }); return; }
+        const base = sessionWorkspace(sessionId) ?? fallbackRoot;
+        const designFile = await readWorkspaceFile(base, 'learning-design.md');
+        if (!designFile.ok || designFile.missing) { sendJson(res, 404, { ok: false, error: 'learning-design.md nicht lesbar' }); return; }
+        const r = removeDesignQuestion(designFile.raw, question);
+        if (r.removed !== true) { sendJson(res, 404, { ok: false, error: 'Frage nicht gefunden' }); return; }
+        await atomicWriteFile(base, 'learning-design.md', r.content);
+        if (action === 'accept') {
+          const decFile = await readWorkspaceFile(base, 'decisions.yml');
+          const decContent = (decFile.ok && !decFile.missing) ? decFile.raw : 'decisions: []';
+          await atomicWriteFile(base, 'decisions.yml', appendDecisionYaml(decContent, question));
+        } else if (action === 'clarify') {
+          const boardFile = await readWorkspaceFile(base, 'planning-board.yml');
+          const boardContent = (boardFile.ok && !boardFile.missing) ? boardFile.raw : 'schema: ptspace.planning-board/v1\nitems:';
+          await atomicWriteFile(base, 'planning-board.yml', appendBoardClarify(boardContent, question));
+        }
+        sendJson(res, 200, { ok: true, action });
+      } catch (e) {
+        sendJson(res, 400, { ok: false, error: String(e && e.message ? e.message : e) });
+      }
+    },
+  });
+  ctx.effect(() => disposeQuestion, 'pts-denkstand: design-question route');
+
+  // Pinboard vote: adjust the per-statement importance count in thoughts.json.
+  const disposeThoughts = webServer.register({
+    kind: 'exact',
+    path: '/api/pts-denkstand/thoughts',
+    handler: async (req, res) => {
+      try {
+        const method = typeof req.method === 'string' ? req.method.toUpperCase() : 'GET';
+        if (method !== 'POST') { sendJson(res, 405, { ok: false, error: 'Methode nicht erlaubt' }); return; }
+        const body = JSON.parse((await readBody(req)) || '{}');
+        const sessionId = typeof body.sessionId === 'string' ? body.sessionId : '';
+        const statement = typeof body.statement === 'string' ? body.statement : '';
+        const delta = Number.isFinite(body.delta) ? body.delta : 0;
+        if (statement.trim() === '' || delta === 0) { sendJson(res, 400, { ok: false, error: 'statement/delta fehlt' }); return; }
+        const base = sessionWorkspace(sessionId) ?? fallbackRoot;
+        const thoughts = await readThoughts(base);
+        const cur = typeof thoughts.votes[statement] === 'number' ? thoughts.votes[statement] : 0;
+        thoughts.votes[statement] = Math.max(0, cur + delta);
+        await atomicWriteFile(base, THOUGHTS_FILE, JSON.stringify(thoughts, null, 2) + '\n');
+        sendJson(res, 200, { ok: true, votes: thoughts.votes });
+      } catch (e) {
+        sendJson(res, 400, { ok: false, error: String(e && e.message ? e.message : e) });
+      }
+    },
+  });
+  ctx.effect(() => disposeThoughts, 'pts-denkstand: thoughts route');
+
+  console.log('[pts-denkstand] host half active; routes /api/pts-denkstand, /api/pts-denkstand/design-question, /api/pts-denkstand/thoughts registered');
 }

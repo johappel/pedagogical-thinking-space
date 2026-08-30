@@ -149,5 +149,7 @@ strukturierte Moment-Aktualisierung (`updateMoment`).
   Entscheidung; die UI ist das Werkzeug der Lehrkraft.
 - Die Temporal-Route schreibt die komplette Timeline deterministisch neu
   (Kommentare gehen verloren, `status` bleibt erhalten).
-- Offene-Fragen-Panel, „Nächster Schritt“-Karte und Dokument-Buttons sind
-  Stufe 4 (`docs/CONCEPT_WEB_WORKFLOW.md`).
+- Offene-Fragen-Panel und „Nächster Schritt“-Karte sind seit dem Denkstand-Umbau
+  im Tab **„Denkstand“** (`pts-denkstand`); die Dokument-Buttons sind teils über die
+  produced-file-Chips im Chat und den „Neu erstellt“-Strip (`pts-artifact-panel`)
+  abgedeckt — Rest ist Stufe 4 (`docs/CONCEPT_WEB_WORKFLOW.md`).

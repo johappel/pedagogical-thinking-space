@@ -162,9 +162,9 @@ Zusätzliche Such-Ebene für den Companion/Worker (DSH-nativ, kein Registry):
 
 ## 7. Abgrenzung zu bestehenden Mechanismen
 
-| Mechanismus | Zuständig für |
-| --- | --- |
-| `pts-workspace-snapshot` | aktueller Denkstand (Status, Board, Entscheidungen) |
+| Mechanismus                    | Zuständig für                                              |
+| ------------------------------ | ---------------------------------------------------------- |
+| `pts-workspace-snapshot`       | aktueller Denkstand (Status, Board, Entscheidungen)        |
 | `pts-knowledge-snapshot` (neu) | kuratiertes Wissen + lokale Erfahrung über Projekte hinweg |
-| Steward-Vorschläge | reversible Entwürfe nach Turns |
-| `pts_review` / `pts_edit` | Prüfung und Übernahme nach Lehrkraft-Entscheidung |
+| Steward-Vorschläge             | reversible Entwürfe nach Turns                             |
+| `pts_review` / `pts_edit`      | Prüfung und Übernahme nach Lehrkraft-Entscheidung          |

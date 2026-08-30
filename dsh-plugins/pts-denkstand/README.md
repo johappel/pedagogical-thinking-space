@@ -5,11 +5,20 @@ Denkraums als teacher-facing Tab statt als Rohtext. Ergänzt die Artefakt-Galeri
 (`pts-artifact-panel`, die nur `.md`/`.pdf`/Bilder/`.html` zeigt und `.yml`
 deshalb auslässt) um eine sinnvolle Darstellung der drei Steuerungsdateien:
 
-| Datei | Darstellung |
+Der Denkstand ist als **Drei-Spalten-Übersicht** links→rechts aufgebaut:
+
+| Spalte / Ansicht | Darstellung |
 |---|---|
-| `planning-board.yml` | **Kanban-Brett** (Spalten Klären / Vorbereiten / Auswerten / Bereit) mit Art-, Status- und Freigabe-Badges, `description` als Kartentext und klickbaren Karten |
-| `temporal-plan.yml` | **Timeline**: Unterrichtsfenster mit ihren Platzierungen (Start, Dauer, Dramaturgie-Rolle, Modus) |
-| `decisions.yml` | **Entscheidungsliste** |
+| **„Wo wir gerade gedanklich dran sind“** (links) | **Pinnwand der tragenden Aussagen** als Cards, die der User **voten** kann (▲/▼ → sortiert nach Wichtigkeit, Votes in `thoughts.json`): die **Leitideen** der Educational Intention (nummerierte Akzente wie „Rechtfertigung und Freiheit“, „Schöpfungsglaube“) + **Board-Hypothesen**. Darüber eine kompakte **„Aktueller Fokus“**-Statuszeile. Oben/Unten Link „Zum vollständigen Learning Design“ (Markdown-gerenderte Lese-Ansicht). |
+| **„Klären“** (Mitte) | die **Klären-Spalte** des Planning Boards (die Klärungs-/Entscheidungs-Warteschlange) mit ✓ Annehmen / 💬 Klären; weitere Spalten (Vorbereiten/Auswerten/Bereit) einklappbar; darunter **„Geklärt (Entscheidungen)“** aus `decisions.yml` (E00N) — die **geklärten Fragen**. |
+| **„Offene Fragen“** (rechts) | **trennt die Quellen klar**: (1) „Offene Fragen“ aus dem **Learning Design** (`## Open Questions`) mit **„💬 Klären“ → verschiebt in die Klären-Spalte**, „✓ Einverstanden“ → Entscheidung, „✕ Verwerfen“ → verwerfen; (2) „Fragen am **Lernmoment**“ (eingeklappt, verweisen auf die Lernlandschaft). |
+| `decisions.yml` | die geklärten Fragen/Entscheidungen erscheinen **in der Mitte** unter „Geklärt“ (kein eigener Abschnitt mehr unten). |
+
+> „Nächster Schritt“ ist bewusst **nicht** im Denkstand — der gehört in die Chat-/Companion-Fläche.
+
+> Hinweis: Die frühere **Timeline** (temporal-plan) wird hier nicht mehr gerendert — die
+> interaktive Stunden-Zuordnung (Fenster + Platzierungen) lebt im Tab **„Lernlandschaft“**.
+> Der Denkstand ist damit das Dashboard für *Planung, Klärungen und Entscheidungen*.
 
 ### Klickbare Karten & Aktionen direkt auf der Karte
 
@@ -84,22 +93,33 @@ node --input-type=module -e "await import('file:///F:/code/pedagogical-thinking-
 
 ## Wie es funktioniert
 
-- **Host-Hälfte** registriert die Route `/api/pts-denkstand?sessionId=<id>`.
-  Sie leitet den Workspace aus der Session ab (`sessions.get(id).header.cwd`),
-  liest die drei YAML-Dateien und liefert sie als JSON zurück. Der mitgelieferte
-  kompakte YAML-Parser deckt den Schemata-Subset ab (Block-Mappings,
-  Block-Sequenzen, Verschachtelung über Einrückung, Flow-Sequenzen, Skalare,
-  Kommentare) – `yaml` ist aus dem Profil-node_modules nicht auflösbar.
-  Fehlende Dateien → `null`; unparsbare Dateien → kurze Fehlermeldung, damit die
-  Lehrkraft das *Warum* sieht statt eines leeren Bretts.
+- **Host-Hälfte** registriert drei Routen:
+  - `GET /api/pts-denkstand?sessionId=<id>` — liest die drei YAML-Dateien plus
+    `thoughts.json` (Votes) und liefert sie als JSON.
+  - `POST /api/pts-denkstand/design-question` (`{ sessionId, question, action:
+    'accept'|'discard' }`) — Lehrer-Entscheid zu einer Learning-Design-Frage:
+    bei `accept` wird die Frage als verbindliche Entscheidung in `decisions.yml`
+    geschrieben und aus den „Open Questions“ entfernt; bei `discard` nur entfernt.
+  - `POST /api/pts-denkstand/thoughts` (`{ sessionId, statement, delta }`) — passt
+    den Vote-Wert einer Pinnwand-Aussage in `thoughts.json` an (≥ 0).
+  Atomarer Schreibzugriff, Pfad auf den Denkraum begrenzt. Der kompakte YAML-Parser
+  deckt den Schemata-Subset ab (Block-Mappings, Block-Sequenzen, Verschachtelung
+  über Einrückung, Flow-Sequenzen, Skalare, Kommentare) – `yaml` ist aus dem
+  Profil-node_modules nicht auflösbar. **Einschränkung:** der Parser verarbeitet
+  keine YAML-Fold-/Literal-Skalare (`>`/`|`); Entscheidungen deshalb einzeilig.
+  Fehlende Dateien → `null`; unparsbare Dateien → kurze Fehlermeldung.
 - **Client-Hälfte** registriert einen `conversation.view`-Tab (`id: denkstand`,
   `order: 40`, `label: "Denkstand"`). Er lädt die Route und rendert Brett,
   Timeline und Entscheidungen mit React.createElement (kein JSX/TS).
 
 ## Sicherheit
 
-Pfade werden pro Anfrage über die Session-Workspace-Auflösung aus der Session
-abgeleitet; es wird nur gelesen. Keine Schreib-Route, kein gefährlicher Content.
+Pfade werden pro Anfrage über die Session-Workspace-Auflösung abgeleitet
+(session.cwd, Fallback sandbox-Workspace). Die Schreib-Routen
+(`/api/pts-denkstand/design-question`, `/api/pts-denkstand/thoughts`) schreiben
+ausschließlich in `decisions.yml`, `learning-design.md` bzw. `thoughts.json` des
+Denkraums, atomar (Temp-Datei + Rename), mit begrenzter Request-Größe.
+Unveränderte Dateien werden nie angefasst.
 
 ## Abgrenzung
 
