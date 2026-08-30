@@ -217,5 +217,21 @@ const up2 = pls.parseLandscape(updPartial.content).moments[0];
 check('updateMoment partial keeps others', up2.title === 'Nur der Titel' && up2.type === 'positioning');
 check('updateMoment unknown moment', pls.updateMoment(sample, 'lm-nix', { title: 'x' }).ok === false);
 
+// 16. parseMaterialMeta (frontmatter of material files)
+const matRaw = '---\nid: material-position-cards\ntitle: Thesenkarten zur Positionierung\nkind: student_material\nstatus: draft\nrelated_moments: [lm-positionieren]\n---\n\nErster Absatz.\n';
+const meta = pls.parseMaterialMeta(matRaw);
+check('material meta parsed', meta !== null && meta.id === 'material-position-cards' && meta.title === 'Thesenkarten zur Positionierung');
+check('material meta related moments', Array.isArray(meta.related_moments) && meta.related_moments[0] === 'lm-positionieren');
+check('material meta without frontmatter', pls.parseMaterialMeta('# plain\n') === null);
+
+// 17. updateMoment preserves Zeitbedarf + materials
+const withEst = pls.setMomentEstimate(sample, 'lm-impuls', 90);
+const upd2 = pls.updateMoment(withEst.content, 'lm-impuls', { title: 'Neu' });
+const mEst = pls.parseLandscape(upd2.content).moments[0];
+check('updateMoment preserves Zeitbedarf', mEst.time_estimate === 90);
+check('updateMoment preserves materials', mEst.materials.join(',') === 'mat-a,mat-b');
+const upd3 = pls.updateMoment(upd2.content, 'lm-impuls', { time_estimate: 45 });
+check('updateMoment sets Zeitbedarf', pls.parseLandscape(upd3.content).moments[0].time_estimate === 45);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

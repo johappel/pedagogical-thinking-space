@@ -57,8 +57,19 @@ das pts-web-Profil (Umsetzung Stufe 1–3 aus `docs/CONCEPT_WEB_WORKFLOW.md`).
   Chat-Input (`inputActions.setDraft`); die Lehrkraft schickt ab, der
   Companion beauftragt `pts_material`.
 - **Material↔Moment-Zuordnung (Stufe 2):** „Material wählen“ im Moment-Kärtchen
-  listet Dateien aus `materials/` und `rendered/` und schreibt die Auswahl in
-  `- Materialien: [...]`.
+  listet Dateien aus `materials/` und `rendered/` mit Metadaten (Titel, Art,
+  Status) — **vorgefiltert auf passende** (über `related_moments` der
+  Material-Metadaten), mit „alle Materialien zeigen“ als Übersteuerung. Die
+  Zuordnung steht im Moment (`- Materialien: […]`); die passenden Material-
+  Metadaten kommen aus der YAML-Frontmatter der Materialdateien.
+- **Materialentwürfe erzeugen (mit Varianten):** Knopf im Moment-Detail
+  schreibt einen Prompt ins Chat-Input (2–3 Varianten aus den
+  Materialbedarfen, Ablage unter `materials/` mit Metadaten inkl.
+  `related_moments`); der Companion beauftragt `pts_material`.
+- **Zugeordnete Materialien editierbar / im Chat:** Jedes zugeordnete
+  Material erscheint als Chip (Titel aus den Metadaten) mit „💬 Chat“ —
+  das Material lässt sich so direkt mit dem Companion besprechen oder
+  überarbeiten lassen.
 - **Artefakt-Editor**: „✎ Bearbeiten“ öffnet einen Inline-Editor (md/yml)
   für die fünf kanonischen Dateien. Speichern schreibt die Datei **atomar**
   in den Denkraum zurück — eine Lehrkraft-Handlung, kein

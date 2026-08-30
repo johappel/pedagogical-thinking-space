@@ -27,7 +27,7 @@ import path from 'node:path';
 
 export const inject = ['webServer'];
 
-const ALLOWED_SAVE_EXT = new Set(['.md', '.yml', '.yaml', '.json', '.txt']);
+const ALLOWED_SAVE_EXT = new Set(['.md', '.yml', '.yaml', '.json', '.txt', '.html', '.htm']);
 const MAX_SAVE_BYTES = 512 * 1024;
 const LANDSCAPE_FILE = 'learning-landscape.md';
 const LAYOUT_FILE = 'learning-landscape.layout.json';
@@ -420,6 +420,26 @@ export function parseDecisions(raw) {
 	};
 }
 
+/**
+ * Read a material file's YAML frontmatter (id/title/kind/status/
+ * related_moments/description). Returns null for files without frontmatter.
+ */
+export function parseMaterialMeta(raw) {
+	if (typeof raw !== 'string') return null;
+	const m = raw.match(/^---\s*\n([\s\S]*?)\n---\s*\n?/);
+	if (m === null) return null;
+	const yaml = parseYaml(m[1]);
+	if (yaml === null || typeof yaml !== 'object') return null;
+	return {
+		id: typeof yaml.id === 'string' ? yaml.id : null,
+		title: typeof yaml.title === 'string' ? yaml.title : null,
+		kind: typeof yaml.kind === 'string' ? yaml.kind : null,
+		status: typeof yaml.status === 'string' ? yaml.status : null,
+		related_moments: Array.isArray(yaml.related_moments) ? yaml.related_moments.filter((x) => typeof x === 'string') : [],
+		description: typeof yaml.description === 'string' ? yaml.description : '',
+	};
+}
+
 // ————————————————————————————————————————————————
 // Timeline serialization + validation (Stufe 2: drag&drop writes)
 // ————————————————————————————————————————————————
@@ -659,10 +679,11 @@ export function updateMoment(content, momentId, fields) {
 		learning_activity: fields.learning_activity !== undefined ? fields.learning_activity : cur.learning_activity,
 		expected_experience: fields.expected_experience !== undefined ? fields.expected_experience : cur.expected_experience,
 		material_needs: Array.isArray(fields.material_needs) ? fields.material_needs : cur.material_needs,
-		materials: cur.materials,
+		materials: Array.isArray(fields.materials) ? fields.materials : cur.materials,
 		open_questions: Array.isArray(fields.open_questions) ? fields.open_questions : cur.open_questions,
 		status: cur.status,
 		provenance: cur.provenance,
+		time_estimate: fields.time_estimate !== undefined ? (typeof fields.time_estimate === 'number' ? fields.time_estimate : null) : cur.time_estimate,
 	};
 	const block = buildMomentBlock(id, merged);
 	return { ok: true, content: lines.slice(0, start).concat(block).concat(lines.slice(end)).join('\n') };
@@ -690,6 +711,9 @@ function buildMomentBlock(id, m) {
 	} else {
 		lines.push('- Offene Fragen: []');
 	}
+	if (typeof m.time_estimate === 'number' && Number.isFinite(m.time_estimate) && m.time_estimate > 0) {
+		lines.push('- Zeitbedarf: ' + Math.round(m.time_estimate));
+	}
 	lines.push('- Status: ' + yamlScalar(m.status || 'draft'));
 	if (m.provenance) lines.push('- Herkunft: ' + yamlScalar(m.provenance));
 	return lines;
@@ -697,7 +721,7 @@ function buildMomentBlock(id, m) {
 
 /** Read one moment block's fields (for updateMoment merge). */
 function readMomentBlock(lines, start, end) {
-	const m = { title: '', type: '', function: '', learning_activity: '', expected_experience: '', material_needs: [], materials: [], open_questions: [], status: 'draft', provenance: '' };
+	const m = { title: '', type: '', function: '', learning_activity: '', expected_experience: '', material_needs: [], materials: [], open_questions: [], status: 'draft', provenance: '', time_estimate: null };
 	for (let i = start + 1; i < end; i += 1) {
 		const t = lines[i].trim();
 		if (!t.startsWith('- ')) continue;
@@ -706,10 +730,10 @@ function readMomentBlock(lines, start, end) {
 		const lab = fm[1].trim();
 		const val = fm[2].trim();
 		if (lab === 'Titel' || lab === 'Typ' || lab === 'Funktion' || lab === 'Lernaktivität'
-			|| lab === 'Erwartete Lernerfahrung' || lab === 'Status' || lab === 'Herkunft') {
+			|| lab === 'Erwartete Lernerfahrung' || lab === 'Status' || lab === 'Herkunft' || lab === 'Zeitbedarf') {
 			const parsed = parseScalar(val);
-			const key = { Titel: 'title', Typ: 'type', Funktion: 'function', Lernaktivität: 'learning_activity', 'Erwartete Lernerfahrung': 'expected_experience', Status: 'status', Herkunft: 'provenance' }[lab];
-			m[key] = parsed === null ? '' : String(parsed);
+			const key = { Titel: 'title', Typ: 'type', Funktion: 'function', Lernaktivität: 'learning_activity', 'Erwartete Lernerfahrung': 'expected_experience', Status: 'status', Herkunft: 'provenance', Zeitbedarf: 'time_estimate' }[lab];
+			m[key] = key === 'time_estimate' ? (typeof parsed === 'number' ? parsed : null) : (parsed === null ? '' : String(parsed));
 		} else if (lab === 'Materialien') {
 			m.materials = Array.isArray(parseValue(val)) ? parseValue(val).filter((x) => typeof x === 'string' && x.trim() !== '') : [];
 		} else if (lab === 'Materialbedarfe' || lab === 'Offene Fragen') {
@@ -1006,7 +1030,16 @@ export function apply(ctx) {
 						const stat = await fsp.stat(dir).catch(() => null);
 						if (stat === null || !stat.isDirectory()) continue;
 						const files = await listFilesUnder(dir, 5);
-						for (const f of files) materials.push(f);
+						for (const f of files) {
+							let meta = null;
+							if (f.endsWith('.md')) {
+								const content = await fsp.readFile(path.join(base, sub, f), 'utf8').catch(() => '');
+								meta = parseMaterialMeta(content);
+							}
+							// workspace-relative path so /api/pts-artifact/raw|save
+							// can resolve it against the Denkraum root.
+							materials.push({ path: toPosix(path.relative(base, path.join(base, sub, f))), meta: meta });
+						}
 					}
 					sendJson(res, 200, { materials });
 					return;

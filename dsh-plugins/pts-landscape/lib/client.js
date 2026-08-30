@@ -52,7 +52,8 @@ window.__ModuleLoader__.load({
 .pls-card-ok { border-color:#7ec699; box-shadow:0 0 0 1px rgba(126,198,153,.5) inset; }
 .pls-card-warn { border-color:#d19a66; box-shadow:0 0 0 1px rgba(209,154,102,.55) inset; }
 .pls-card-head { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-.pls-card-title { font-size:12.5px; line-height:1.4; font-weight:600; flex:1; min-width:120px; }
+.pls-card-title { font-size:12.5px; line-height:1.35; font-weight:600; flex:1; min-width:0; }
+.pls-card-meta { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
 .pls-badge { border:1px solid rgba(128,128,128,.35); border-radius:4px; padding:0 5px; font-size:10px; text-transform:uppercase; letter-spacing:.3px; white-space:nowrap; }
 .pls-badge-draft { border-color:#d19a66; color:#d19a66; }
 .pls-badge-stable { border-color:#7ec699; color:#7ec699; }
@@ -89,10 +90,31 @@ window.__ModuleLoader__.load({
 .pls-editor-actions, .pls-dialog-actions { display:flex; gap:8px; justify-content:flex-end; }
 .pls-dialog-body { display:flex; flex-direction:column; gap:10px; padding:12px; }
 .pls-picker-list { max-height:40vh; overflow:auto; display:flex; flex-direction:column; gap:4px; }
+.pls-preview { border:1px solid rgba(128,128,128,.25); border-radius:6px; margin-top:8px; display:flex; flex-direction:column; height:34vh; min-height:220px; }
+.pls-preview-head { display:flex; align-items:center; gap:6px; padding:4px 8px; border-bottom:1px solid rgba(128,128,128,.2); flex:0 0 auto; }
+.pls-preview-content { flex:1; min-height:0; overflow:auto; }
+.pls-preview-content .pls-preview-body, .pls-preview-content pre { margin:0; padding:8px; white-space:pre-wrap; word-break:break-word; font-family:inherit; font-size:12px; line-height:1.5; opacity:.85; }
+.pls-markdown { padding:8px 10px; font-size:12.5px; line-height:1.55; }
+.pls-markdown h1, .pls-markdown h2, .pls-markdown h3, .pls-markdown h4 { margin:8px 0 4px; font-size:13px; }
+.pls-markdown p { margin:4px 0; }
+.pls-markdown ul { margin:4px 0; padding-left:18px; }
+.pls-markdown code { background:rgba(128,128,128,.15); padding:0 3px; border-radius:3px; font-size:11.5px; }
+.pls-markdown pre { background:rgba(128,128,128,.12); padding:8px; border-radius:5px; overflow:auto; }
+.pls-markdown table { border-collapse:collapse; margin:6px 0; width:100%; }
+.pls-markdown th, .pls-markdown td { border:1px solid rgba(128,128,128,.3); padding:4px 8px; text-align:left; font-size:12px; }
+.pls-markdown th { background:rgba(128,128,128,.1); font-weight:600; }
+.pls-markdown hr { border:none; border-top:1px solid rgba(128,128,128,.3); margin:8px 0; }
+.pls-markdown em { font-style:italic; }
+.pls-markdown blockquote { margin:6px 0; padding:4px 10px; border-left:3px solid rgba(128,128,128,.35); background:rgba(128,128,128,.05); opacity:.92; }
 .pls-picker-item { display:flex; align-items:center; gap:8px; font-size:12.5px; }
 .pls-picker-item label { cursor:pointer; }
 .pls-form-row { display:flex; align-items:center; gap:8px; font-size:12.5px; }
 .pls-form-row label { min-width:110px; opacity:.75; }
+.pls-form-stack { display:flex; flex-direction:column; gap:4px; }
+.pls-form-label { font-size:11.5px; opacity:.7; }
+.pls-form-stack .pls-input, .pls-form-stack .pls-select { width:100%; box-sizing:border-box; }
+.pls-input-multiline { width:100%; min-height:72px; resize:vertical; font-family:inherit; font-size:12.5px; line-height:1.5; background:transparent; color:inherit; border:1px solid rgba(128,128,128,.3); border-radius:6px; padding:6px 8px; box-sizing:border-box; }
+.pls-overlay.pls-overlay-top { z-index:1260; }
 `;
 
 		const STYLE_TAG_ID = "pts-landscape-css";
@@ -150,6 +172,97 @@ window.__ModuleLoader__.load({
 
 		const TRANSITION_TYPE_OPTIONS = [["required", "Reihenfolge (nacheinander)"], ["prerequisite", "Voraussetzung (baut auf)"], ["choice", "Wahl (alternative Wege)"], ["parallel", "Parallel (gleichzeitig, Gruppen)"], ["meeting_point", "Treffpunkt (läuft zusammen)"], ["return", "Zurück (Schleife)"]];
 
+		function momentEditorLabel(matIndex, path) {
+			const entry = Array.isArray(matIndex) ? matIndex.find(function(x) { return x.path === path; }) : undefined;
+			if (entry !== undefined && entry.meta !== null && typeof entry.meta.title === "string") return entry.meta.title;
+			return path;
+		}
+
+		// ——— Read-only document viewer for the material ("Zeigen") ———
+		function mdInline(s) {
+			return s
+				.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+				.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>")
+				.replace(/_([^_\n]+)_/g, "<em>$1</em>")
+				.replace(/`([^`]+)`/g, "<code>$1</code>");
+		}
+
+		// Minimal, safe markdown -> HTML (HTML is escaped first, so no script
+		// injection). Strips YAML frontmatter, renders headings, hr, lists,
+		// fenced code and simple pipe tables.
+		function mdToHtml(md) {
+			const src = String(md).replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, "");
+			const lines = src.split(/\r?\n/);
+			const out = [];
+			let inList = false;
+			let inCode = false;
+			let table = null;
+			const flushTable = function() {
+				if (table === null || table.length === 0) return;
+				const rows = table.filter(function(cells) {
+					return !cells.every(function(c) { return /^:?-{3,}:?$/.test(c); });
+				});
+				if (rows.length === 0) { table = null; return; }
+				const head = rows[0];
+				const ths = head.map(function(c) { return "<th>" + mdInline(esc(c)) + "</th>"; }).join("");
+				const trs = rows.slice(1).map(function(cells) {
+					return "<tr>" + cells.map(function(c) { return "<td>" + mdInline(esc(c)) + "</td>"; }).join("") + "</tr>";
+				}).join("");
+				out.push("<table><thead><tr>" + ths + "</tr></thead><tbody>" + trs + "</tbody></table>");
+				table = null;
+			};
+			const flushList = function() { if (inList) { out.push("</ul>"); inList = false; } };
+			const flushQuote = function() {
+				if (quote === null || quote.length === 0) return;
+				const content = quote.map(function(l) { return l === "" ? "<br>" : mdInline(esc(l)); }).join("<br>");
+				out.push("<blockquote>" + content + "</blockquote>");
+				quote = null;
+			};
+			let quote = null;
+			for (const raw of lines) {
+				const t = raw.trim();
+				if (/^\s*```/.test(raw)) { flushTable(); flushList(); flushQuote(); if (inCode) { out.push("</code></pre>"); inCode = false; } else { out.push("<pre><code>"); inCode = true; } continue; }
+				if (inCode) { out.push(esc(raw)); continue; }
+				if (/^\|/.test(t)) {
+					if (table === null) table = [];
+					table.push(t.replace(/^\||\|$/g, "").split("|").map(function(c) { return c.trim(); }));
+					continue;
+				}
+				if (table !== null) flushTable();
+				if (t.startsWith(">")) {
+					if (quote === null) { flushList(); quote = []; }
+					quote.push(t.replace(/^>\s?/, ""));
+					continue;
+				}
+				if (quote !== null) flushQuote();
+				const h = t.match(/^(#{1,4})\s+(.*)$/);
+				if (h) { flushList(); out.push("<h" + h[1].length + ">" + mdInline(esc(h[2])) + "</h" + h[1].length + ">"); continue; }
+				if (/^(\-{3,}|\*{3,}|_{3,})$/.test(t)) { flushList(); out.push("<hr>"); continue; }
+				const li = t.match(/^\s*[-*]\s+(.*)$/);
+				if (li) { flushTable(); flushQuote(); if (!inList) { out.push("<ul>"); inList = true; } out.push("<li>" + mdInline(esc(li[1])) + "</li>"); continue; }
+				if (inList) flushList();
+				if (t === "") continue;
+				out.push("<p>" + mdInline(esc(t)) + "</p>");
+			}
+			flushTable();
+			flushList();
+			flushQuote();
+			if (inCode) out.push("</code></pre>");
+			return out.join("\n");
+		}
+
+		// Unified viewer by file type: html in a sandboxed iframe, md rendered,
+		// everything else as plain text.
+		function renderMaterialPreview(path, content) {
+			if (/\.(html|htm)$/i.test(path)) {
+				return React.createElement("iframe", { sandbox: "", title: path, srcDoc: content, style: { width: "100%", height: "100%", border: 0, display: "block" } });
+			}
+			if (/\.md$/i.test(path)) {
+				return React.createElement("div", { className: "pls-markdown", dangerouslySetInnerHTML: { __html: mdToHtml(content) } });
+			}
+			return React.createElement("pre", { className: "pls-preview-body" }, esc(content));
+		}
+
 		function copyText(text) {
 			const onFail = function() {
 				try { window.prompt("Hier kopieren (Strg+C) und im Chat einfügen:", text); } catch (e) {}
@@ -206,55 +319,82 @@ window.__ModuleLoader__.load({
 			const m = props.moment;
 			const assign = props.assign || { status: "none", assigned: 0, estimated: null };
 			const onDragStart = props.onDragStart;
-			const onPickMaterials = props.onPickMaterials;
-			const onSaveEstimate = props.onSaveEstimate;
 			const onChat = props.onChat;
 			const onEdit = props.onEdit;
+			const matIndex = props.matIndex;
+			const onChatMaterial = props.onChatMaterial;
 			const expandedState = React.useState(false);
 			const expanded = expandedState[0];
 			const setExpanded = expandedState[1];
-			const estState = React.useState("");
-			const estDraft = estState[0];
-			const setEstDraft = estState[1];
 
 			function toggleDetails() {
-				const next = !expanded;
-				setExpanded(next);
-				if (next) setEstDraft(m.time_estimate != null ? String(m.time_estimate) : "");
+				setExpanded(!expanded);
 			}
-
-			const grip = React.createElement("span", {
-				key: "grip",
-				className: "pls-grip",
-				title: "⠿ ziehen, um den Lernmoment auf der Landschaft zu verschieben",
-				draggable: true,
-				onDragStart: function(e) {
-					e.stopPropagation();
-					e.dataTransfer.setData("text/plain", m.id);
-					e.dataTransfer.setData("text/pts-intent", "move");
-					e.dataTransfer.effectAllowed = "all";
-				},
-			}, "⠿");
 
 			const focusState = React.useState(false);
 			const focused = focusState[0];
 			const setFocused = focusState[1];
+			const moveState = React.useState(null);
+			const moveDrag = moveState[0];
+			const setMoveDrag = moveState[1];
+			const moveRef = React.useRef(null);
+			const moveActiveRef = React.useRef(false);
 
-			// Header: grip, type badge (before title), title, chips.
+			// Suppress the browser context menu while a right-drag is active,
+			// no matter which element is under the cursor.
+			React.useEffect(function() {
+				function onCtx(e) {
+					if (moveActiveRef.current) e.preventDefault();
+				}
+				document.addEventListener("contextmenu", onCtx);
+				return function() { document.removeEventListener("contextmenu", onCtx); };
+			}, []);
+
+			// Move by RIGHT-drag: the whole card follows the cursor (pointer-based),
+			// left-drag stays the HTML5 assign/transition drag. No separate handle.
+			function onPointerDown(e) {
+				if (e.button !== 2) return;
+				e.preventDefault();
+				moveActiveRef.current = true;
+				const pos = props.position;
+				if (pos === undefined || pos === null) return;
+				moveRef.current = { cx: e.clientX, cy: e.clientY, x: pos.x, y: pos.y };
+				try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+			}
+			function onPointerMove(e) {
+				const mv = moveRef.current;
+				if (mv === null) return;
+				setMoveDrag({ dx: e.clientX - mv.cx, dy: e.clientY - mv.cy });
+			}
+			function onPointerUp(e) {
+				const mv = moveRef.current;
+				if (mv === null) return;
+				moveActiveRef.current = false;
+				moveRef.current = null;
+				setMoveDrag(null);
+				const dx = e.clientX - mv.cx;
+				const dy = e.clientY - mv.cy;
+				if (typeof props.onMove === "function") props.onMove(m.id, mv.x + dx, mv.y + dy);
+			}
+
+			// Header: type badge (before title) + title. Chips in their own meta row.
 			const head = [
-				grip,
 				React.createElement("span", { key: "ty", className: "pls-badge" }, esc(typeLabel(m.type))),
 				React.createElement("span", { key: "t", className: "pls-card-title" }, esc(m.title || m.id)),
 			];
+			const meta = [];
 			if (m.time_estimate != null) {
-				head.push(React.createElement("span", { key: "te", className: "pls-chip" }, "≈ " + m.time_estimate + " min"));
+				meta.push(React.createElement("span", { key: "te", className: "pls-chip" }, "≈ " + m.time_estimate + " min"));
 			}
 			if (assign.status !== "none") {
-				head.push(React.createElement("span", { key: "as", className: "pls-chip" },
+				meta.push(React.createElement("span", { key: "as", className: "pls-chip" },
 					"zugeordnet " + assign.assigned + " min" + (assign.estimated != null ? " / " + assign.estimated + " min" : "")));
 			}
 
 			const children = [React.createElement("div", { key: "h", className: "pls-card-head" }, head)];
+			if (meta.length > 0) {
+				children.push(React.createElement("div", { key: "meta", className: "pls-card-meta" }, meta));
+			}
 
 			if (expanded) {
 				const details = [];
@@ -266,22 +406,35 @@ window.__ModuleLoader__.load({
 					details.push(React.createElement("div", { key: "a", className: "pls-card-field" },
 						React.createElement("b", null, "Lernaktivität: "), esc(m.learning_activity)));
 				}
+				if (typeof m.expected_experience === "string" && m.expected_experience !== "") {
+					details.push(React.createElement("div", { key: "ee", className: "pls-card-field" },
+						React.createElement("b", null, "Erwartete Lernerfahrung: "), esc(m.expected_experience)));
+				}
 				const needs = Array.isArray(m.material_needs) ? m.material_needs : [];
 				if (needs.length > 0) {
-					details.push(React.createElement(ListField, { key: "n", label: "Materialbedarfe", items: needs }));
+					details.push(React.createElement(ListField, { key: "n", label: "Materialbedarfe (was gebraucht wird)", items: needs }));
 				}
 				const mats = Array.isArray(m.materials) ? m.materials : [];
+				const matLabel = function(path) {
+					const entry = Array.isArray(matIndex) ? matIndex.find(function(x) { return x.path === path; }) : undefined;
+					if (entry !== undefined && entry.meta !== null && typeof entry.meta.title === "string") return entry.meta.title;
+					return path;
+				};
+				const matEls = mats.map(function(p) {
+					return React.createElement("span", { key: p, className: "pls-chip", title: p },
+						esc(matLabel(p)),
+						typeof onChatMaterial === "function"
+							? React.createElement("button", {
+								className: "pls-btn",
+								style: { marginLeft: "4px" },
+								title: "Dieses Material im Chat besprechen / überarbeiten",
+								onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); onChatMaterial(p); },
+							}, "💬 Chat")
+							: null);
+				});
 				details.push(React.createElement("div", { key: "mat", className: "pls-card-field" },
-					React.createElement("b", null, "Materialien: "),
-					mats.length > 0 ? esc(mats.join(", ")) : React.createElement("span", { className: "pls-note" }, "keine zugeordnet"),
-					typeof onPickMaterials === "function"
-						? React.createElement("button", {
-							className: "pls-btn pls-btn-edit",
-							style: { marginLeft: "6px" },
-							title: "Materialien aus materials/ oder rendered/ zuordnen",
-							onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); onPickMaterials(m); },
-						}, "Material wählen")
-						: null));
+					React.createElement("b", null, "Materialien (zugeordnet): "),
+					mats.length > 0 ? React.createElement("div", { className: "pls-card-meta" }, matEls) : React.createElement("span", { className: "pls-note" }, "keine zugeordnet")));
 				const qs = Array.isArray(m.open_questions) ? m.open_questions : [];
 				if (qs.length > 0) {
 					details.push(React.createElement(ListField, { key: "q", label: "Offene Fragen", items: qs }));
@@ -289,30 +442,6 @@ window.__ModuleLoader__.load({
 				if (typeof m.provenance === "string" && m.provenance !== "") {
 					details.push(React.createElement("div", { key: "p", className: "pls-note" }, esc(m.provenance)));
 				}
-				details.push(React.createElement("div", { key: "est", className: "pls-estimate-row" },
-					React.createElement("b", null, "Zeitbedarf:"),
-					React.createElement("input", {
-						className: "pls-input pls-minutes",
-						type: "number",
-						min: 5,
-						max: 600,
-						value: estDraft,
-						placeholder: "min",
-						title: "Geschätzte Zeit für diesen Lernmoment (für die Vollständigkeits-Prüfung)",
-						onChange: function(e) { setEstDraft(e.target.value); },
-					}),
-					React.createElement("button", {
-						className: "pls-btn pls-btn-edit",
-						disabled: !(estDraft.trim() !== "" && parseInt(estDraft, 10) > 0),
-						onClick: function() { onSaveEstimate(m.id, parseInt(estDraft, 10)); },
-					}, "Speichern"),
-					m.time_estimate != null
-						? React.createElement("button", {
-							className: "pls-btn",
-							title: "Schätzung entfernen",
-							onClick: function() { onSaveEstimate(m.id, null); },
-						}, "✕")
-						: null));
 				children.push(React.createElement("div", { key: "d", className: "pls-details" }, details));
 			}
 
@@ -335,18 +464,30 @@ window.__ModuleLoader__.load({
 
 			const cardProps = {
 				className: "pls-card draggable" + (assign.status === "ok" ? " pls-card-ok" : assign.status === "warn" ? " pls-card-warn" : ""),
-				style: props.position ? { left: props.position.x + "px", top: props.position.y + "px", zIndex: (expanded || focused) ? 10 : undefined } : undefined,
+				style: props.position
+					? {
+						left: props.position.x + "px",
+						top: props.position.y + "px",
+						transform: moveDrag ? "translate(" + moveDrag.dx + "px," + moveDrag.dy + "px)" : undefined,
+						zIndex: (expanded || focused) ? 10 : undefined,
+					}
+					: undefined,
 				key: m.id,
 				draggable: true,
-				title: m.id + " — ⠿ ziehen = verschieben · Karte ziehen = in eine Stunde zuordnen oder mit einer anderen Karte verbinden",
+				title: m.id + " — linke Maustaste: in eine Stunde zuordnen / mit anderer Karte verbinden · rechte Maustaste: auf der Landschaft verschieben",
 				onMouseDown: function() { if (!focused) setFocused(true); },
+				onPointerDown: onPointerDown,
+				onPointerMove: onPointerMove,
+				onPointerUp: onPointerUp,
+				onPointerCancel: function() { moveActiveRef.current = false; moveRef.current = null; setMoveDrag(null); },
+				onContextMenu: function(e) { e.preventDefault(); },
 				onDragStart: onDragStart,
 				onDragOver: function(e) { e.preventDefault(); },
 				onDrop: function(e) {
 					e.preventDefault();
 					const dragged = e.dataTransfer.getData("text/plain");
 					const intent = e.dataTransfer.getData("text/pts-intent");
-					if (intent === "move") return; // let it bubble to the canvas (reposition)
+					if (intent !== "assign") return;
 					e.stopPropagation();
 					if (dragged !== "" && dragged !== m.id && typeof props.onDropCard === "function") {
 						props.onDropCard(dragged, m.id);
@@ -460,6 +601,16 @@ window.__ModuleLoader__.load({
 			const momentEditState = React.useState(null);
 			const momentEdit = momentEditState[0];
 			const setMomentEdit = momentEditState[1];
+			const matIndexState = React.useState([]);
+			const matIndex = matIndexState[0];
+			const setMatIndex = matIndexState[1];
+
+			function ensureMatIndex() {
+				fetch("/api/pts-landscape/materials?sessionId=" + encodeURIComponent(sessionId === null ? "" : sessionId))
+					.then(function(res) { return res.text().then(function(body) { let v = null; try { v = JSON.parse(body); } catch (e) { v = null; } return v; }); })
+					.then(function(v) { if (v !== null && Array.isArray(v.materials)) setMatIndex(v.materials); })
+					.catch(function() { /* index is best-effort */ });
+			}
 
 			function load() {
 				const url = "/api/pts-landscape?sessionId=" + encodeURIComponent(sessionId === null ? "" : sessionId);
@@ -480,6 +631,7 @@ window.__ModuleLoader__.load({
 
 			React.useEffect(function() {
 				load();
+				ensureMatIndex();
 				const timer = setInterval(load, 5000);
 				return function() { clearInterval(timer); };
 			}, [sessionId]);
@@ -687,7 +839,7 @@ window.__ModuleLoader__.load({
 						if (!r.res.ok) throw new Error(v !== null && v && typeof v.error === "string" ? v.error : "HTTP " + r.res.status);
 						const list = Array.isArray(v.materials) ? v.materials : [];
 						const current = Array.isArray(moment.materials) ? moment.materials : [];
-						setPicker({ momentId: moment.id, list: list, selected: current.slice() });
+						setPicker({ momentId: moment.id, list: list, selected: current.slice(), showAll: false, preview: null });
 					})
 					.catch(function(e) { setError("Materialliste: " + String(e && e.message ? e.message : e)); });
 			}
@@ -706,6 +858,7 @@ window.__ModuleLoader__.load({
 						return v;
 					});
 				}).then(function() {
+					setMomentEdit(function(prev) { return prev && prev.id === picker.momentId ? Object.assign({}, prev, { materials: picker.selected.slice() }) : prev; });
 					setPicker(null);
 					setFeedback("Materialien für " + picker.momentId + " zugeordnet.");
 					load();
@@ -714,13 +867,36 @@ window.__ModuleLoader__.load({
 				});
 			}
 
+			function togglePickerDetails(path) {
+				setPicker(function(prev) { return Object.assign({}, prev, { detailsPath: prev.detailsPath === path ? undefined : path }); });
+			}
+
+			function isTextPreview(path) {
+				return /\.(md|html|htm|txt|yml|yaml|json)$/i.test(path);
+			}
+
+			function openPreview(path) {
+				if (!isTextPreview(path)) {
+					setPicker(function(prev) { return Object.assign({}, prev, { preview: { path: path, content: null } }); });
+					return;
+				}
+				fetch("/api/pts-artifact/raw?sessionId=" + encodeURIComponent(sessionId === null ? "" : sessionId) + "&file=" + encodeURIComponent(path))
+					.then(function(res) { return res.text().then(function(body) { return { res: res, body: body }; }); })
+					.then(function(r) {
+						let v = null; try { v = JSON.parse(r.body); } catch (e) { v = null; }
+						if (!r.res.ok) throw new Error(v !== null && v && typeof v.error === "string" ? v.error : "HTTP " + r.res.status);
+						setPicker(function(prev) { return Object.assign({}, prev, { preview: { path: path, content: v.content } }); });
+					})
+					.catch(function(e) { setError("Vorschau: " + String(e && e.message ? e.message : e)); });
+			}
+
 			function toggleMaterial(path) {
 				if (picker === null) return;
 				const sel = picker.selected.slice();
 				const i = sel.indexOf(path);
 				if (i >= 0) sel.splice(i, 1);
 				else sel.push(path);
-				setPicker({ momentId: picker.momentId, list: picker.list, selected: sel });
+				setPicker({ momentId: picker.momentId, list: picker.list, selected: sel, showAll: picker.showAll, preview: picker.preview });
 			}
 
 			// ——— Layout canvas (free vertical + horizontal positioning) ———
@@ -742,21 +918,6 @@ window.__ModuleLoader__.load({
 				}).catch(function(e) {
 					setError("Layout: " + String(e && e.message ? e.message : e));
 				});
-			}
-
-			function onCanvasDrop(e) {
-				e.preventDefault();
-				const id = e.dataTransfer.getData("text/plain");
-				const intent = e.dataTransfer.getData("text/pts-intent");
-				if (id === "" || intent !== "move") return;
-				const el = e.currentTarget;
-				const rect = el.getBoundingClientRect();
-				const x = clamp(Math.round(e.clientX - rect.left + el.scrollLeft - CARD_W / 2), 8, Math.max(8, rect.width + el.scrollLeft - CARD_W));
-				const y = clamp(Math.round(e.clientY - rect.top + el.scrollTop - 24), 8, Math.max(8, rect.height + el.scrollTop - CARD_H));
-				const positions = {};
-				for (const k of Object.keys(displayPos)) positions[k] = displayPos[k];
-				positions[id] = { x: x, y: y };
-				saveLayout(positions, []);
 			}
 
 			// ——— Transitions ———
@@ -808,10 +969,29 @@ window.__ModuleLoader__.load({
 					(m.function ? "Funktion: " + m.function + "\n" : "") +
 					(m.learning_activity ? "Lernaktivität: " + m.learning_activity + "\n" : "") +
 					(qs.length > 0 ? "Offene Fragen: " + qs.join("; ") + "\n" : "");
+				setChatDraft(text, "Prompt für den Moment „" + m.title + "“ ins Chat-Input übernommen.");
+			}
+
+			function chatMaterial(path) {
+				const entry = matIndex.find(function(x) { return x.path === path; });
+				const title = entry && entry.meta && typeof entry.meta.title === "string" && entry.meta.title !== "" ? entry.meta.title : path;
+				const text = "Lass uns das Material „" + title + "“ (" + path + ") besprechen oder überarbeiten.";
+				setChatDraft(text, "Prompt für das Material „" + title + "“ ins Chat-Input übernommen.");
+			}
+
+			function createMaterial(m) {
+				const needs = Array.isArray(m.material_needs) ? m.material_needs : [];
+				const text = "Erzeuge Material-Entwürfe (2–3 Varianten, z. B. unterschiedliche Niveaus/Formate) für den Lernmoment " + m.id + " „" + m.title + "“.\n" +
+					(needs.length > 0 ? "Bedarfe: " + needs.join("; ") + "\n" : "") +
+					"Lege die Entwürfe unter materials/ ab (mit Metadaten: id, title, kind, status, related_moments=[" + m.id + "]) und nenne die erzeugten Dateien.";
+				setChatDraft(text, "Material-Auftrag für „" + m.title + "“ ins Chat-Input übernommen.");
+			}
+
+			function setChatDraft(text, msg) {
 				const inputActions = props !== null && props !== undefined ? props.inputActions : undefined;
 				if (inputActions !== undefined && typeof inputActions.setDraft === "function") {
 					inputActions.setDraft(text);
-					setFeedback("Prompt für den Moment „" + m.title + "“ ins Chat-Input übernommen.");
+					setFeedback(msg);
 				} else {
 					copyText(text);
 					setFeedback("Chat-Input nicht erreichbar — Prompt kopiert.");
@@ -901,10 +1081,16 @@ window.__ModuleLoader__.load({
 					position: displayPos[m.id],
 					assign: assignStatus(m),
 					onDragStart: function(e) { e.dataTransfer.setData("text/plain", m.id); e.dataTransfer.setData("text/pts-intent", "assign"); e.dataTransfer.effectAllowed = "all"; },
-					onPickMaterials: openMaterialPicker,
-					onSaveEstimate: saveEstimate,
 					onChat: chatMoment,
 					onEdit: setMomentEdit,
+					matIndex: matIndex,
+					onChatMaterial: chatMaterial,
+					onMove: function(id, x, y) {
+						const positions = {};
+						for (const k of Object.keys(displayPos)) positions[k] = displayPos[k];
+						positions[id] = { x: Math.max(8, x), y: Math.max(8, y) };
+						saveLayout(positions, []);
+					},
 					onDropCard: function(dragged, target) {
 						setTransitionForm({ from: dragged, to: target, type: "required", rationale: "" });
 					},
@@ -940,8 +1126,6 @@ window.__ModuleLoader__.load({
 				: React.createElement("div", {
 					className: "pls-canvas",
 					style: { height: canvasHeight },
-					onDragOver: function(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; },
-					onDrop: onCanvasDrop,
 				}, [
 					React.createElement("svg", { key: "arrows", className: "pls-arrow-svg" },
 						React.createElement("defs", null,
@@ -1027,7 +1211,7 @@ window.__ModuleLoader__.load({
 						React.createElement("div", null,
 							React.createElement("div", { className: "pls-toolbar" },
 								React.createElement("span", { className: "pls-section-title", style: { marginBottom: 0 } }, "Lernlandschaft (Karten frei verschieben)")),
-							React.createElement("div", { className: "pls-note" }, "⠿ ziehen = auf der Landschaft verschieben · Karte ziehen = in eine Stunde (rechts) zuordnen oder auf eine andere Karte ziehen = Übergang"),
+							React.createElement("div", { className: "pls-note" }, "Linke Maustaste: in eine Stunde (rechts) zuordnen oder auf eine andere Karte ziehen = Übergang · Rechte Maustaste: auf der Landschaft verschieben"),
 							momentsSection),
 						React.createElement("div", null,
 							React.createElement("div", { className: "pls-section-title" }, "Übergänge"),
@@ -1045,14 +1229,14 @@ window.__ModuleLoader__.load({
 
 				// ——— Editor overlay ———
 				editor !== null
-					? React.createElement("div", { className: "pls-overlay" },
+					? React.createElement("div", { className: "pls-overlay pls-overlay-top" },
 						React.createElement("div", { className: "pls-editor" },
 							React.createElement("div", { className: "pls-editor-head" },
 								React.createElement("select", {
 									className: "pls-editor-file",
 									value: editor.file,
 									onChange: function(e) { openEditor(e.target.value); },
-								}, EDITABLE_FILES.map(function(f) {
+								}, (EDITABLE_FILES.indexOf(editor.file) >= 0 ? EDITABLE_FILES : [editor.file].concat(EDITABLE_FILES)).map(function(f) {
 									return React.createElement("option", { key: f, value: f }, f);
 								})),
 								React.createElement("span", { className: "pls-note" }, "Deine Änderung wird direkt gespeichert (Lehrkraft-Handlung).")),
@@ -1069,30 +1253,73 @@ window.__ModuleLoader__.load({
 					)
 					: null,
 
-				// ——— Material picker overlay ———
+				// ——— Material picker overlay (stacks above the editor dialog) ———
 				picker !== null
-					? React.createElement("div", { className: "pls-overlay" },
+					? React.createElement("div", { className: "pls-overlay pls-overlay-top" },
 						React.createElement("div", { className: "pls-dialog" },
 							React.createElement("div", { className: "pls-dialog-head" },
-								React.createElement("span", { className: "pls-title" }, "Materialien für " + picker.momentId)),
+								React.createElement("span", { className: "pls-title" }, "Materialien zuordnen für " + picker.momentId),
+								React.createElement("label", { className: "pls-note", style: { marginLeft: "auto", display: "flex", alignItems: "center", gap: "4px" } },
+									React.createElement("input", {
+										type: "checkbox",
+										checked: picker.showAll,
+										onChange: function(e) { setPicker({ momentId: picker.momentId, list: picker.list, selected: picker.selected, showAll: e.target.checked, preview: picker.preview }); },
+									}),
+									"alle Materialien zeigen")),
 							React.createElement("div", { className: "pls-dialog-body" },
+								React.createElement("div", { className: "pls-note" }, "Standard: nur Materialien, die zu diesem Lernmoment passen (related_moments) — „alle zeigen“ hebt das auf."),
 								picker.list.length === 0
 									? React.createElement("div", { className: "pls-note" }, "Keine Dateien unter materials/ oder rendered/ gefunden.")
 									: React.createElement("div", { className: "pls-picker-list" },
-										picker.list.map(function(f) {
-											const checked = picker.selected.indexOf(f) >= 0;
-											return React.createElement("div", { key: f, className: "pls-picker-item" },
+										picker.list.filter(function(f) {
+											if (picker.showAll) return true;
+											const rm = f.meta && Array.isArray(f.meta.related_moments) ? f.meta.related_moments : [];
+											if (rm.length === 0) return true;
+											return rm.indexOf(picker.momentId) >= 0;
+										}).map(function(f) {
+											const checked = picker.selected.indexOf(f.path) >= 0;
+											const title = f.meta && typeof f.meta.title === "string" && f.meta.title !== "" ? f.meta.title : f.path;
+											const metaStr = (f.meta && f.meta.kind ? f.meta.kind + (f.meta.status ? " · " + f.meta.status : "") : "");
+											return React.createElement("div", { key: f.path, className: "pls-picker-item" },
 												React.createElement("input", {
 													type: "checkbox",
-													id: "pls-mat-" + f,
+													id: "pls-mat-" + f.path,
 													checked: checked,
-													onChange: function() { toggleMaterial(f); },
+													onChange: function() { toggleMaterial(f.path); },
 												}),
-												React.createElement("label", { htmlFor: "pls-mat-" + f }, esc(f)));
+												React.createElement("label", { htmlFor: "pls-mat-" + f.path, style: { flex: 1, minWidth: 0 } },
+													React.createElement("div", null, esc(title)),
+													React.createElement("div", { className: "pls-note" }, esc(f.path) + (metaStr ? " · " + esc(metaStr) : ""))),
+												React.createElement("button", {
+													className: "pls-btn",
+													title: "Dieses Material im Chat besprechen / überarbeiten",
+													onClick: function() { chatMaterial(f.path); setPicker(null); },
+												}, "💬 Chat"),
+												React.createElement("button", {
+													className: "pls-btn",
+													title: "Inhalt dieses Materials anzeigen",
+													onClick: function() { openPreview(f.path); },
+												}, "Zeigen"),
+												React.createElement("button", {
+													className: "pls-btn pls-btn-edit",
+													title: "Dieses Material lokal bearbeiten",
+													onClick: function() { openEditor(f.path); setPicker(null); },
+												}, "✎"));
 										})),
+								picker.preview
+									? React.createElement("div", { className: "pls-preview" },
+										React.createElement("div", { className: "pls-preview-head" },
+											React.createElement("span", { className: "pls-note" }, esc(picker.preview.path)),
+											React.createElement("button", { className: "pls-btn pls-btn-edit", title: "Dieses Material lokal bearbeiten", onClick: function() { openEditor(picker.preview.path); setPicker(null); } }, "✎"),
+											React.createElement("button", { className: "pls-btn", title: "Vorschau schließen", onClick: function() { setPicker(Object.assign({}, picker, { preview: null })); } }, "✕")),
+										React.createElement("div", { className: "pls-preview-content" },
+											picker.preview.content !== null
+												? renderMaterialPreview(picker.preview.path, picker.preview.content)
+												: React.createElement("div", { className: "pls-note" }, "(Binärdatei — bitte im Artefakt-Panel oder über „Chat“ öffnen)")))
+									: null,
 								React.createElement("div", { className: "pls-dialog-actions" },
 									React.createElement("button", { className: "pls-btn", onClick: function() { setPicker(null); } }, "Abbrechen"),
-									React.createElement("button", { className: "pls-btn pls-btn-edit", onClick: saveMaterials }, "Übernehmen"))))
+									React.createElement("button", { className: "pls-btn pls-btn-edit", onClick: saveMaterials }, "Auswählen"))))
 					)
 					: null,
 
@@ -1132,7 +1359,14 @@ window.__ModuleLoader__.load({
 
 				// ——— Moment editor (single moment, structured) ———
 				momentEdit !== null
-					? React.createElement(MomentEditor, { moment: momentEdit, onCancel: function() { setMomentEdit(null); }, onSave: saveMoment })
+					? React.createElement(MomentEditor, {
+						moment: momentEdit,
+						onCancel: function() { setMomentEdit(null); },
+						onSave: saveMoment,
+						matIndex: matIndex,
+						onOpenPicker: openMaterialPicker,
+						onCreateMaterial: createMaterial,
+					})
 					: null,
 
 				// ——— New window form ———
@@ -1164,8 +1398,13 @@ window.__ModuleLoader__.load({
 			const qsState = React.useState((Array.isArray(m.open_questions) ? m.open_questions : []).join("\n"));
 			const qs = qsState[0];
 			const setQs = qsState[1];
+			const estState = React.useState(m.time_estimate != null ? String(m.time_estimate) : "");
+			const est = estState[0];
+			const setEst = estState[1];
+			const mats = Array.isArray(m.materials) ? m.materials : [];
 
 			function submit() {
+				const estNum = parseInt(est, 10);
 				props.onSave({
 					title: title.trim(),
 					type: type,
@@ -1174,12 +1413,13 @@ window.__ModuleLoader__.load({
 					expected_experience: ee.trim(),
 					material_needs: needs.split(/\r?\n/).map(function(s) { return s.trim(); }).filter(Boolean),
 					open_questions: qs.split(/\r?\n/).map(function(s) { return s.trim(); }).filter(Boolean),
+					time_estimate: (!isNaN(estNum) && estNum > 0) ? estNum : null,
 				});
 			}
 
 			const field = function(label, control) {
-				return React.createElement("div", { className: "pls-form-row" },
-					React.createElement("label", null, label), control);
+				return React.createElement("div", { className: "pls-form-stack" },
+					React.createElement("label", { className: "pls-form-label" }, label), control);
 			};
 
 			return React.createElement("div", { className: "pls-overlay" },
@@ -1187,13 +1427,20 @@ window.__ModuleLoader__.load({
 					React.createElement("div", { className: "pls-dialog-head" },
 						React.createElement("span", { className: "pls-title" }, "Lernmoment „" + (m.title || m.id) + "“")),
 					React.createElement("div", { className: "pls-dialog-body" },
-						field("Titel", React.createElement("input", { className: "pls-input", style: { flex: 1 }, value: title, onChange: function(e) { setTitle(e.target.value); } })),
-						field("Typ", React.createElement("select", { className: "pls-select", style: { flex: 1 }, value: type, onChange: function(e) { setType(e.target.value); } }, MOMENT_TYPES.map(function(t) { return React.createElement("option", { key: t, value: t }, typeLabel(t)); }))),
-						field("Funktion", React.createElement("input", { className: "pls-input", style: { flex: 1 }, value: fn, onChange: function(e) { setFn(e.target.value); } })),
-						field("Lernaktivität", React.createElement("textarea", { className: "pls-editor-text", style: { height: "48px" }, value: la, onChange: function(e) { setLa(e.target.value); } })),
-						field("Erwartete Lernerfahrung", React.createElement("textarea", { className: "pls-editor-text", style: { height: "48px" }, value: ee, onChange: function(e) { setEe(e.target.value); } })),
-						field("Materialbedarfe (eine pro Zeile)", React.createElement("textarea", { className: "pls-editor-text", style: { height: "48px" }, value: needs, onChange: function(e) { setNeeds(e.target.value); } })),
-						field("Offene Fragen (eine pro Zeile)", React.createElement("textarea", { className: "pls-editor-text", style: { height: "48px" }, value: qs, onChange: function(e) { setQs(e.target.value); } })),
+						field("Titel", React.createElement("input", { className: "pls-input", value: title, onChange: function(e) { setTitle(e.target.value); } })),
+						field("Typ", React.createElement("select", { className: "pls-select", value: type, onChange: function(e) { setType(e.target.value); } }, MOMENT_TYPES.map(function(t) { return React.createElement("option", { key: t, value: t }, typeLabel(t)); }))),
+						field("Funktion", React.createElement("input", { className: "pls-input", value: fn, onChange: function(e) { setFn(e.target.value); } })),
+						field("Lernaktivität", React.createElement("textarea", { className: "pls-input-multiline", value: la, onChange: function(e) { setLa(e.target.value); } })),
+						field("Erwartete Lernerfahrung", React.createElement("textarea", { className: "pls-input-multiline", value: ee, onChange: function(e) { setEe(e.target.value); } })),
+						field("Materialbedarfe (was gebraucht wird; eine pro Zeile)", React.createElement("textarea", { className: "pls-input-multiline", value: needs, onChange: function(e) { setNeeds(e.target.value); } })),
+						field("Zeitbedarf (min)", React.createElement("input", { className: "pls-input", type: "number", min: 5, max: 600, value: est, placeholder: "min", title: "Geschätzte Zeit für diesen Lernmoment", onChange: function(e) { setEst(e.target.value); } })),
+						React.createElement("div", { className: "pls-form-stack" },
+							React.createElement("label", { className: "pls-form-label" }, "Materialien"),
+							React.createElement("div", { className: "pls-card-meta" },
+								mats.length > 0 ? mats.map(function(p) { return React.createElement("span", { key: p, className: "pls-chip", title: p }, esc(momentEditorLabel(props.matIndex, p))); }) : React.createElement("span", { className: "pls-note" }, "keine zugeordnet"),
+								React.createElement("button", { className: "pls-btn pls-btn-edit", onClick: function() { props.onOpenPicker(m); } }, "Material wählen"),
+								React.createElement("button", { className: "pls-btn pls-btn-edit", onClick: function() { props.onCreateMaterial(m); } }, "📄 Material-Entwürfe"))),
+						field("Offene Fragen (eine pro Zeile)", React.createElement("textarea", { className: "pls-input-multiline", value: qs, onChange: function(e) { setQs(e.target.value); } })),
 						React.createElement("div", { className: "pls-dialog-actions" },
 							React.createElement("button", { className: "pls-btn", onClick: props.onCancel }, "Abbrechen"),
 							React.createElement("button", { className: "pls-btn pls-btn-edit", onClick: submit }, "Speichern")))));
