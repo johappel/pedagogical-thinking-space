@@ -36,7 +36,7 @@ git -C workspace revert --no-edit <commit>    # rückgängig machen
 ## Installation (pts-web-Profil)
 
 1. Junction (wie bei den anderen PTS-Host-Plugins):
-
+   
    ```powershell
    New-Item -ItemType Junction `
      -Path "$env:USERPROFILE\.dsh\profiles\pts-web\node_modules\pts-workspace-git" `
@@ -44,7 +44,7 @@ git -C workspace revert --no-edit <commit>    # rückgängig machen
    ```
 
 2. Patch-Zeile in `profiles/pts-web/cordis.patch.yml` (erster `- insert:`-Block):
-
+   
    ```yaml
    - id: pts-workspace-git
      name: pts-workspace-git
