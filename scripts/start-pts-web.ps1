@@ -25,11 +25,15 @@ $preset = Get-Content $presetFile -Raw
 $required = @(
 	"@deepseek-ai/dsh-tool-jobs",
 	"toolName: pts_research",
+	"toolName: pts_edit",
+	"toolName: pts_document",
 	"toolName: pts_material",
 	"toolName: pts_review",
 	"toolName: pts_renderer",
 	"pts-companion-tool-boundary",
-	"pts-worker-skill-scope"
+	"pts-worker-skill-scope",
+	"pts-boot-docs",
+	"pts-workspace-snapshot"
 )
 foreach ($needle in $required) {
 	if (-not $preset.Contains($needle)) {

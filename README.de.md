@@ -159,7 +159,9 @@ Ein Material kann Inspiration, Baustein oder Leitstruktur sein. Eine Leitstruktu
 
 Definiert die verbindliche Grenze: PTS besitzt die pädagogische Domäne; DeepSeek Harness besitzt Agenten, Subagenten, Werkzeuge, Jobs und Modellrouting.
 
-Die nativen Worker `pts_research`, `pts_material`, `pts_review` und `pts_renderer` werden im DSH-Preset konfiguriert. Der Steward pflegt nur nachgelagert den Denkstand und ist kein Dispatcher.
+Die nativen Worker `pts_research`, `pts_edit`, `pts_document`, `pts_material`, `pts_review` und `pts_renderer` werden im DSH-Preset konfiguriert. Der Steward pflegt nur nachgelagert den Denkstand und ist kein Dispatcher.
+
+Zusätzlich injizieren zwei Preset-Plugins dem Companion einen System-Prompt-„Headroom“: einen komprimierten Digest des PTS-Frameworks (`pts-boot-docs`) und eine aktuelle Denkstand-/Fragment-Übersicht (`pts-workspace-snapshot`), damit er aus dem Framework heraus arbeitet und vorhandene Ergebnisse wiederverwendet statt neu zu recherchieren.
 
 ---
 

@@ -81,11 +81,15 @@ $installed = Get-Content $presetPath -Raw
 $required = @(
 	"@deepseek-ai/dsh-tool-jobs",
 	"toolName: pts_research",
+	"toolName: pts_edit",
+	"toolName: pts_document",
 	"toolName: pts_material",
 	"toolName: pts_review",
 	"toolName: pts_renderer",
 	"pts-companion-tool-boundary",
 	"pts-worker-skill-scope",
+	"pts-boot-docs",
+	"pts-workspace-snapshot",
 	"@deepseek-ai/dsh-skill-filesystem",
 	"@deepseek-ai/dsh-tool-skill"
 )

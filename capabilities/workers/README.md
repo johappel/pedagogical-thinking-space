@@ -3,8 +3,8 @@
 These files describe pedagogical expectations for recurring Worker tasks. They
 are prompt references, not executable registrations.
 
-The executable roles are the native DSH tools `pts_research`, `pts_material`,
-`pts_review` and `pts_renderer` from
+The executable roles are the native DSH tools `pts_research`, `pts_edit`,
+`pts_document`, `pts_material`, `pts_review` and `pts_renderer` from
 `dsh-presets/pts-companion/agent.cordis.yml`. The Companion may extract useful
 constraints from a note and include them in the DSH subagent prompt.
 

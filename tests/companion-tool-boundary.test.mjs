@@ -41,6 +41,15 @@ test('root Companion hides direct research/production and rejects bypass tools',
 	assert.equal(calls.guards.at(-1), 'lifted');
 });
 
+test('the skill tool is hidden from the Companion, not merely guarded', () => {
+	// The preset mounts tool-skill for the workers; a visible-but-blocked skill
+	// tool made the Companion attempt it directly (and inject the skill catalog
+	// into every turn) instead of delegating via pts_research. It must be
+	// restricted away so the Companion has no skill tool at all.
+	assert.ok(HIDDEN_FROM_COMPANION.includes('skill'));
+	assert.ok(FORBIDDEN_DIRECT_EXECUTION.has('skill'));
+});
+
 test('delegated child keeps its role-specific toolFilter', () => {
 	const { agent, calls } = fakeAgent('subagent');
 	assert.equal(apply({ agent }), undefined);

@@ -76,7 +76,13 @@ Konfiguration ohne Schema unverändert durch) und in `config.js` normalisiert.
 6. **Native Sichtbarkeit** — jeder Lauf wird zusätzlich als besitzloser Job
    (`kind: pts-steward`) in `ctx.jobs` registriert. Besitzlose Jobs erzeugen
    **keine** Completion-Notices in irgendein Gespräch (`owner === undefined`
-   bricht im shipped Reporter ab) und erscheinen nur in `job_list`.
+   bricht im shipped Reporter ab) und erscheinen nur in `job_list`. Damit ein
+   besitzloser Job überhaupt registrierbar ist, attachiert der Steward in
+   `apply()` einen Host-Level-Controller (`jobs.attachController('pts-steward')`,
+   Registry-only, ohne Tools/Notices): das pts-web-Profil hält Job-Controller
+   preset-scoped (Host-`tool-jobs` ist im web-Bundle deaktiviert), und ein
+   Job ohne Besitzer wird nur von einem Controller der globalen Layer bedient.
+   Schlägt das Attachieren fehl, bleibt der direkte Lauf der Fallback.
 7. **Validierung** — Struktur (Schema-Version, Session, Turn, Basis-Hashes,
    Evidence-Fenster) plus Politik:
    - `decisions.yml` nur bei eindeutiger, belegter Lehrkraftentscheidung

@@ -24,6 +24,15 @@ documentation chain. `MANIFEST.md`, `SYSTEMIC_STANCE.md`, `LEARNING_DESIGN.md`
 and the files under `services/` are reference material, not a mandatory boot
 sequence.
 
+These reference and boot files — `AGENTS.md`, `CRITICAL_FRIEND.md`,
+`MANIFEST.md`, `SYSTEMIC_STANCE.md`, `LEARNING_DESIGN.md`, `ORCHESTRATION.md`
+and the `services/` documents — live in the **repository root above this
+Denkraum** (`F:/code/pedagogical-thinking-space/`). Your file tools list only
+the Denkraum by default: `glob` returns workspace files only. Read reference
+files by their absolute path when the teacher asks for one, e.g.
+`read F:/code/pedagogical-thinking-space/CRITICAL_FRIEND.md`. Never answer
+"not found" before checking that absolute path.
+
 ## Native DSH delegation
 
 Delegate bounded work with the role-specific DSH tools supplied by the
@@ -32,6 +41,8 @@ Delegate bounded work with the role-specific DSH tools supplied by the
 | Tool | Responsibility |
 | --- | --- |
 | `pts_research` | public, source-grounded research and verification |
+| `pts_edit` | exact, already-agreed edits to workspace documents |
+| `pts_document` | factual documentation, protocols and decision records |
 | `pts_material` | reviewable teaching-material drafts |
 | `pts_review` | read-only pedagogical and factual review |
 | `pts_renderer` | conversion of an approved draft into a target format |
@@ -43,7 +54,8 @@ The root Companion is technically barred from web search, skills and file
 mutation; those capabilities exist only behind the role-specific Worker tools.
 
 A direct bounded instruction is already authorization for that task. Examples:
-`Recherchiere ...`, `Prüfe die Quellen ...`, `Erstelle daraus ein Arbeitsblatt`
+`Recherchiere ...`, `Prüfe die Quellen ...`, `Ändere ... in learning-design.md`,
+`Dokumentiere unsere Entscheidung ...`, `Erstelle daraus ein Arbeitsblatt`
 or `Halte das als Material fest`. Do not ask `Soll ich anfangen?` after such an
 instruction. State briefly which worker is starting and continue the
 conversation when useful.
@@ -63,6 +75,10 @@ worker result and do not claim a file exists before DSH reports success.
   `knowledge-proposals/`, never directly into curated `knowledge/`.
 - Material workers implement an established intention; they do not choose the
   learning goal or pedagogical direction.
+- Edit workers apply exactly the agreed change; they do not reinterpret,
+  extend or decide pedagogy.
+- Documentation workers record facts; they do not invent content or add
+  pedagogical judgement.
 - Reviewers may reject or request revision but do not silently rewrite.
 - Renderers change representation, not pedagogy.
 - Worker results are drafts until the teacher or Companion has reviewed them.

@@ -363,6 +363,8 @@ All remain invisible unless needed.
 
 The canonical `pts-companion` preset exposes separate DSH subagent tools for research, material creation, review and rendering. DSH owns their jobs and results; PTS supplies only the pedagogical task envelope and boundaries.
 
+The root Companion also receives two read-only system-prompt injections: a compressed digest of the PTS boot framework (`pts-boot-docs`) and a live Denkstand + fragment snapshot (`pts-workspace-snapshot`), so it operates from the framework and reuses existing results instead of rediscovering them.
+
 See `ARCHITECTURE.md` and `dsh-presets/pts-companion/`.
 
 ---

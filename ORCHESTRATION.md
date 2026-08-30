@@ -9,6 +9,8 @@ consequential trade-offs are open. Delegate bounded work when its question,
 audience and expected result are clear enough.
 
 - Missing current facts or sources -> `pts_research`
+- An already-agreed change to a workspace document -> `pts_edit`
+- A process or outcome to capture factually -> `pts_document`
 - Approved material draft -> `pts_material`
 - Returned result needs checking -> `pts_review`
 - Approved content needs another representation -> `pts_renderer`

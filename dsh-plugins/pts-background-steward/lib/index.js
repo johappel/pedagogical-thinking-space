@@ -102,6 +102,23 @@ export function apply(ctx, rawConfig) {
 	const subagents = ctx.subagents;
 	const jobs = ctx.get('jobs'); // optional: native visibility only, never required
 
+	// Host-level job controller so the steward's Unowned records (kind
+	// `pts-steward`) are servable. The web profile keeps job controllers
+	// preset-scoped (dsh-web-app disables the host tool-jobs row), and an
+	// unowned job (owner === undefined) matches ONLY a global-layer controller.
+	// attachController is registry-only: no tools, no prompt section and no
+	// completion notices (the unowned reporter already aborts on
+	// owner === undefined). Direct-run remains the fallback if this fails.
+	let disposeJobController = () => {};
+	if (jobs !== undefined && typeof jobs.attachController === 'function') {
+		try {
+			disposeJobController = jobs.attachController('pts-steward');
+			log('Job-Controller attachiert (unowned pts-steward Jobs registrierbar)');
+		} catch (error) {
+			logError(`Job-Controller nicht attachierbar (direkter Lauf bleibt Fallback): ${String((error && error.message) || error)}`);
+		}
+	}
+
 	// Optional settings service (steward model section). The settings provider
 	// may become available AFTER apply() — same activation race as webServer —
 	// so capture it reactively instead of a one-time ctx.get.
@@ -374,6 +391,7 @@ export function apply(ctx, rawConfig) {
 	// ————— Ordered teardown —————
 	ctx.effect(() => () => {
 		scheduler.dispose();
+		disposeJobController();
 		fiberAbort.abort(new Error('Plugin wird entladen'));
 		childSessionIds.clear();
 	}, 'pts-background-steward-cleanup');

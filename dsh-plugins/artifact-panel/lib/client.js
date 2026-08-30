@@ -108,6 +108,81 @@ window.__ModuleLoader__.load({
 		function basename(p) {
 			return p.slice(p.lastIndexOf("/") + 1);
 		}
+
+		// ------------------------------------------------------------------
+		// Subagent-produced artifacts (pts_material / pts_edit / pts_document /
+		// pts_renderer). DSH's own deliverables accumulator only registers files
+		// from direct write/edit tool cards (diff/edit locations), so files a
+		// worker SUBAGENT creates never become produced chips or clickable inline
+		// mentions. We register a parallel conversation accumulator that scans
+		// tool-result text for PTS artifact paths and merges them into the chips.
+		// ------------------------------------------------------------------
+		const PTS_PRODUCED_KEY = "pts-produced";
+		const PTS_ARTIFACT_LOCATION_RE = /(?:materials|drafts|knowledge-proposals|rendered)[\\/][^\s`()\[\],;]+\.(?:md|markdown|pdf|png|jpg|jpeg|gif|webp|svg|html|htm)\b/gi;
+		function extractArtifactPaths(text) {
+			const out = [];
+			const seen = new Set();
+			const re = new RegExp(PTS_ARTIFACT_LOCATION_RE.source, "gi");
+			let m;
+			while ((m = re.exec(String(text))) !== null) {
+				const p = normPath(m[0].replace(/[.,;:!?)\]]+$/, ""));
+				if (seen.has(p)) continue;
+				seen.add(p);
+				out.push(p);
+			}
+			return out;
+		}
+		const ptsProducedDefinition = {
+			kind: "pts-produced",
+			match: (event) => {
+				if (event.type === "turn/start") return { id: String(event.data.turn), role: "start" };
+				if (event.type === "tool/result" && runtimeClient.isAppendSurfaceEvent(event)) {
+					return { id: String(event.data.turn), role: "update" };
+				}
+				return null;
+			},
+			start: (_context, match) => ({ turn: match.event.data.turn, produced: [] }),
+			update: (context, match) => {
+				if (match.event.type !== "tool/result") return context.state;
+				const content = Array.isArray(match.event.data.message.content) ? match.event.data.message.content : [];
+				if (content[0] !== null && content[0] !== undefined && content[0].isError === true) return context.state;
+				const text = content
+					.filter((b) => b !== null && typeof b === "object" && (b.kind === "text" || b.type === "text") && typeof b.text === "string")
+					.map((b) => b.text)
+					.join("\n");
+				const additions = extractArtifactPaths(text).map((path) => ({
+					seq: match.event.seq,
+					path,
+				}));
+				return additions.length === 0 ? context.state : {
+					...context.state,
+					produced: [...context.state.produced, ...additions],
+				};
+			},
+			buildLocationData: (context, scope) => (scope !== "turn" || context.state === undefined)
+				? null
+				: { kind: "turn", turn: context.state.turn, key: PTS_PRODUCED_KEY, value: { produced: context.state.produced } },
+		};
+
+		// Deterministic fallback: the closing assistant message of this turn
+		// names the produced artifact (e.g. "materials/arbeitsblatt-….md").
+		// Background subagent results can settle outside the turn/seq window the
+		// event accumulators track, so we also read the closing text directly.
+		function turnClosingText(owner) {
+			try {
+				const tt = owner.turn.data.get("turn-tail");
+				const closing = tt !== null && tt !== undefined ? tt.closing : null;
+				const blocks = Array.isArray(closing !== null && closing !== undefined ? closing.blocks : null)
+					? closing.blocks
+					: [];
+				return blocks
+					.filter((b) => b !== null && typeof b === "object" && (b.kind === "text" || b.type === "text") && typeof b.text === "string")
+					.map((b) => b.text)
+					.join("\n");
+			} catch (e) {
+				return "";
+			}
+		}
 		function fileUrl(p, cwd) {
 			let u = "/artifacts/v2/file?p=" + encodeURIComponent(normPath(p));
 			if (typeof cwd === "string" && cwd !== "") u += "&cwd=" + encodeURIComponent(normPath(cwd));
@@ -671,8 +746,21 @@ window.__ModuleLoader__.load({
 			} catch (e) {
 				data = null;
 			}
-			if (data === null || data === undefined) return null;
-			const produced = Array.isArray(data.produced) ? data.produced : [];
+			let pts = null;
+			try {
+				pts = owner.turn.data.get(PTS_PRODUCED_KEY);
+			} catch (e) {
+				pts = null;
+			}
+			const produced = [];
+			if (data !== null && data !== undefined && Array.isArray(data.produced)) produced.push(...data.produced);
+			if (pts !== null && pts !== undefined && Array.isArray(pts.produced)) produced.push(...pts.produced);
+			// Deterministic fallback: any artifact path the Companion named in the
+			// closing message becomes a chip too (seq 0 so it is never dropped by
+			// the late-settlement filter for background subagent results).
+			for (const p of extractArtifactPaths(turnClosingText(owner))) {
+				produced.push({ seq: 0, path: p });
+			}
 			const seq = owner.seq;
 			const paths = [];
 			const seen = new Set();
@@ -819,11 +907,20 @@ window.__ModuleLoader__.load({
 		// ------------------------------------------------------------------
 		// Registration
 		// ------------------------------------------------------------------
-		const inject = ["slots"];
+		const inject = ["slots", "conversationEvents"];
 
 		function apply(ctx) {
 			layoutService = ctx.get("layout");
 			const layout = layoutService;
+
+			// Subagent-produced artifacts: register the parallel accumulator so
+			// files created by pts_material / pts_edit / pts_document /
+			// pts_renderer also become produced chips + clickable mentions.
+			try {
+				ctx.conversationEvents.register(ptsProducedDefinition);
+			} catch (e) {
+				console.error("[pts-artifact-panel] pts-produced accumulator nicht registrierbar:", e);
+			}
 
 			// Whole right details column (priority -1 shadows the shipped panel).
 			// No children table here: declarations are exclusive and the shipped

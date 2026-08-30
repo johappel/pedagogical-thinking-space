@@ -23,14 +23,16 @@ test('competing runtime layers are absent', async () => {
   }
 });
 
-test('preset exposes four native role-bound DSH subagents', async () => {
+test('preset exposes six native role-bound DSH subagents', async () => {
   const preset = await read('dsh-presets/pts-companion/agent.cordis.yml');
   assert.match(preset, /@deepseek-ai\/dsh-tool-jobs/);
-  for (const tool of ['pts_research', 'pts_material', 'pts_review', 'pts_renderer']) {
+  for (const tool of ['pts_research', 'pts_edit', 'pts_document', 'pts_material', 'pts_review', 'pts_renderer']) {
     assert.match(preset, new RegExp('toolName: ' + tool));
   }
-  assert.match(preset, /toolName: pts_research[\s\S]*allow: \[read, glob, grep, web_search, web_fetch, write, edit, skill\]/);
+  assert.match(preset, /toolName: pts_research[\s\S]*allow: \[read, glob, grep, web_search, write, edit, skill\]/);
   assert.match(preset, /toolName: pts_material[\s\S]*allow: \[read, glob, grep, write, edit, skill\]/);
+  assert.match(preset, /toolName: pts_edit[\s\S]*allow: \[read, glob, grep, write, edit\]/);
+  assert.match(preset, /toolName: pts_document[\s\S]*allow: \[read, glob, grep, write, edit\]/);
   assert.match(preset, /toolName: pts_review[\s\S]*allow: \[read, glob, grep\]/);
   assert.match(preset, /backgroundMode: one-shot/);
   assert.match(preset, /pts-companion-tool-boundary/);
@@ -46,7 +48,7 @@ test('preset exposes four native role-bound DSH subagents', async () => {
 test('prototype launch requires the canonical installed worker preset', async () => {
   const installer = await read('scripts/install-pts-preset.ps1');
   const launcher = await read('scripts/start-pts-web.ps1');
-  for (const marker of ['@deepseek-ai/dsh-tool-jobs', 'pts_research', 'pts_material', 'pts_review', 'pts_renderer', 'pts-companion-tool-boundary', 'pts-worker-skill-scope', 'pts-skill-manager']) {
+  for (const marker of ['@deepseek-ai/dsh-tool-jobs', 'pts_research', 'pts_edit', 'pts_document', 'pts_material', 'pts_review', 'pts_renderer', 'pts-companion-tool-boundary', 'pts-worker-skill-scope', 'pts-skill-manager']) {
     assert.match(installer, new RegExp(marker.replace('/', '\\/')));
     assert.match(launcher, new RegExp(marker.replace('/', '\\/')));
   }

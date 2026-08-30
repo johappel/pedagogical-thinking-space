@@ -125,6 +125,8 @@ window.__ModuleLoader__.load({
 			pts_material: "draft",
 			pts_review: "review",
 			pts_renderer: "draft",
+			pts_edit: "update",
+			pts_document: "draft",
 		};
 
 		function classifyRoot(root) {

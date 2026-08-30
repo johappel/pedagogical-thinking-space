@@ -6,6 +6,8 @@ do not form a PTS runtime of their own.
 ## Roles
 
 - `pts_research`: verifies public sources and reports evidence and uncertainty.
+- `pts_edit`: applies exactly the agreed change to workspace documents.
+- `pts_document`: records processes and outcomes as factual documentation.
 - `pts_material`: creates reviewable drafts from an established intention.
 - `pts_review`: checks alignment, factual support and hidden assumptions.
 - `pts_renderer`: converts approved content into a target representation.
