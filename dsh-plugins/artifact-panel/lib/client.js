@@ -36,7 +36,7 @@ window.__ModuleLoader__.load({
 .apx-previewwrap { display:flex; flex-direction:column; gap:8px; min-height:420px; flex:1; }
 .apx-preview-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .apx-path { font-size:11px; opacity:.55; word-break:break-all; }
-.apx-frame { width:100%; flex:1; min-height:400px; border:1px solid rgba(128,128,128,.3); border-radius:8px; background:#fff; }
+.apx-frame { width:100%; flex:1; min-height:200px; border:1px solid rgba(128,128,128,.3); border-radius:8px; background:#fff; }
 .apx-imgwrap { display:flex; justify-content:center; align-items:flex-start; overflow:auto; border:1px solid rgba(128,128,128,.3); border-radius:8px; padding:10px; box-sizing:border-box; background:rgba(128,128,128,.06); }
 .apx-img { max-width:100%; height:auto; border-radius:4px; }
 .apx-md { margin:0; white-space:pre-wrap; word-break:break-word; font-size:12.5px; line-height:1.55; border:1px solid rgba(128,128,128,.3); border-radius:8px; padding:12px; background:rgba(128,128,128,.06); max-height:70vh; overflow:auto; }
@@ -73,16 +73,20 @@ window.__ModuleLoader__.load({
 .apx-file-meta { display:flex; align-items:center; gap:6px; font-size:10.5px; opacity:.72; }
 .apx-file-kind { border:1px solid rgba(128,128,128,.35); border-radius:4px; padding:0 4px; font-size:9.5px; text-transform:uppercase; letter-spacing:.4px; }
 .apx-file-changed { color:#d19a66; }
-.apx-pane { flex:1; min-width:0; overflow:auto; }
+.apx-pane { display:flex; flex-direction:column; flex:1; min-width:0; min-height:0; overflow:auto; gap:8px; }
+.apx-actions { display:flex; gap:6px; margin-left:auto; flex-wrap:wrap; }
 .apx-pane-empty { margin:auto; text-align:center; opacity:.6; font-size:12.5px; line-height:1.7; padding:24px; }
-.apx-strip { position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:2040; display:flex; gap:8px; align-items:center; max-width:92vw; pointer-events:none; }
-.apx-strip-label { font-size:11px; text-transform:uppercase; letter-spacing:.6px; opacity:.7; white-space:nowrap; pointer-events:none; }
-.apx-strip-card { pointer-events:auto; display:inline-flex; align-items:center; gap:6px; color:inherit; font:inherit; border:1px solid rgba(126,198,153,.55); background:rgba(126,198,153,.12); color:inherit; border-radius:999px; padding:4px 10px 4px 8px; font-size:11.5px; cursor:pointer; max-width:220px; white-space:nowrap; }
+.apx-strip { position:fixed; bottom:16px; right:16px; z-index:2040; display:flex; flex-direction:column; align-items:flex-end; gap:6px; max-width:min(92vw, 400px); pointer-events:none; }
+.apx-strip-label { font-size:10px; text-transform:uppercase; letter-spacing:.6px; opacity:.6; white-space:nowrap; pointer-events:none; }
+.apx-strip-card { pointer-events:auto; display:inline-flex; align-items:center; gap:6px; color:inherit; font:inherit; border:1px solid rgba(126,198,153,.5); background:rgba(28,28,28,.94); border-radius:8px; padding:6px 10px; font-size:11.5px; cursor:pointer; max-width:100%; white-space:nowrap; box-shadow:0 4px 14px rgba(0,0,0,.4); }
 .apx-strip-card:hover { border-color:#7ec699; background:rgba(126,198,153,.22); }
 .apx-strip-name { overflow:hidden; text-overflow:ellipsis; }
+.apx-strip-tag { border-radius:4px; padding:0 5px; font-size:9.5px; text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; }
+.apx-strip-tag-new { border:1px solid rgba(126,198,153,.6); color:#7ec699; }
+.apx-strip-tag-updated { border:1px solid rgba(209,154,102,.6); color:#d19a66; }
 .apx-strip-card-enter { animation:apxStripIn .45s ease-out; }
-@keyframes apxStripIn { from { transform:translateX(-40px); opacity:0; } to { transform:translateX(0); opacity:1; } }
-.apx-strip-card-leaving { opacity:0; transition:opacity .5s ease, transform .5s ease; transform:translateX(24px); }
+@keyframes apxStripIn { from { transform:translateX(42px); opacity:0; } to { transform:translateX(0); opacity:1; } }
+.apx-strip-card-leaving { opacity:0; transition:opacity .5s ease, transform .5s ease; transform:translateX(42px); }
 @media (prefers-reduced-motion: reduce) { .apx-strip-card-enter { animation:none; } .apx-strip-card-leaving { transition:none; opacity:0; } }
 .apx-strip-modal { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:2050; pointer-events:auto; }
 .apx-strip-dialog { width:min(92vw, 900px); max-height:88vh; display:flex; flex-direction:column; overflow:hidden; background:var(--editor-bg,#1e1e1e); border:1px solid rgba(128,128,128,.4); border-radius:10px; color:inherit; }
@@ -109,6 +113,14 @@ window.__ModuleLoader__.load({
 .apx-mdc hr { border:none; border-top:1px solid rgba(128,128,128,.3); margin:.8em 0; }
 .apx-mdc a { color:inherit; }
 .apx-mdc img { max-width:100%; border-radius:4px; }
+.apx-yaml { margin:0; white-space:pre-wrap; word-break:break-word; font-size:12px; line-height:1.5; border:1px solid rgba(128,128,128,.3); border-radius:8px; padding:12px; background:rgba(128,128,128,.06); font-family:ui-monospace,Consolas,monospace; max-height:70vh; overflow:auto; }
+.apx-dec-list { display:flex; flex-direction:column; gap:8px; }
+.apx-dec { border:1px solid rgba(126,198,153,.4); border-left:3px solid #7ec699; border-radius:8px; padding:10px 12px; background:rgba(126,198,153,.04); display:flex; flex-direction:column; gap:5px; }
+.apx-dec-meta { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.apx-dec-title { font-size:13px; font-weight:600; line-height:1.35; }
+.apx-dec-body { font-size:12px; opacity:.85; line-height:1.5; }
+.apx-dec-rationale { opacity:.7; }
+.apx-dec-refs { font-size:11px; opacity:.6; font-family:ui-monospace,Consolas,monospace; line-height:1.4; }
 `;
 
 		const STYLE_TAG_ID = "pts-artifact-panel-css";
@@ -119,8 +131,8 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 
-		const PREVIEW_EXTS = [".md", ".markdown", ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".html", ".htm"];
-		const KIND_LABEL = { pdf: "PDF", image: "Bild", html: "HTML", markdown: "Markdown", file: "Datei" };
+		const PREVIEW_EXTS = [".md", ".markdown", ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".html", ".htm", ".yml", ".yaml"];
+		const KIND_LABEL = { pdf: "PDF", image: "Bild", html: "HTML", markdown: "Markdown", yaml: "Decision", file: "Datei" };
 
 		function normPath(p) {
 			return String(p).replace(/\\/g, "/");
@@ -133,10 +145,27 @@ window.__ModuleLoader__.load({
 			if (ext === ".pdf") return "pdf";
 			if ([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"].indexOf(ext) >= 0) return "image";
 			if (ext === ".html" || ext === ".htm") return "html";
+			if (ext === ".yml" || ext === ".yaml") return "yaml";
 			return "markdown";
 		}
 		function basename(p) {
 			return p.slice(p.lastIndexOf("/") + 1);
+		}
+
+		// Browser notification for newly-created / updated artifacts (except
+		// learning-design.md, which churns every turn). Gated by the user toggle.
+		let artifactNotifyEnabled = false;
+		try { artifactNotifyEnabled = localStorage.getItem("pts-artifact-notify") === "1"; } catch (e) {}
+		function artifactNotify(kind, artifact) {
+			if (!artifactNotifyEnabled || artifact === null || artifact === undefined) return;
+			if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+			if (/^learning-design\.(md|markdown)$/i.test(basename(artifact.path))) return;
+			try {
+				const base = basename(artifact.path);
+				const title = kind === "updated" ? "Aktualisiert: " + base : "Neu erstellt: " + base;
+				const n = new Notification(title, { body: artifact.path, tag: "pts-artifact-" + artifact.path });
+				n.onclick = function() { try { window.focus(); } catch (e) {} };
+			} catch (e) { /* best effort */ }
 		}
 
 		// ------------------------------------------------------------------
@@ -148,17 +177,23 @@ window.__ModuleLoader__.load({
 		// tool-result text for PTS artifact paths and merges them into the chips.
 		// ------------------------------------------------------------------
 		const PTS_PRODUCED_KEY = "pts-produced";
-		const PTS_ARTIFACT_LOCATION_RE = /(?:materials|drafts|knowledge-proposals|rendered)[\\/][^\s`()\[\],;]+\.(?:md|markdown|pdf|png|jpg|jpeg|gif|webp|svg|html|htm)\b/gi;
+		// Matches PTS artifact paths under the known dirs AND bare artifact file
+		// names (e.g. background jobs dropping files in the Denkraum root).
+		const PTS_ARTIFACT_LOCATION_RE = /(?:(?:materials|drafts|knowledge-proposals|rendered)[\\/][^\s`()\[\]<>,;]+|[^\s`()/\\\[\]<>,;]+)\.(?:md|markdown|pdf|png|jpg|jpeg|gif|webp|svg|html|htm)\b/gi;
+		// Common repo/control documents that are NOT produced PTS artifacts.
+		const NON_ARTIFACT_RE = /^(readme|license|changelog|contributing|agents|manifest|systemic_stance|critical_friend|learning_design|orchestration|getting_started|tests?)\b/i;
 		function extractArtifactPaths(text) {
 			const out = [];
 			const seen = new Set();
 			const re = new RegExp(PTS_ARTIFACT_LOCATION_RE.source, "gi");
 			let m;
 			while ((m = re.exec(String(text))) !== null) {
-				const p = normPath(m[0].replace(/[.,;:!?)\]]+$/, ""));
-				if (seen.has(p)) continue;
-				seen.add(p);
-				out.push(p);
+				const raw = normPath(m[0].replace(/[.,;:!?)\]]+$/, ""));
+				const base = raw.slice(raw.lastIndexOf("/") + 1);
+				if (NON_ARTIFACT_RE.test(base)) continue;
+				if (seen.has(raw)) continue;
+				seen.add(raw);
+				out.push(raw);
 			}
 			return out;
 		}
@@ -419,6 +454,17 @@ window.__ModuleLoader__.load({
 			return function() { bridgeSubs.delete(fn); };
 		}
 
+		// Opens the artifact's location in the OS file explorer via the host
+		// route /artifacts/v2/reveal.
+		function revealInExplorer(path, cwd, onError) {
+			let url = "/artifacts/v2/reveal?p=" + encodeURIComponent(normPath(path));
+			if (typeof cwd === "string" && cwd !== "") url += "&cwd=" + encodeURIComponent(normPath(cwd));
+			fetchJson(url).then(function() {}).catch(function(e) {
+				console.error("[pts-artifact-panel] reveal failed:", e);
+				if (typeof onError === "function") onError(e);
+			});
+		}
+
 		// Downloads the artifact through the host route and saves it under its
 		// basename via a temporary object-URL anchor (works for all MIME kinds).
 		function triggerDownload(path, cwd, onError) {
@@ -444,13 +490,37 @@ window.__ModuleLoader__.load({
 		// ------------------------------------------------------------------
 		// Shared preview component
 		// ------------------------------------------------------------------
+		// Teacher-readable decision view (decisions.yml), fed by the structured
+		// `/artifacts/v2/text` payload so it stays in sync with the Denkstand.
+		function DecisionPreview(props) {
+			const decisions = Array.isArray(props.decisions) ? props.decisions : [];
+			if (decisions.length === 0) return React.createElement("div", { className: "apx-note" }, "Keine Entscheidungen festgehalten (decisions.yml).");
+			return React.createElement("div", { className: "apx-dec-list" },
+				decisions.map(function(d, i) {
+					const kids = [
+						React.createElement("div", { key: "m", className: "apx-dec-meta" },
+							React.createElement("span", { className: "apx-badge" }, "Entscheidung"),
+							d.id ? React.createElement("span", { className: "apx-badge" }, d.id) : null,
+							d.status ? React.createElement("span", { className: "apx-badge" }, d.status) : null),
+						React.createElement("div", { key: "t", className: "apx-dec-title" }, d.title),
+					];
+					if (d.detail) kids.push(React.createElement("div", { key: "d", className: "apx-dec-body" }, d.detail));
+					if (d.rationale) kids.push(React.createElement("div", { key: "r", className: "apx-dec-body apx-dec-rationale" }, "Begründung: " + d.rationale));
+					if (d.references && d.references.length) kids.push(React.createElement("div", { key: "refs", className: "apx-dec-refs" }, d.references.join(" · ")));
+					return React.createElement("div", { key: d.id || i, className: "apx-dec" }, kids);
+				}));
+		}
+
 		function ArtifactPreview(props) {
 			const artifact = props.artifact;
 			const cwd = typeof props.cwd === "string" ? props.cwd : null;
-			const isText = artifact.kind === "markdown";
+			const isText = artifact.kind === "markdown" || artifact.kind === "yaml";
 			const textState = React.useState(null);
 			const text = textState[0];
 			const setText = textState[1];
+			const decState = React.useState(null);
+			const decisions = decState[0];
+			const setDecisions = decState[1];
 			const errState = React.useState(null);
 			const err = errState[0];
 			const setErr = errState[1];
@@ -459,10 +529,14 @@ window.__ModuleLoader__.load({
 				let alive = true;
 				setText(null);
 				setErr(null);
+				setDecisions(null);
 				const url = "/artifacts/v2/text?p=" + encodeURIComponent(normPath(artifact.path)) +
 					(cwd !== null ? "&cwd=" + encodeURIComponent(normPath(cwd)) : "");
 				fetchJson(url).then(function(r) {
-					if (alive) setText(r !== null && typeof r === "object" && typeof r.text === "string" ? r.text : "");
+					if (!alive) return;
+					const rr = (r !== null && typeof r === "object") ? r : {};
+					setText(typeof rr.text === "string" ? rr.text : "");
+					if (Array.isArray(rr.decisions)) setDecisions(rr.decisions);
 				}).catch(function(e) {
 					if (alive) setErr(String(e && e.message ? e.message : e));
 				});
@@ -478,6 +552,10 @@ window.__ModuleLoader__.load({
 			}
 			if (err !== null) return React.createElement("div", { className: "apx-note apx-errmsg" }, "Lesefehler: " + err);
 			if (text === null) return React.createElement("div", { className: "apx-note" }, "Lade\u2026");
+			if (artifact.kind === "yaml") {
+				if (decisions !== null) return React.createElement(DecisionPreview, { decisions: decisions });
+				return React.createElement("pre", { className: "apx-yaml" }, text);
+			}
 			return React.createElement("div", {
 				className: "apx-mdc",
 				dangerouslySetInnerHTML: { __html: mdToHtml(text) },
@@ -792,14 +870,23 @@ window.__ModuleLoader__.load({
 				produced.push({ seq: 0, path: p });
 			}
 			const seq = owner.seq;
-			const paths = [];
-			const seen = new Set();
+			// Dedupe by BASENAME, keeping the most-qualified path. A bare filename
+			// and the same file's full subdir path would otherwise become two chips
+			// (the bare one 404s because it has no directory to resolve).
+			const byBase = {}; // basename -> most-qualified path
 			for (let i = 0; i < produced.length; i++) {
 				const entry = produced[i];
-				if (entry.seq > seq || seen.has(entry.path)) continue;
-				seen.add(entry.path);
-				paths.push(entry.path);
+				if (entry.seq > seq) continue;
+				const p = normPath(entry.path);
+				const base = p.slice(p.lastIndexOf("/") + 1);
+				if (base === "") continue;
+				const prev = byBase[base];
+				if (prev === undefined) { byBase[base] = p; continue; }
+				const prevSegs = prev.split("/").length;
+				const curSegs = p.split("/").length;
+				if (curSegs > prevSegs) byBase[base] = p;
 			}
+			const paths = Object.keys(byBase).map(function(base) { return byBase[base]; });
 			if (paths.length === 0) return null;
 			let previewable = 0;
 			for (let j = 0; j < paths.length; j++) {
@@ -847,6 +934,16 @@ window.__ModuleLoader__.load({
 			if (list.activeId !== null && list.activeId !== undefined) return String(list.activeId);
 			if (typeof list.active === "string" && list.active !== "") return list.active;
 			if (Array.isArray(list.order) && list.order.length > 0) return String(list.order[0]);
+			// Fallback: any listed session that resolves to a real workspace (cwd),
+			// so the "Neu erstellt" strip always has something to poll.
+			if (list.byId && typeof list.byId === "object") {
+				const keys = Object.keys(list.byId);
+				for (let i = 0; i < keys.length; i++) {
+					const e = list.byId[keys[i]];
+					if (e !== null && e !== undefined && typeof e.cwd === "string" && e.cwd !== "") return String(keys[i]);
+				}
+				if (keys.length > 0) return String(keys[0]);
+			}
 			return null;
 		}
 
@@ -878,16 +975,20 @@ window.__ModuleLoader__.load({
 			const modalState = React.useState(null);
 			const modal = modalState[0];
 			const setModal = modalState[1];
-			const seenRef = React.useRef(new Set());
+			const seenRef = React.useRef(null); // path -> revision; null before first seed
 			const seededRef = React.useRef(false);
+			const lastNotifiedRef = React.useRef({}); // path -> last notify timestamp
+			const COOLDOWN_MS = 60000; // per-path cooldown (active files churn revision)
+			const MAX_CARDS = 4;
 
 			React.useEffect(function() {
 				if (sessionId === null || sessionId === undefined) return undefined;
 				let alive = true;
-				// New workspace/session: reseed the seen-set so pre-existing files
-				// do not animate in, and clear stale cards.
+				// New workspace/session: reseed the revision map so pre-existing
+				// files do not animate in, and clear stale cards.
 				seededRef.current = false;
-				seenRef.current = new Set();
+				seenRef.current = null;
+				lastNotifiedRef.current = {};
 				setCards([]);
 				function poll() {
 					const url = "/artifacts/v2/list?sessionId=" + encodeURIComponent(sessionId);
@@ -896,16 +997,29 @@ window.__ModuleLoader__.load({
 						const list = r !== null && typeof r === "object" && Array.isArray(r.items) ? r.items : [];
 						if (!seededRef.current) {
 							seededRef.current = true;
-							for (const a of list) seenRef.current.add(a.path);
+							seenRef.current = {};
+							for (const a of list) seenRef.current[a.path] = typeof a.revision === "number" ? a.revision : 0;
 							return;
 						}
-						const fresh = [];
+						const now = Date.now();
+						const changed = [];
 						for (const a of list) {
-							if (!seenRef.current.has(a.path)) fresh.push(a);
+							const prevRev = seenRef.current[a.path];
+							const curRev = typeof a.revision === "number" ? a.revision : 0;
+							let kind = null;
+							if (prevRev === undefined) kind = "new";
+							else if (curRev > prevRev) kind = "updated";
+							seenRef.current[a.path] = curRev;
+							if (kind === null) continue;
+							// Cooldown: don't spam the same file while a job is writing it.
+							const last = lastNotifiedRef.current[a.path] || 0;
+							if (now - last < COOLDOWN_MS) continue;
+							lastNotifiedRef.current[a.path] = now;
+							changed.push({ kind: kind, artifact: a });
 						}
-						if (fresh.length === 0) return;
-						for (const f of fresh) seenRef.current.add(f.path);
-						setCards(function(prev) { return prev.concat(fresh.map(function(a) { return { artifact: a, leaving: false }; })); });
+						if (changed.length === 0) return;
+						for (const ch of changed) artifactNotify(ch.kind, ch.artifact);
+						setCards(function(prev) { return prev.concat(changed.map(function(ch) { return { artifact: ch.artifact, kind: ch.kind, leaving: false }; })).slice(-MAX_CARDS); });
 					}).catch(function() { /* best effort */ });
 				}
 				poll();
@@ -919,8 +1033,8 @@ window.__ModuleLoader__.load({
 				const timers = cards.map(function(c) {
 					if (c.leaving) return null;
 					return setTimeout(function() {
-						setCards(function(prev) { return prev.map(function(x) { return x.artifact.path === c.artifact.path && !x.leaving ? { artifact: x.artifact, leaving: true } : x; }); });
-					}, 18000);
+						setCards(function(prev) { return prev.map(function(x) { return x.artifact.path === c.artifact.path && !x.leaving ? { artifact: x.artifact, kind: x.kind, leaving: true } : x; }); });
+					}, 12000);
 				});
 				return function() { for (const t of timers) if (t !== null) clearTimeout(t); };
 			}, [cards]);
@@ -939,16 +1053,18 @@ window.__ModuleLoader__.load({
 
 			if (cards.length === 0 && modal === null) return null;
 			const cardEls = cards.map(function(c) {
+				const isUpdated = c.kind === "updated";
 				return React.createElement("button", {
 					key: c.artifact.path,
 					className: "apx-strip-card" + (c.leaving ? " apx-strip-card-leaving" : " apx-strip-card-enter"),
 					title: c.artifact.path,
 					onClick: function() { setModal(c.artifact); },
 				},
+					React.createElement("span", { className: isUpdated ? "apx-strip-tag apx-strip-tag-updated" : "apx-strip-tag apx-strip-tag-new" }, isUpdated ? "Aktualisiert" : "Neu"),
 					React.createElement("span", { className: "apx-badge" }, KIND_LABEL[c.artifact.kind] || c.artifact.ext || "file"),
 					React.createElement("span", { className: "apx-strip-name" }, c.artifact.name));
 			});
-			const children = [React.createElement("span", { key: "label", className: "apx-strip-label" }, "Neu erstellt:")].concat(cardEls);
+			const children = [React.createElement("span", { key: "label", className: "apx-strip-label" }, "Neu im Denkraum:")].concat(cardEls);
 			return React.createElement("div", { style: { pointerEvents: "none" } },
 				React.createElement("div", { className: "apx-strip" }, children),
 				modal !== null
@@ -989,7 +1105,7 @@ window.__ModuleLoader__.load({
 			const collapsed = collapsedState[0];
 			const setCollapsed = collapsedState[1];
 			const grouped = groupArtifacts(list);
-			const KIND_SHORT = { markdown: "MD", pdf: "PDF", image: "IMG", html: "HTML", file: "FILE" };
+			const KIND_SHORT = { markdown: "MD", pdf: "PDF", image: "IMG", html: "HTML", yaml: "DEC", file: "FILE" };
 			const els = grouped.keys.map(function(key) {
 				const items = grouped.groups[key].slice().sort(function(a, b) { return a.path < b.path ? -1 : a.path > b.path ? 1 : 0; });
 				const isCollapsed = collapsed[key] === true;
@@ -1028,6 +1144,26 @@ window.__ModuleLoader__.load({
 			const errState = React.useState(null);
 			const error = errState[0];
 			const setError = errState[1];
+			const notifyState = React.useState(artifactNotifyEnabled);
+			const notifyOn = notifyState[0];
+			const setNotifyOn = notifyState[1];
+
+			function toggleNotify() {
+				if (typeof Notification === "undefined") { setError("Dieser Browser unterstützt keine Benachrichtigungen."); return; }
+				if (notifyOn) {
+					artifactNotifyEnabled = false;
+					setNotifyOn(false);
+					try { localStorage.setItem("pts-artifact-notify", "0"); } catch (e) {}
+				} else {
+					Notification.requestPermission().then(function(p) {
+						const ok = p === "granted";
+						artifactNotifyEnabled = ok;
+						setNotifyOn(ok);
+						try { localStorage.setItem("pts-artifact-notify", ok ? "1" : "0"); } catch (e) {}
+						if (!ok) setError("Benachrichtigungen wurden vom Browser nicht freigegeben.");
+					}, function() { setError("Benachrichtigungen konnten nicht aktiviert werden."); });
+				}
+			}
 
 			React.useEffect(function() {
 				let alive = true;
@@ -1075,7 +1211,10 @@ window.__ModuleLoader__.load({
 							React.createElement("button", { className: "apx-btn", onClick: function() { setSelectedPath(null); } }, "\u2190 Zur\u00fcck"),
 							React.createElement("span", { className: "apx-title" }, selected.name),
 							React.createElement("span", { className: "apx-badge" }, KIND_LABEL[selected.kind] || selected.ext),
-							React.createElement("span", { className: "apx-count" }, fmtSize(selected.size))),
+							React.createElement("span", { className: "apx-count" }, fmtSize(selected.size)),
+							React.createElement("span", { className: "apx-actions" },
+								React.createElement("button", { className: "apx-btn", title: "Datei herunterladen", onClick: function() { triggerDownload(selected.path, activeRoot); } }, "\u2B07 Herunterladen"),
+								React.createElement("button", { className: "apx-btn", title: "Datei im Speicherort \u00f6ffnen", onClick: function() { revealInExplorer(selected.path, activeRoot); } }, "\uD83D\uDCC2 Speicherort"))),
 						React.createElement("div", { className: "apx-path" }, selected.path),
 						React.createElement(ArtifactPreview, { artifact: selected, cwd: activeRoot }))
 					: React.createElement("div", { className: "apx-pane apx-pane-empty" },
@@ -1088,7 +1227,13 @@ window.__ModuleLoader__.load({
 			return React.createElement("div", { className: "apx-root" },
 				React.createElement("div", { className: "apx-toolbar" },
 					React.createElement("span", { className: "apx-title" }, "Artefakte"),
-					React.createElement("span", { className: "apx-count" }, list === null ? "" : String(list.length) + " Datei(en)")),
+					React.createElement("span", { className: "apx-count" }, list === null ? "" : String(list.length) + " Datei(en)"),
+					React.createElement("button", {
+						className: "apx-btn",
+						style: { marginLeft: "auto" },
+						title: notifyOn ? "Browser-Benachrichtigungen ausschalten (neue/aktualisierte Artefakte)" : "Browser-Benachrichtigungen einschalten (neue/aktualisierte Artefakte)",
+						onClick: toggleNotify,
+					}, notifyOn ? "\uD83D\uDD14 Benachrichtigungen an" : "\uD83D\uDD15 Benachrichtigungen aus")),
 				body);
 		}
 

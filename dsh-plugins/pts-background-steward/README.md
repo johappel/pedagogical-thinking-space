@@ -90,6 +90,19 @@ Konfiguration ohne Schema unverändert durch) und in `config.js` normalisiert.
    - Lernmomente nur als vollständige Entwürfe (`Status: draft`);
    - `temporal-plan.yml` nur als Vorschlag (Fenster/Platzierung, `status: proposed`); Board höchstens 1 Vorschlag/Lauf; Lernlandschaft-Übergänge höchstens 2 Vorschläge/Lauf
      (erzwungen `status: proposed`, `requires_teacher_approval: true`);
+   - Leitideen: `add-design-accent` trägt Lehrkraft-bekräftigte tragende
+     Aussagen als nummerierte Akzente unter „Educational Intention“ im
+     Learning Design ein (höchstens 3/Lauf, Evidence-Pflicht) — nicht als
+     Kopie unter „Design Decisions“, verbindliche Entscheidungen bleiben in
+     decisions.yml;
+   - Board-Klärungen abschließen: `settle-board-item` höchstens 1/Lauf, nur
+     wenn die Lehrkraft eine offene Klärung im Gespräch eindeutig beantwortet
+     hat (Beleg-Pflicht). Das Board erhält **nur einen Verweis**
+     (`resolved_ref`) auf den kanonischen Dokumentationsort; der Antworttext
+     muss im selben Lauf dokumentiert werden (Anti-Blur-Guard im Validator).
+     Spalten, Freigaben und `kind: approve`-Einträge bleiben unangetastet;
+   - generierte IDs werden gegen bestehende Einträge kollisionsgeprüft
+     (`ensureUniqueId`) — der Lauf-Zähler startet pro Lauf neu.
    - `set-section`/`append-under-section` nur an `learning-design.md`;
    - Wertlängengrenzen.
 8. **Revisionsschutz** — unmittelbar vor dem Anwenden werden die Hashes neu

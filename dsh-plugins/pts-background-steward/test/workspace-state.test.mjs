@@ -20,6 +20,9 @@ import {
 	landscapeAppendTransition,
 	decisionsAppendEntry,
 	boardAppendItem,
+	boardSettleItem,
+	designUpsertAccent,
+	ensureUniqueId,
 	temporalPlanAppendWindow,
 	temporalPlanAppendPlacement,
 	applyOperations,
@@ -35,6 +38,10 @@ const LEARNING_DESIGN = `# Learning Design: Test
 ## Open Questions
 
 - Alte Frage?
+
+## Educational Intention
+
+Noch nicht entschieden.
 
 ## Change Log
 
@@ -306,5 +313,138 @@ test('applyOperations: Batch mit Ablehnungen (temporal-plan-Section, leere Werte
 
 	// temporal-plan ist jetzt als Vorschlag schreibbar.
 	assert.ok(WRITABLE_FILES.includes('temporal-plan.yml'));
+});
+
+test('boardSettleItem: offene Klärung wird resolved, NUR Verweis auf den Dokumentationsort', () => {
+	const board = [
+		'schema: ptspace.planning-board/v1',
+		'items:',
+		'',
+		'  # Kommentar des nächsten Items',
+		'  - id: pb-a',
+		'    title: Offene Klärung',
+		'    kind: clarify',
+		'    column: clarify',
+		'    status: proposed',
+		'    requires_teacher_approval: true',
+		'',
+		'  - id: pb-b',
+		'    title: Andere Klärung',
+		'    kind: clarify',
+		'    column: clarify',
+		'    status: proposed',
+		'    requires_teacher_approval: true',
+		'',
+	].join('\n');
+	const r = boardSettleItem(board, { item_id: 'pb-a', resolved_ref: 'decisions.yml#hoffnungsgrund-kreuz-auferstehung', dateIso: '2026-08-31' });
+	assert.ok(r.ok);
+	assert.equal(r.changed, true);
+	const settledBlock = r.content.split('- id: pb-a')[1].split('- id: pb-b')[0];
+	assert.ok(settledBlock.includes('status: resolved'));
+	assert.ok(settledBlock.includes('resolved: true'));
+	assert.ok(settledBlock.includes('resolved_at: "2026-08-31"'));
+	assert.ok(settledBlock.includes('resolved_ref: decisions.yml#hoffnungsgrund-kreuz-auferstehung'));
+	// Der Antworttext selbst landet NIE im Board (Anti-Blur-Vertrag).
+	assert.ok(!settledBlock.includes('resolution:'));
+	assert.ok(!settledBlock.includes('Die Lehrkraft hat'));
+	// Spalte und Freigabe-Flag bleiben unangetastet (der Steward genehmigt nie).
+	assert.ok(settledBlock.includes('column: clarify'));
+	assert.ok(settledBlock.includes('requires_teacher_approval: true'));
+	// Das andere Item und der Kommentar davor bleiben unverändert.
+	const otherBlock = r.content.split('- id: pb-b')[1];
+	assert.ok(otherBlock.includes('status: proposed'));
+	assert.ok(!otherBlock.includes('resolved_ref'));
+	assert.ok(r.content.includes('# Kommentar des nächsten Items'));
+
+	// Bereits beantwortet → idempotenter No-op.
+	const again = boardSettleItem(r.content, { item_id: 'pb-a', resolved_ref: 'woanders', dateIso: '2026-08-31' });
+	assert.ok(again.ok);
+	assert.equal(again.changed, false);
+
+	// Fehlender Verweis, nicht offen (approved), fremde oder doppelte IDs werden abgelehnt.
+	const noRef = boardSettleItem(board, { item_id: 'pb-a', resolved_ref: '' });
+	assert.equal(noRef.ok, false);
+	assert.equal(noRef.reason, 'missing-field:resolved_ref');
+	const approved = board.replace('status: proposed', 'status: approved');
+	const notOpen = boardSettleItem(approved, { item_id: 'pb-a', resolved_ref: 'x' });
+	assert.equal(notOpen.ok, false);
+	assert.equal(notOpen.reason, 'item-not-open');
+	const missing = boardSettleItem(board, { item_id: 'pb-zz', resolved_ref: 'x' });
+	assert.equal(missing.ok, false);
+	assert.equal(missing.reason, 'item-not-found');
+	const duplicated = board.replace(/- id: pb-b/, '- id: pb-a');
+	const dup = boardSettleItem(duplicated, { item_id: 'pb-a', resolved_ref: 'x' });
+	assert.equal(dup.ok, false);
+	assert.equal(dup.reason, 'duplicate-item-id');
+});
+
+test('designUpsertAccent: Leitidee unter Educational Intention, Placeholder ersetzt, Nummerierung läuft', () => {
+	const design = '# Learning Design\n\n## Educational Intention\n\nNoch nicht entschieden.\n\n## Learning Journey\n\nNoch nicht festgelegt.\n';
+	const r1 = designUpsertAccent(design, { title: 'Hoffnung als Grund statt Projektion', text: 'Christliche Hoffnung gründet im Kreuz, nicht in der Nachrichtenlage.' });
+	assert.ok(r1.ok);
+	assert.equal(r1.changed, true);
+	const section1 = r1.content.split('## Educational Intention')[1].split('## Learning Journey')[0];
+	assert.ok(!section1.includes('Noch nicht entschieden'));
+	assert.ok(section1.includes('1. **Hoffnung als Grund statt Projektion** — Christliche Hoffnung gründet im Kreuz, nicht in der Nachrichtenlage.'));
+	assert.ok(r1.content.includes('## Learning Journey'));
+
+	const r2 = designUpsertAccent(r1.content, { title: 'Leitfrage als roter Faden', text: 'Wovon hoffst du, wenn die Fakten dagegen sprechen?' });
+	const section2 = r2.content.split('## Educational Intention')[1].split('## Learning Journey')[0];
+	assert.ok(section2.includes('2. **Leitfrage als roter Faden**'));
+
+	// Duplikat-Titel → idempotenter No-op (Vertrag: {ok, changed} ohne Inhalt).
+	const r3 = designUpsertAccent(r2.content, { title: 'Hoffnung als Grund statt Projektion', text: 'anders formuliert' });
+	assert.ok(r3.ok);
+	assert.equal(r3.changed, false);
+	assert.equal(r3.content, undefined);
+
+	// Fehlender Abschnitt oder leere Felder werden abgelehnt.
+	const noSection = designUpsertAccent('# Design\n\n## Context\n\nText.\n', { title: 't', text: 'x' });
+	assert.equal(noSection.ok, false);
+	assert.equal(noSection.reason, 'section-missing');
+	assert.equal(designUpsertAccent(design, { title: '', text: 'x' }).ok, false);
+	assert.equal(designUpsertAccent(design, { title: 't', text: '' }).ok, false);
+});
+
+test('ensureUniqueId: Kollisionsfreie IDs trotz Neustart des Lauf-Zählers', () => {
+	const board = 'items:\n  - id: pb-steward-20260828-1\n    title: alt\n  - id: pb-steward-20260828-2\n    title: auch da\n';
+	assert.equal(ensureUniqueId(board, 'pb-steward-20260828-3'), 'pb-steward-20260828-3');
+	assert.equal(ensureUniqueId(board, 'pb-steward-20260828-1'), 'pb-steward-20260828-3');
+	assert.equal(ensureUniqueId(board, 'pb-steward-20260828-2'), 'pb-steward-20260828-3');
+	assert.equal(ensureUniqueId(board, 'dec-steward-20260828-1'), 'dec-steward-20260828-1');
+	assert.equal(ensureUniqueId('', 'pb-1'), 'pb-1');
+});
+
+test('applyOperations: settle-board-item (nur Verweis) + add-design-accent, ID-Kollisionen werden vermieden', () => {
+	// Gleicher Tag wie der Lauf (2026-09-08): der generierte Vorschlag läuft
+	// bewusst gegen die bestehende ID und muss hochgezählt werden.
+	const boardWithItem = 'schema: ptspace.planning-board/v1\nitems:\n  - id: pb-steward-20260908-1\n    title: Offene Klärung\n    kind: clarify\n    column: clarify\n    status: proposed\n    requires_teacher_approval: true\n';
+	const base = new Map([
+		['learning-design.md', LEARNING_DESIGN],
+		['learning-landscape.md', LANDSCAPE],
+		['decisions.yml', '# leer\ndecisions: []\n'],
+		['planning-board.yml', boardWithItem],
+		['temporal-plan.yml', 'schema: ptspace.temporal-plan/v1\nwindows: []\nplacements: []\n'],
+	]);
+	const makeId = makeIdFactory('2026-09-08');
+	const ops = [
+		// Der Inhalt geht ins Learning Design (Akzent), das Board bekommt nur den Verweis.
+		{ target: 'learning-design.md', kind: 'add-design-accent', title: 'Hoffnung als Grund statt Projektion', value: 'Christliche Hoffnung gründet im Kreuz, nicht in der Datenlage.', evidence: 'm3' },
+		{ target: 'planning-board.yml', kind: 'settle-board-item', item_id: 'pb-steward-20260908-1', value: 'learning-design.md#educational-intention', evidence: 'm3' },
+		// Der Vorschlag generiert pb-steward-20260908-1 → Kollision → -2.
+		{ target: 'planning-board.yml', kind: 'propose-board-item', title: 'Neue Klärung', board_kind: 'clarify', value: 'Noch offen.' },
+	];
+	const { updates, applied, rejected } = applyOperations(base, ops, { dateIso: '2026-09-08', makeId, turnRef: 'Turn 9' });
+	assert.deepEqual(rejected, []);
+	assert.equal(applied.length, 3);
+	const board = updates.get('planning-board.yml');
+	assert.ok(board.includes('status: resolved'));
+	assert.ok(board.includes('resolved_ref: learning-design.md#educational-intention'));
+	assert.ok(!board.includes('resolution:'));
+	assert.ok(board.includes('- id: pb-steward-20260908-2')); // Kollision mit dem bestehenden -1 → hochgezählt
+	assert.ok(!board.includes('- id: pb-steward-20260908-1\n    title: Neue Klärung')); // keine zweite -1
+	assert.ok(board.includes('status: proposed')); // der neue Vorschlag bleibt offen
+	const design = updates.get('learning-design.md');
+	assert.ok(design.includes('1. **Hoffnung als Grund statt Projektion**'));
 });
 

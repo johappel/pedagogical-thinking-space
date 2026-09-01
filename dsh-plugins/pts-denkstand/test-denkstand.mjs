@@ -22,7 +22,10 @@ const clarify = b.columns['clarify'] || [];
 check('board has clarify column', clarify.length >= 1);
 check('clarify items carry title', clarify.length >= 1 && typeof clarify[0].title === 'string' && clarify[0].title.length > 0);
 check('clarify items carry kind label', clarify.every((x) => x.kind_label === 'Klärung'));
-check('clarify items carry status', clarify.every((x) => x.status_label === 'Vorschlag'));
+// Offene Klärungen sind "Vorschlag", beantwortete sind "Beantwortet"
+// (settle-board-item des Stewards); nie ein roher unbekannter Status.
+check('clarify items carry status', clarify.every((x) => x.status_label === 'Vorschlag' || x.status_label === 'Beantwortet'));
+check('clarify resolved items labeled not raw', clarify.every((x) => !/resolved/i.test(x.status_label)));
 
 // 3. Temporal plan parser (backfilled timeline from the workspace)
 const traw = await fs.readFile('F:/code/pedagogical-thinking-space/workspace/hoffnung/temporal-plan.yml', 'utf8');
@@ -88,6 +91,27 @@ const sampleDec = `decisions:
 `;
 const d2 = denk._parseDecisions(sampleDec);
 check('synthetic decision parsed', d2.decisions.length === 1 && d2.decisions[0].title === 'Einzelstunde gewählt');
+
+// 6b. Real decisions.yml uses folded scalars (`>-`); they must parse as clean
+// entries (not the fragmented phantom rows the old parser produced).
+const dReal = await fs.readFile('F:/code/pedagogical-thinking-space/workspace/hoffnung/decisions.yml', 'utf8');
+const dr = denk._parseDecisions(dReal);
+check('real decisions preserved as entries', dr.decisions.length >= 4);
+check('no auto-recorded E00N questions remain', !dr.decisions.some((x) => /^E\d+$/.test(x.id)));
+const kd = dr.decisions.find((x) => x.id === 'dec-ki-konstruktions-approach');
+check('real decision text folded correctly', kd !== undefined && kd.detail.length > 20 && kd.detail.indexOf('>-') < 0);
+check('real decision rationale parsed', kd !== undefined && kd.rationale.length > 20);
+check('real decision references parsed', kd !== undefined && kd.references.length >= 2);
+
+// 7. Decision → Leitidee upsert (Educational Intention accents)
+const mdReal = await fs.readFile('F:/code/pedagogical-thinking-space/workspace/hoffnung/learning-design.md', 'utf8');
+const a1 = denk._upsertAccent(mdReal, 'Test-Leitidee', 'Testtext der Leitidee.');
+check('accent added to design section', a1.added === true);
+check('accent placeholder replaced', a1.content.indexOf('Noch nicht entschieden') < 0 || mdReal.indexOf('Noch nicht entschieden') < 0);
+const a2 = denk._upsertAccent(a1.content, 'Test-Leitidee', 'anderer Text');
+check('accent duplicate blocked', a2.added === false && a2.reason === 'bereits Leitidee');
+const a3 = denk._upsertAccent(a1.content, 'Zweite Leitidee', 'weiterer Text');
+check('accent numbering continues', /\d+\. \*\*Zweite Leitidee\*\*/.test(a3.content));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

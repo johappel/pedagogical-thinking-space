@@ -87,13 +87,15 @@ ${dialogueText}
 
 1. Rufe am Ende GENAU EINMAL \`structured_output\` auf; nur dieser Aufruf ist dein Ergebnis. Kein freier Schlusssatz.
 2. Übernimm \`schema\`, \`session_id\`, \`turn\` und \`base\` unverändert aus diesem Auftrag.
-3. \`observations\`: halte fest, was im Ausschnitt erkennbar ist (Aussagen der Lehrkraft, offene Fragen, Hypothesen, Widersprüche, Fokuswechsel). Jede Beobachtung braucht \`evidence\` (eine Nachrichten-ID wie m3, oder "context") und kurzen \`content\`. Erfinde nichts.
+3. \`observations\`: halte fest, was im Ausschnitt erkennbar ist (Aussagen der Lehrkraft, offene Fragen, Hypothesen, Widersprüche, Fokuswechsel). Jede Beobachtung braucht \`evidence\` (eine Nachrichten-ID wie m3, oder "context") und kurzen \`content\`. Erfinde nichts. \`evidence\` MUSS eine Nachrichten-ID sein, die im Gesprächsausschnitt unten EXPLIZIT vergeben wird — niemals eine m-Nummer aus den Dateiinhalten (die zitieren alte Turns, die du nicht belegen darfst) und keine erfundene ID.
 4. \`operations\`: schlage nur Änderungen vor, die den bereits erkennbaren Stand dokumentieren — keine neuen pädagogischen Entscheidungen, keine Materialproduktion.
    - learning-design.md: \`set-section\` oder \`append-under-section\` (z. B. Context, Current Status, Open Questions, Learning Journey). Absätze sachlich, knapp, ohne Entscheidungssprache.
+   - learning-design.md: \`add-design-accent\` — trägt eine Leitidee als nummerierten Akzent unter „Educational Intention" ein (\`title\` = knapper Leitideen-Titel, \`value\` = ein bis zwei Sätze Akzenttext, \`evidence\` = Beleg). Nur für tragende Aussagen, die die Lehrkraft im Gespräch ausdrücklich bekräftigt hat. Kopiere sie NICHT zusätzlich in „Design Decisions" — verbindliche Entscheidungen bleiben in decisions.yml; höchstens drei Akzente pro Lauf.
    - learning-landscape.md: nur \`add-draft-moment\`, und nur wenn ALLE Pflichtfelder eines vollständigen Entwurfs belastbar aus dem Gespräch belegbar sind (Titel, Typ, Funktion, Lernaktivität, Erwartete Lernerfahrung). Sonst unterlassen.
    - learning-landscape.md: höchstens zwei \`add-draft-transition\` pro Lauf, wenn das Gespräch den Lernfluss erkennen lässt (Reihenfolge/Wahl/Parallel/Treffpunkt/Voraussetzung). \`from_id\` und \`to_id\` müssen bereits vorhandene Lernmomente sein; \`transition_type\` aus required|choice|parallel|return|meeting_point|prerequisite.
    - decisions.yml: nur \`add-decision\`, wenn die Lehrkraft sich eindeutig entschieden hat UND du das Feld \`teacher_decisions\` mit \`explicit: true\` und passender Evidence füllst. Im Zweifel: unterlassen.
    - planning-board.yml: höchstens ein \`propose-board-item\` pro Lauf; der Eintrag wird mit Status "proposed" und Spalte "clarify" angelegt. Nur wenn echte Klärungsarbeit sichtbar wurde.
+   - planning-board.yml: höchstens ein \`settle-board-item\` pro Lauf — nur wenn die Lehrkraft eine bereits offene Klärung (kind: clarify, status: proposed) im Gesprächsausschnitt eindeutig beantwortet hat. \`item_id\` ist die vorhandene Board-ID; \`value\` ist NUR ein Verweis, wo die Antwort kanonisch dokumentiert ist (z. B. \`learning-design.md#educational-intention\` oder die decisions.yml-ID) — der Antworttext selbst gehört nie ins Board, sondern muss im SELBEN Lauf dokumentiert werden (set-section/append-under-section am Learning Design, add-decision oder add-design-accent). \`evidence\` nennt die belegende Nachrichten-ID. Im Zweifel: unterlassen. Niemals Einträge mit kind: approve anfassen, keine Freigaben erteilen, nichts verschieben oder löschen.
    - temporal-plan.yml: höchstens ein Fenster-Vorschlag (propose-window) und ein Platzierungs-Vorschlag (propose-placement) pro Lauf — nur wenn die Lehrkraft im Gespräch konkrete Stunden/Fenster oder Verortungen genannt hat. Der Status wird zwangsläufig "proposed"; Platzierungen brauchen ein vorhandenes Fenster und einen vorhandenen Lernmoment. Im Zweifel: unterlassen.
 5. Leere \`operations\` sind ausdrücklich erlaubt und oft richtig (z. B. nach reinen Begrüßungen).
 6. \`next_turn_hint\`: höchstens eine offene Frage, die sich aus dem Gespräch ergibt — oder null. Die Frage ist ein Angebot an den Begleiter, keine Vorgabe.
@@ -212,6 +214,9 @@ export function createReflectionRunner({
 			return { status: 'invalid', detail: `${checked.errors.length} Verstoß/Vorstöße gegen Schema oder Politik`, errors: checked.errors };
 		}
 		const value = checked.result;
+		if (checked.dropped && (checked.dropped.observations > 0 || checked.dropped.teacher_decisions > 0)) {
+			log(`${key}: ${checked.dropped.observations} Beobachtung(en) und ${checked.dropped.teacher_decisions} Entscheidungsbeleg(e) wegen ungültiger Evidence einzeln verworfen (Ergebnis bleibt gültig)`);
+		}
 
 		// 6. Revision check immediately before applying.
 		const freshHashes = await snapshotHashes(dir);
@@ -268,7 +273,25 @@ export function createReflectionRunner({
 			config.runTimeoutMs,
 		);
 
-		const executeOnce = async () => {
+	// Transient provider failures (free-tier rate limits, blips) surface as
+	// terse errors; one bounded retry keeps a single blip from silently
+	// dropping the whole maintenance pass. Politics outcomes (invalid, stale,
+	// skipped, aborted) are NOT retried.
+	const RETRYABLE_STATUSES = new Set(['failed']);
+
+	async function sleepAbortable(ms, signal) {
+		return new Promise((resolve) => {
+			const timer = setTimeout(resolve, ms);
+			if (signal) {
+				const onAbort = () => { clearTimeout(timer); resolve(); };
+				if (signal.aborted) { clearTimeout(timer); resolve(); return; }
+				signal.addEventListener('abort', onAbort, { once: true });
+			}
+		});
+	}
+
+	const executeOnce = async () => {
+		const attempt = async () => {
 			try {
 				return await reflectOnce(job);
 			} catch (error) {
@@ -279,6 +302,16 @@ export function createReflectionRunner({
 				return { status: 'failed', detail: String((error && error.message) || error) };
 			}
 		};
+		let outcome = await attempt();
+		if (RETRYABLE_STATUSES.has(outcome.status) && !job.retriedOnce && !job.controller.signal.aborted) {
+			job.retriedOnce = true;
+			log(`${key}: Lauf fehlgeschlagen (${outcome.detail}) — einmaliger Wiederholungsversuch in 20 s`);
+			await sleepAbortable(20000, job.controller.signal);
+			if (job.controller.signal.aborted) return outcome;
+			outcome = await attempt();
+		}
+		return outcome;
+	};
 
 		try {
 			const jobsUsable = Boolean(jobs && typeof jobs.start === 'function');

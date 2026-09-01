@@ -21,7 +21,7 @@ window.__ModuleLoader__.load({
 .dks-section { display:flex; flex-direction:column; gap:8px; }
 .dks-section-title { font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.5px; opacity:.6; }
 .dks-columns { display:flex; gap:10px; align-items:flex-start; overflow-x:auto; padding-bottom:6px; }
-.dks-col { flex:0 0 260px; border:1px solid rgba(128,128,128,.25); border-radius:8px; background:rgba(128,128,128,.04); display:flex; flex-direction:column; gap:6px; padding:8px; }
+.dks-col { flex:1 1 0; min-width:260px; border:1px solid rgba(128,128,128,.25); border-radius:8px; background:rgba(128,128,128,.04); display:flex; flex-direction:column; gap:6px; padding:8px; }
 .dks-col-head { font-weight:600; font-size:12px; opacity:.75; padding:2px 2px 4px; display:flex; align-items:center; gap:6px; }
 .dks-col-count { font-size:11px; opacity:.5; }
 .dks-card { border:1px solid rgba(128,128,128,.3); border-radius:7px; background:rgba(128,128,128,.06); padding:8px 10px; display:flex; flex-direction:column; gap:5px; cursor:pointer; text-align:left; color:inherit; font:inherit; position:relative; }
@@ -66,7 +66,7 @@ window.__ModuleLoader__.load({
 .dks-group-head:hover { opacity:.85; }
 .dks-subgroup { display:flex; flex-direction:column; gap:6px; margin-top:6px; }
 .dks-split { display:flex; gap:14px; align-items:flex-start; }
-.dks-thought { flex:0 0 300px; min-width:240px; display:flex; flex-direction:column; gap:8px; border-right:1px solid rgba(128,128,128,.18); padding-right:10px; }
+.dks-thought { flex:1 1 0; min-width:320px; display:flex; flex-direction:column; gap:8px; border-right:1px solid rgba(128,128,128,.18); padding-right:10px; }
 .dks-thought-focus { border:1px dashed rgba(126,198,153,.5); border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:4px; background:rgba(126,198,153,.05); }
 .dks-thought-focus-label { font-size:10px; text-transform:uppercase; letter-spacing:.6px; color:#7ec699; opacity:.9; }
 .dks-thought-focus-text { font-size:12px; opacity:.85; line-height:1.5; }
@@ -80,11 +80,11 @@ window.__ModuleLoader__.load({
 .dks-thought-link { font-size:12px; color:#7ec699; border:1px solid rgba(126,198,153,.4); border-radius:6px; padding:5px 8px; cursor:pointer; background:transparent; text-align:left; }
 .dks-thought-link:hover { background:rgba(126,198,153,.12); }
 .dks-board-col { flex:1; min-width:0; }
-.dks-threerow { display:flex; gap:14px; align-items:flex-start; }
-.dks-clarify { flex:0 0 280px; min-width:240px; display:flex; flex-direction:column; gap:8px; border-right:1px solid rgba(128,128,128,.18); padding-right:10px; }
+.dks-threerow { display:flex; gap:14px; align-items:flex-start; overflow-x:auto; }
+.dks-clarify { flex:1 1 0; min-width:300px; display:flex; flex-direction:column; gap:8px; border-right:1px solid rgba(128,128,128,.18); padding-right:10px; }
 .dks-clarified-list { display:flex; flex-direction:column; gap:6px; }
 .dks-clarified { display:flex; align-items:baseline; gap:6px; border:1px solid rgba(126,198,153,.3); border-radius:7px; padding:6px 8px; background:rgba(126,198,153,.04); }
-.dks-openq-col { flex:1; min-width:0; display:flex; flex-direction:column; gap:8px; }
+.dks-openq-col { flex:1 1 0; min-width:320px; display:flex; flex-direction:column; gap:8px; }
 .dks-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:2050; }
 .dks-dialog { width:min(92vw, 880px); max-height:88vh; display:flex; flex-direction:column; overflow:hidden; background:var(--editor-bg,#1e1e1e); border:1px solid rgba(128,128,128,.4); border-radius:10px; color:inherit; }
 .dks-dialog-head { display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid rgba(128,128,128,.25); }
@@ -111,6 +111,13 @@ window.__ModuleLoader__.load({
 .dks-md img { max-width:100%; border-radius:4px; }
 .dks-md strong { font-weight:600; }
 .dks-md em { font-style:italic; }
+.dks-decision-card { border-color:rgba(126,198,153,.45); border-left:3px solid #7ec699; }
+.dks-decision-badge { color:#7ec699; border-color:#7ec699; }
+.dks-dec-rationale { font-size:11.5px; opacity:.7; line-height:1.5; margin-top:2px; }
+.dks-dec-references { font-size:10.5px; opacity:.55; line-height:1.4; margin-top:2px; font-family:ui-monospace,Consolas,monospace; }
+.dks-action-accent { border-color:rgba(126,198,153,.55); color:#7ec699; }
+.dks-action-accent:hover { background:rgba(126,198,153,.15); }
+.dks-action-accented { background:rgba(126,198,153,.14); color:#7ec699; cursor:default; opacity:.9; }
 `;
 
 		const STYLE_TAG_ID = "pts-denkstand-css";
@@ -191,12 +198,15 @@ window.__ModuleLoader__.load({
 			return { open: open, resolved: resolved };
 		}
 
-		// Value of a "key: value" line (e.g. "Current focus: ...").
+		// Value after a "key: value" marker (e.g. "Current focus: ..."). The
+		// marker may sit mid-line (the design doc writes
+		// "Status: in-reflection. Current focus: ..."), so search anywhere.
 		function valueLine(content, prefix) {
 			const needle = String(prefix).toLowerCase();
 			for (const line of String(content).replace(/\r\n?/g, "\n").split("\n")) {
 				const t = line.trim();
-				if (t.toLowerCase().startsWith(needle)) return t.slice(prefix.length).trim();
+				const idx = t.toLowerCase().indexOf(needle);
+				if (idx >= 0) return t.slice(idx + prefix.length).trim();
 			}
 			return "";
 		}
@@ -360,6 +370,10 @@ window.__ModuleLoader__.load({
 				return "Ich akzeptiere den Vorschlag auf dem Planning Board (ID " + item.id + "):\n" +
 					desc + "\nBitte setze das als Lehrkraft-Freigabe um (planning-board/decisions).";
 			}
+			if (action === "discard") {
+				return "Verwirf die Klärung auf dem Planning Board (ID " + item.id + "):\n" +
+					desc + "\nSie ist für die weitere Planung nicht mehr relevant — bitte entferne sie aus dem Planning Board und halte kurz fest, warum sie verworfen wurde.";
+			}
 			// clarify
 			return "Lass uns die offene Klärung entscheiden (Planning Board, ID " + item.id + "):\n" +
 				desc + "\nWas ist dein Vorschlag?";
@@ -390,22 +404,29 @@ window.__ModuleLoader__.load({
 					children.push(React.createElement("div", { key: "s", className: "dks-card-note" }, it.summary));
 				}
 				if (it.requires_teacher_approval === true) {
+					const itIsQuestion = it.kind === "clarify";
 					children.push(React.createElement("div", { key: "a", className: "dks-approval dks-approval-yes" },
-						"Freigabe erforderlich"));
+						itIsQuestion ? "Entscheidung offen" : "Freigabe erforderlich"));
 				}
 				// Action row directly on the card: set the chat draft (no copy/paste).
+				// Kind-aware: a Klärung (open question) gets Klären/Verwerfen —
+				// "Annehmen" fits a proposal only, never a question.
 				if (typeof onSetDraft === "function") {
+					const itIsQuestion = it.kind === "clarify";
+					const mkBtn = function(label, prompt, title, cls) {
+						return React.createElement("button", {
+							className: cls || "dks-action-btn",
+							title: title,
+							onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); onSetDraft(prompt); },
+						}, label);
+					};
+					const itActions = itIsQuestion
+						? [mkBtn("💬 Klären", buildPrompt("clarify", it), "Prompt ins Chat-Input setzen — Frage im Gespräch klären"),
+							mkBtn("✕ Verwerfen", buildPrompt("discard", it), "Prompt ins Chat-Input setzen — Klärung verwerfen")]
+						: [mkBtn("✓ Annehmen", buildPrompt("approve", it), "Prompt ins Chat-Input setzen — Freigabe vorschlagen", "dks-action-btn dks-action-approve"),
+							mkBtn("💬 Klären", buildPrompt("clarify", it), "Prompt ins Chat-Input setzen — Frage klären")];
 					children.push(React.createElement("div", { key: "ax", className: "dks-card-actions" },
-						React.createElement("button", {
-							className: "dks-action-btn dks-action-approve",
-							title: "Prompt ins Chat-Input setzen — Freigabe vorschlagen",
-							onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); onSetDraft(buildPrompt("approve", it)); },
-						}, "✓ Annehmen"),
-						React.createElement("button", {
-							className: "dks-action-btn",
-							title: "Prompt ins Chat-Input setzen — Frage klären",
-							onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); onSetDraft(buildPrompt("clarify", it)); },
-						}, "💬 Klären")));
+						itActions));
 				}
 				const cls = "dks-card" + (selectedKey === cardKey ? " dks-card-selected" : "");
 				return React.createElement("div", {
@@ -539,7 +560,10 @@ window.__ModuleLoader__.load({
 		}
 
 		function isBoardItemSettled(it) {
-			return it.status === "approved" || it.status === "ready" || it.status === "discarded";
+			// "resolved/beantwortet" (steward's answered-clarification status) and
+			// every prefix of it count as settled — such items leave the open queue.
+			const s = String(it && it.status ? it.status : "").toLowerCase();
+			return s === "approved" || s === "ready" || s === "discarded" || s.startsWith("resolved");
 		}
 
 		// The single most actionable board item: a Klärung (decide) beats an
@@ -716,6 +740,46 @@ window.__ModuleLoader__.load({
 			return cards;
 		}
 
+		function DecisionCard(props) {
+			const d = props.d;
+			const onAccent = props.onAccent;
+			const onSetDraft = props.onSetDraft;
+			const accented = props.accented === true;
+			const children = [
+				React.createElement("div", { key: "m", className: "dks-card-meta" },
+					React.createElement("span", { className: "dks-badge dks-decision-badge" }, "Entscheidung"),
+					d.id ? React.createElement("span", { className: "dks-badge" }, esc(d.id)) : null,
+					d.status ? React.createElement("span", { className: "dks-badge" }, esc(d.status)) : null),
+				React.createElement("div", { key: "t", className: "dks-card-title" }, esc(d.title)),
+			];
+			if (d.detail) children.push(React.createElement("div", { key: "d", className: "dks-card-note" }, esc(d.detail)));
+			if (d.rationale) children.push(React.createElement("div", { key: "r", className: "dks-dec-rationale" }, "Begründung: " + esc(d.rationale)));
+			if (d.references && d.references.length > 0) children.push(React.createElement("div", { key: "refs", className: "dks-dec-references" }, esc("Bezug: " + d.references.join(" · "))));
+			children.push(React.createElement("div", { key: "ax", className: "dks-card-actions" },
+				React.createElement("button", {
+					className: "dks-action-btn dks-action-accent" + (accented ? " dks-action-accented" : ""),
+					title: accented
+						? "Steht bereits als Leitidee unter „Educational Intention“ im Learning Design"
+						: "Diese Entscheidung als Leitidee (Akzent) ins Learning Design übernehmen",
+					onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); if (!accented && typeof onAccent === "function") onAccent(d); },
+				}, accented ? "♥ Leitidee" : "♡ Leitidee"),
+				React.createElement("button", {
+					className: "dks-action-btn",
+					title: "Prompt ins Chat-Input setzen — Umsetzung im Gespräch anstoßen",
+					onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); if (typeof onSetDraft === "function") onSetDraft(buildDecisionPrompt(d)); },
+				}, "⚡ Jetzt umsetzen")));
+			return React.createElement("div", { className: "dks-thought-card dks-decision-card" }, children);
+		}
+
+		// Teacher-ready chat prompt to carry a decision into implementation.
+		function buildDecisionPrompt(d) {
+			return "Setze die Entscheidung \"" + (d.title || "") + "\" um:\n" +
+				(d.detail || "") +
+				(d.rationale ? "\nBegründung: " + d.rationale : "") +
+				(d.references && d.references.length > 0 ? "\nBezug: " + d.references.join("; ") : "") +
+				"\nWas ist der nächste konkrete Schritt, und welche Worker-Aufgabe leitest du daraus ab?";
+		}
+
 		function ThoughtBoard(props) {
 			const design = props.design;
 			const board = props.board;
@@ -723,6 +787,15 @@ window.__ModuleLoader__.load({
 			const votes = thoughts && thoughts.votes ? thoughts.votes : {};
 			const onVote = props.onVote;
 			const openDesign = props.openDesign;
+			const onAccent = props.onAccent;
+			const onSetDraft = props.onSetDraft;
+			const decisions = props.decisions;
+			const decisionList = (decisions !== null && decisions !== undefined && decisions.empty !== true) ? decisions.decisions : [];
+			// Titles already carried as Leitidee accents in the Learning Design —
+			// the heart button shows its taken state from this (no extra state).
+			const accentTitles = (Array.isArray(design && design.accents) ? design.accents : [])
+				.map(function(a) { return String(a && a.label ? a.label : "").trim().toLowerCase(); })
+				.filter(function(t) { return t !== ""; });
 			const cards = buildThoughtCards(design, board);
 			const scored = cards.map(function(c, i) {
 				return { badge: c.badge, title: c.title || "", text: c.text, votes: typeof votes[c.text] === "number" ? votes[c.text] : 0, idx: i };
@@ -740,6 +813,15 @@ window.__ModuleLoader__.load({
 						React.createElement("span", { className: "dks-vote-count" }, String(c.votes)),
 						React.createElement("button", { className: "dks-vote-btn", title: "Weniger wichtig", onClick: function() { onVote(c.text, -1); } }, "▼")));
 			});
+			const decisionEls = decisionList.map(function(d) {
+				return React.createElement(DecisionCard, {
+					key: (d.id || ("d-" + d.title)) + "-" + (d.detail || "").slice(0, 8),
+					d: d,
+					onAccent: onAccent,
+					onSetDraft: onSetDraft,
+					accented: accentTitles.indexOf(String(d.title || "").trim().toLowerCase()) >= 0,
+				});
+			});
 			return React.createElement("div", { className: "dks-thought" },
 				React.createElement("div", { className: "dks-section-title" }, "Wo wir gerade gedanklich dran sind"),
 				design && design.focus && !isPlaceholder(design.focus)
@@ -747,27 +829,44 @@ window.__ModuleLoader__.load({
 						React.createElement("div", { className: "dks-thought-focus-label" }, "Aktueller Fokus"),
 						React.createElement("div", { className: "dks-thought-focus-text" }, esc(design.focus)))
 					: null,
-				els.length === 0
-					? React.createElement("div", { className: "dks-note" }, "Noch keine tragenden Aussagen (Leitideen, Hypothesen) — sie erscheinen, sobald im Learning Design Inhalte stehen.")
-					: els,
+				React.createElement("div", { className: "dks-subgroup" },
+					React.createElement("div", { className: "dks-section-title" }, "Tragende Aussagen"),
+					els.length === 0
+						? React.createElement("div", { className: "dks-note" }, "Noch keine tragenden Aussagen (Leitideen, Hypothesen) — sie erscheinen, sobald im Learning Design Inhalte stehen.")
+						: els),
+				decisionList.length > 0
+					? React.createElement("div", { className: "dks-subgroup" },
+						React.createElement("div", { className: "dks-section-title" }, "Entscheidungen (decisions.yml)"),
+						decisionEls)
+					: null,
 				React.createElement("button", { className: "dks-thought-link", onClick: openDesign }, "Zum vollständigen Learning Design →"));
 		}
 
 		// "Klären" — the planning board's Klären column (the clarification queue),
-		// plus a collapsible view of the other board columns, and — below — the
-		// **geklärten Fragen** (the decisions from decisions.yml).
+		// plus a collapsible view of the other board columns. The settled
+		// decisions (decisions.yml) now live as cards in the first column.
 		function ClarifyPanel(props) {
 			const board = props.board;
 			const onSetDraft = props.onSetDraft;
-			const decisions = props.decisions;
 			const cols = board !== null && board !== undefined && typeof board === "object" && board.columns ? board.columns : {};
-			const clarify = cols["clarify"] || [];
+			const allClarify = cols["clarify"] || [];
+			// Settled clarifications (resolved/answered etc.) leave the open queue:
+			// they render collapsed below, without action buttons.
+			const clarify = allClarify.filter(function(it) { return !isBoardItemSettled(it); });
+			const settledClarify = allClarify.filter(isBoardItemSettled);
+			const settledState = React.useState(true);
+			const settledCollapsed = settledState[0];
+			const setSettledCollapsed = settledState[1];
 			const otherKeys = COLUMN_ORDER.filter(function(k) { return k !== "clarify" && k !== "other" && Array.isArray(cols[k]) && cols[k].length > 0; });
 			const otherState = React.useState(true);
 			const otherCollapsed = otherState[0];
 			const setOtherCollapsed = otherState[1];
 
 			const els = clarify.map(function(it, idx) {
+				// A Klärung is an open QUESTION, not a proposal: it can be decided
+				// (💬 Klären) or dropped (✕ Verwerfen) — never "accepted". ✓ Annehmen
+				// is reserved for real proposals (e.g. a material draft to approve).
+				const isQuestion = it.kind === "clarify";
 				const children = [
 					React.createElement("div", { key: "t", className: "dks-card-title" }, esc(it.title)),
 					React.createElement("div", { key: "m", className: "dks-card-meta" },
@@ -776,18 +875,21 @@ window.__ModuleLoader__.load({
 				];
 				const desc = typeof it.description === "string" ? it.description.trim() : "";
 				if (desc !== "") children.push(React.createElement("div", { key: "d", className: "dks-card-note" }, desc));
-				if (it.requires_teacher_approval === true) children.push(React.createElement("div", { key: "a", className: "dks-approval dks-approval-yes" }, "Freigabe erforderlich"));
+				if (it.requires_teacher_approval === true) children.push(React.createElement("div", { key: "a", className: "dks-approval dks-approval-yes" }, isQuestion ? "Entscheidung offen" : "Freigabe erforderlich"));
+				const btn = function(label, prompt, title, cls) {
+					return React.createElement("button", {
+						className: cls || "dks-action-btn",
+						title: title,
+						onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); onSetDraft(prompt); },
+					}, label);
+				};
+				const actions = isQuestion
+					? [btn("💬 Klären", buildPrompt("clarify", it), "Prompt ins Chat-Input setzen — Frage im Gespräch klären"),
+						btn("✕ Verwerfen", buildPrompt("discard", it), "Prompt ins Chat-Input setzen — Klärung verwerfen")]
+					: [btn("✓ Annehmen", buildPrompt("approve", it), "Prompt ins Chat-Input setzen — Freigabe vorschlagen", "dks-action-btn dks-action-approve"),
+						btn("💬 Klären", buildPrompt("clarify", it), "Prompt ins Chat-Input setzen — Frage klären")];
 				children.push(React.createElement("div", { key: "ax", className: "dks-card-actions" },
-					React.createElement("button", {
-						className: "dks-action-btn dks-action-approve",
-						title: "Prompt ins Chat-Input setzen — Freigabe vorschlagen",
-						onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); onSetDraft(buildPrompt("approve", it)); },
-					}, "✓ Annehmen"),
-					React.createElement("button", {
-						className: "dks-action-btn",
-						title: "Prompt ins Chat-Input setzen — Frage klären",
-						onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); onSetDraft(buildPrompt("clarify", it)); },
-					}, "💬 Klären")));
+					actions));
 				return React.createElement("div", { key: it.id || idx, className: "dks-card" }, children);
 			});
 
@@ -806,11 +908,18 @@ window.__ModuleLoader__.load({
 					}))
 				: null;
 
-			const decisionRows = (decisions !== null && decisions !== undefined && decisions.empty !== true ? decisions.decisions : []).map(function(d, idx) {
-				return React.createElement("div", { key: d.id || idx, className: "dks-clarified" },
-					React.createElement("span", { className: "dks-badge" }, esc(d.id || "")),
-					React.createElement("span", { className: "dks-openq-text" }, esc(d.title)));
-			});
+			// Settled clarifications, collapsed below the open queue — visible as
+			// archive, without action buttons (nothing left to decide).
+			const settledEls = settledClarify.length === 0 ? null : React.createElement("div", { className: "dks-subgroup" },
+				React.createElement("div", { className: "dks-group-head", onClick: function() { setSettledCollapsed(!settledCollapsed); } },
+					React.createElement("span", null, settledCollapsed ? "▸" : "▾"),
+					React.createElement("span", { className: "dks-section-title", style: { marginBottom: 0 } }, "Erledigt (" + settledClarify.length + ")")),
+				settledCollapsed ? null : settledClarify.map(function(it, idx) {
+					return React.createElement("div", { key: (it.id || "s") + "-" + idx, className: "dks-openq" },
+						React.createElement("div", { className: "dks-card-title" }, "✔ " + esc(it.title)),
+						React.createElement("div", { className: "dks-card-meta" },
+							React.createElement("span", { className: "dks-badge" }, esc(it.status_label))));
+				}));
 
 			return React.createElement("div", { className: "dks-clarify" },
 				React.createElement("div", { className: "dks-section-title" }, "Klären"),
@@ -823,11 +932,7 @@ window.__ModuleLoader__.load({
 								React.createElement("span", { className: "dks-col-count" }, "(" + clarify.length + ")")),
 							els)),
 				otherEls,
-				React.createElement("div", { className: "dks-subgroup" },
-					React.createElement("div", { className: "dks-section-title" }, "Geklärt (Entscheidungen)"),
-					decisionRows.length === 0
-						? React.createElement("div", { className: "dks-note" }, "Noch keine geklärte Entscheidung (decisions.yml).")
-						: React.createElement("div", { className: "dks-clarified-list" }, decisionRows)));
+				settledEls);
 		}
 
 		function DesignDocModal(props) {
@@ -945,11 +1050,34 @@ window.__ModuleLoader__.load({
 
 			// The standard session kit hands every conversation.view occupant
 			// `inputActions` (setDraft/submit). Use it to write the prompt into the
-			// chat input directly — no copy/paste, no host round-trip.
+			// chat input directly — no copy/paste, no host round-trip. Because the
+			// buttons live on other view tabs, switching back to the chat tab is
+			// part of the flow: the tab buttons run the shipped `setView` action,
+			// so a synthetic click on the first tab (chat, order 0) rides the same
+			// code path as a user click — no foreign store is written.
 			const inputActions = props !== null && props !== undefined ? props.inputActions : undefined;
+			const switchToChat = function() {
+				try {
+					if (typeof document === "undefined") return false;
+					const lists = document.querySelectorAll("div[role=tablist]");
+					for (const list of lists) {
+						const tabs = list.querySelectorAll("button[role=tab]");
+						if (tabs.length < 2) continue;
+						const first = tabs[0];
+						const active = list.querySelector('button[role=tab][aria-selected="true"]');
+						if (first !== undefined && first !== null && active !== null && active !== first) {
+							first.click();
+							return true;
+						}
+						return false;
+					}
+				} catch (e) { /* degrade: teacher switches the tab manually */ }
+				return false;
+			};
 			const setDraftFn = function(text) {
 				if (inputActions !== undefined && typeof inputActions.setDraft === "function") {
 					inputActions.setDraft(text);
+					switchToChat();
 					setFeedback("Prompt ins Chat-Input übernommen — dort kannst du ihn senden.");
 				} else {
 					copyText(text);
@@ -957,9 +1085,10 @@ window.__ModuleLoader__.load({
 				}
 			};
 
-			// Teacher decides a Learning-Design "Open Question": accept records it
-			// as a decision (decisions.yml) and removes it from the open list;
-			// discard removes it as no longer relevant.
+			// Teacher decides a Learning-Design "Open Question": accept answers it
+			// and removes it from the open list (no auto-decision — an open
+			// question is not itself a decision); discard removes it as no longer
+			// relevant; clarify moves it to the planning board.
 			const resolveQuestion = function(question, action) {
 				fetch("/api/pts-denkstand/design-question", {
 					method: "POST",
@@ -974,7 +1103,7 @@ window.__ModuleLoader__.load({
 					});
 				}).then(function() {
 					setFeedback(action === "accept"
-						? "Als Entscheidung übernommen (decisions.yml) und aus den offenen Fragen entfernt."
+						? "Frage beantwortet und aus den offenen Fragen entfernt. Die Antwort gehört ins Learning Design (Leitideen/Zusammenhang); wird sie zu einer verbindlichen Entscheidung, hält decisions.yml sie fest."
 						: action === "clarify"
 							? "Zur Klärung ins Planning Board („Klären“) verschoben — aus den offenen Fragen entfernt."
 							: "Frage verworfen — aus den offenen Fragen entfernt.");
@@ -1001,6 +1130,31 @@ window.__ModuleLoader__.load({
 					load();
 				}).catch(function(e) {
 					setError("Vote: " + String(e && e.message ? e.message : e));
+				});
+			};
+
+			// Decision → Leitidee: add the decision as a numbered accent under
+			// "## Educational Intention" (idempotent server-side), then refresh so
+			// the heart turns and the pinboard shows the new Leitidee.
+			const promoteAccent = function(d) {
+				fetch("/api/pts-denkstand/decision-accent", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ sessionId: sessionId, title: d.title || "", text: d.detail || "" }),
+				}).then(function(res) {
+					return res.text().then(function(body) {
+						let v = null;
+						try { v = JSON.parse(body); } catch (e) { v = null; }
+						if (!res.ok) throw new Error(v !== null && v && typeof v.error === "string" ? v.error : "HTTP " + res.status);
+						return v;
+					});
+				}).then(function(v) {
+					setFeedback(v && v.added === true
+						? "Als Leitidee unter „Educational Intention“ ins Learning Design übernommen."
+						: "Nicht übernommen: " + (v && typeof v.reason === "string" && v.reason !== "" ? v.reason : "unbekannter Grund") + ".");
+					load();
+				}).catch(function(e) {
+					setError("Leitidee: " + String(e && e.message ? e.message : e));
 				});
 			};
 
@@ -1032,8 +1186,8 @@ window.__ModuleLoader__.load({
 					? React.createElement("div", { className: "dks-action-ok" }, feedback)
 					: null,
 				React.createElement("div", { className: "dks-threerow" },
-					React.createElement(ThoughtBoard, { design: design, board: board, thoughts: data.thoughts, onVote: voteThought, openDesign: openDesign }),
-					React.createElement(ClarifyPanel, { board: board, decisions: decisions, onSetDraft: setDraftFn }),
+					React.createElement(ThoughtBoard, { design: design, board: board, thoughts: data.thoughts, decisions: decisions, onVote: voteThought, onAccent: promoteAccent, onSetDraft: setDraftFn, openDesign: openDesign }),
+					React.createElement(ClarifyPanel, { board: board, onSetDraft: setDraftFn }),
 					React.createElement("div", { className: "dks-openq-col" },
 						React.createElement(OpenQuestionsPanel, { moments: moments, designOpen: dqSplit.open, onAction: setDraftFn, onResolve: resolveQuestion }))),
 				designDoc !== null

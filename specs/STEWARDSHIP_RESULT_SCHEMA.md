@@ -98,7 +98,12 @@ forbidden_effects:
 `decision_signal`, `contradiction`, `focus_shift`.
 
 `evidence` verweist auf eine Nachrichten-ID des angebotenen Gesprächsfensters
-(z. B. `m3`) oder auf `"context"`; fremde Belege verwerfen das Ergebnis.
+(z. B. `m3`) oder auf `"context"`. **Zweistufige Behandlung:** Bei
+`observations` und `teacher_decisions` werden Einträge mit fremdem Beleg
+**einzeln verworfen** (Protokollverlust, nicht Laufverlust) — die kanonischen
+Dateien zitieren alte m-Nummern, denen ein über-eifriges Kind gelegentlich
+erliegt. Bei **Operationen** bleibt der Beleg strikt: ein fremder
+`evidence`-Verweis verwirft die Operation bzw. das Ergebnis.
 
 ## Operationen
 
@@ -106,10 +111,12 @@ forbidden_effects:
 |---|---|---|
 | `learning-design.md` + `set-section` | `section`, `value` | Ersetzt den Rumpf einer `##`-Ebene oder legt sie an. |
 | `learning-design.md` + `append-under-section` | `section`, `value` | Hängt einen Block unter die Überschrift. |
+| `learning-design.md` + `add-design-accent` | `title`, `value`, `evidence` | Trägt eine Lehrkraft-bekräftigte Leitidee als nummerierten Akzent `N. **Titel** — Text` unter „## Educational Intention“ ein (höchstens drei pro Lauf, Evidence-Pflicht, Duplikat-Titel = No-op, Placeholder wird beim ersten Akzent ersetzt). Verbindliche Entscheidungen bleiben in decisions.yml; „Design Decisions“ wird nicht zur Kopie. |
 | `learning-landscape.md` + `add-draft-moment` | `title`, `moment_type`, `moment_function`, `learning_activity`, `expected_experience`, `value` | Vollständiger Entwurf; Status wird zwangsläufig `draft`; ID und Herkunft generiert die Anwendung. |
 | `learning-landscape.md` + `add-draft-transition` | `from_id`, `to_id`, `transition_type`, `value`, `evidence` | Höchstens zwei pro Lauf; verbindet **vorhandene** Lernmomente (`§`-`### <id>`); `transition_type` ∈ `required`, `choice`, `parallel`, `return`, `meeting_point`, `prerequisite`; `evidence` muss aus dem Gesprächsfenster stammen. |
 | `decisions.yml` + `add-decision` | `value`, `evidence` | Nur mit passendem `teacher_decisions`-Eintrag `explicit: true`; sonst abgelehnt. |
 | `planning-board.yml` + `propose-board-item` | `title`, `board_kind`, `value` | Höchstens einer pro Lauf; wird mit `status: proposed`, `column: clarify`, `requires_teacher_approval: true` angelegt. |
+| `planning-board.yml` + `settle-board-item` | `item_id`, `value`, `evidence` | Höchstens einer pro Lauf; markiert eine offene Klärung (`kind: clarify`, `status: proposed`), die die Lehrkraft im Gespräch eindeutig beantwortet hat, als `status: resolved`. `value` ist **nur ein Verweis** auf den kanonischen Dokumentationsort (`resolved_ref`, z. B. `learning-design.md#educational-intention` oder eine decisions.yml-ID); der Antworttext selbst wird **nie** ins Board geschrieben. **Anti-Blur-Guard:** im selben Lauf muss eine dokumentierende Operation vorhanden sein (set-section/append-under-section am Learning Design, add-decision oder add-design-accent). Spalte, `requires_teacher_approval` und `kind: approve`-Einträge bleiben unangetastet — der Steward genehmigt nichts; bereits beantwortete Items sind ein idempotenter No-op. |
 | `temporal-plan.yml` + `propose-window` | `title`, `window_kind`, `duration_minutes`, `evidence`, `value` | Höchstens einer pro Lauf; Fenster wird mit `status: proposed` angelegt; `evidence` muss aus dem Gesprächsfenster stammen. |
 | `temporal-plan.yml` + `propose-placement` | `moment_id`, `window_id`, `start_minute`, `duration_minutes`, `dramaturgical_role`, `mode`, `evidence`, `value` | Höchstens einer pro Lauf; Platzierung nur auf vorhandenes Fenster und vorhandenen Lernmoment, `status: proposed`. |
 
@@ -124,6 +131,11 @@ Unabhängig davon gilt:
   `double_lesson`, `project_block`, `open_learning_time`), ebenso
   `dramaturgical_role` und `mode`;
 - `board_kind` folgt `specs/PLANNING_BOARD_SCHEMA.md`;
+- generierte Steward-IDs (`pb-steward-…`, `dec-steward-…`, `lm-steward-…`,
+  `tw-steward-…`, `tp-steward-…`) werden vor dem Anwenden gegen die
+  vorhandenen Einträge kollisionsgeprüft und bei Bedarf hochgezählt — der
+  Lauf-Zähler startet bei jedem Lauf neu, ohne Prüfung entstünden mehrere
+  identische IDs am selben Tag;
 - `value` ist auf 4000 Zeichen begrenzt, Titel auf 200;
 - unbekannte Ziel-/Art-Kombinationen werden einzeln abgelehnt und protokolliert.
 

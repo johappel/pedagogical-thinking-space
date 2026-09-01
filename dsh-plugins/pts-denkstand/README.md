@@ -9,10 +9,10 @@ Der Denkstand ist als **Drei-Spalten-Übersicht** links→rechts aufgebaut:
 
 | Spalte / Ansicht | Darstellung |
 |---|---|
-| **„Wo wir gerade gedanklich dran sind“** (links) | **Pinnwand der tragenden Aussagen** als Cards, die der User **voten** kann (▲/▼ → sortiert nach Wichtigkeit, Votes in `thoughts.json`): die **Leitideen** der Educational Intention (nummerierte Akzente wie „Rechtfertigung und Freiheit“, „Schöpfungsglaube“) + **Board-Hypothesen**. Darüber eine kompakte **„Aktueller Fokus“**-Statuszeile. Oben/Unten Link „Zum vollständigen Learning Design“ (Markdown-gerenderte Lese-Ansicht). |
-| **„Klären“** (Mitte) | die **Klären-Spalte** des Planning Boards (die Klärungs-/Entscheidungs-Warteschlange) mit ✓ Annehmen / 💬 Klären; weitere Spalten (Vorbereiten/Auswerten/Bereit) einklappbar; darunter **„Geklärt (Entscheidungen)“** aus `decisions.yml` (E00N) — die **geklärten Fragen**. |
+| **„Wo wir gerade gedanklich dran sind“** (links) | **Pinnwand der tragenden Aussagen** als Cards, die der User **voten** kann (▲/▼ → sortiert nach Wichtigkeit, Votes in `thoughts.json`): die **Leitideen** der Educational Intention (nummerierte Akzente wie „Rechtfertigung und Freiheit“, „Schöpfungsglaube“) + **Board-Hypothesen**. Darunter eine eigene Gruppe **„Entscheidungen (decisions.yml)“** mit den Lehrer-Entscheidungen als Karten (Entscheidungstext + Begründung + Referenzen). Jede Entscheidungskarte hat zwei Aktionen: **♡ Leitidee** (übernimmt die Entscheidung als nummerierten Akzent unter „Educational Intention“ ins Learning Design — idempotent, das Herz zeigt danach ♥) und **⚡ Jetzt umsetzen** (setzt einen teacher-ready Umsetzungs-Prompt direkt ins Chat-Input und **wechselt automatisch zum Chat-Tab**). Darüber eine kompakte **„Aktueller Fokus“**-Statuszeile (aus `Current focus:` im Learning Design, auch mitten in der Status-Zeile). Oben/Unten Link „Zum vollständigen Learning Design“ (Markdown-gerenderte Lese-Ansicht). |
+| **„Klären“** (Mitte) | die **Klären-Spalte** des Planning Boards (die Klärungs-/Entscheidungs-Warteschlange). **Artabhängige Buttons:** eine **Klärung** (`kind: clarify`, offene Frage) bekommt **💬 Klären / ✕ Verwerfen** — „Annehmen“ passt nicht zu einer Frage; ein echter **Vorschlag** (z. B. Material-Freigabe) bekommt **✓ Annehmen / 💬 Klären**. Das Badge heißt bei Klärungen „Entscheidung offen“ statt „Freigabe erforderlich“. **Erledigte Klärungen** (`status: resolved…`) verlassen die offene Warteschlange und stehen eingeklappt unter **„Erledigt (N)“** (✔, ohne Buttons) — der Background-Steward schließt beantwortete Klärungen über `settle-board-item` selbst ab. Weitere Spalten (Vorbereiten/Auswerten/Bereit) einklappbar. |
 | **„Offene Fragen“** (rechts) | **trennt die Quellen klar**: (1) „Offene Fragen“ aus dem **Learning Design** (`## Open Questions`) mit **„💬 Klären“ → verschiebt in die Klären-Spalte**, „✓ Einverstanden“ → Entscheidung, „✕ Verwerfen“ → verwerfen; (2) „Fragen am **Lernmoment**“ (eingeklappt, verweisen auf die Lernlandschaft). |
-| `decisions.yml` | die geklärten Fragen/Entscheidungen erscheinen **in der Mitte** unter „Geklärt“ (kein eigener Abschnitt mehr unten). |
+| `decisions.yml` | die geklärten Fragen/Entscheidungen erscheinen **in der linken Spalte** unter „Entscheidungen (decisions.yml)“ (kein eigener Abschnitt in der Mitte mehr). Zusätzlich ist `decisions.yml` im **Artefakte-Tab** auffindbar und wird dort als strukturierte, lesbare Entscheidungs-Vorschau gerendert. |
 
 > „Nächster Schritt“ ist bewusst **nicht** im Denkstand — der gehört in die Chat-/Companion-Fläche.
 
@@ -28,14 +28,18 @@ Der Denkstand ist als **Drei-Spalten-Übersicht** links→rechts aufgebaut:
   (der Steward hat in `hoffnung` alle vier Klärungen mit derselben
   `pb-steward-20260828-1` abgelegt). Nur die tatsächlich angeklickte Karte wird
   markiert.
-- **„✓ Annehmen"** und **„💬 Klären"** liegen **direkt auf jeder Karte** und
-  brauchen keinen Copy-Paste-Umweg: Sie rufen `inputActions.setDraft(prompt)`
-  auf. Das ist die **offizielle** öffentliche Draft-API des Chat-Composers
+- **„✓ Annehmen“ / „💬 Klären“ / „✕ Verwerfen“** liegen **direkt auf jeder Karte**
+  (artabhängig, siehe Tabelle oben) und brauchen keinen Copy-Paste-Umweg: Sie
+  rufen `inputActions.setDraft(prompt)` auf. Das ist die **offizielle**
+  öffentliche Draft-API des Chat-Composers
   (`InputActions.setDraft` in `dsh-client-ui-conversation`, gereicht an jede
   Session-Scope-Slot-Komponente über das Standard-Kit `sessions.provide`).
-  Der fertige teacher-ready Prompt („Ich akzeptiere den Vorschlag …" bzw.
-  „Lass uns die offene Klärung entscheiden …") landet damit **direkt im
-  Chat-Inputfeld**; die Lehrkraft prüft und sendet ihn. Der Companion setzt die
+  Der fertige teacher-ready Prompt („Ich akzeptiere den Vorschlag …“ bzw.
+  „Lass uns die offene Klärung entscheiden …“ / „Verwirf die Klärung …“) landet
+  damit **direkt im Chat-Inputfeld**; danach **wechselt die Ansicht automatisch
+  zum Chat-Tab** (synthetischer Click auf den ersten View-Tab — derselbe
+  `setView`-Pfad wie ein echter Tab-Klick, kein fremder Store wird geschrieben).
+  Die Lehrkraft prüft und sendet ihn. Der Companion setzt die
   Freigabe/Doku anschließend um (über pts_edit/pts_document).
 - Fallback: Ist `inputActions` nicht erreichbar (kein aktiver Session-Scope),
   wird der Prompt stattdessen in die Zwischenablage kopiert — die Lösung
@@ -98,16 +102,25 @@ node --input-type=module -e "await import('file:///F:/code/pedagogical-thinking-
     `thoughts.json` (Votes) und liefert sie als JSON.
   - `POST /api/pts-denkstand/design-question` (`{ sessionId, question, action:
     'accept'|'discard' }`) — Lehrer-Entscheid zu einer Learning-Design-Frage:
-    bei `accept` wird die Frage als verbindliche Entscheidung in `decisions.yml`
-    geschrieben und aus den „Open Questions“ entfernt; bei `discard` nur entfernt.
+    bei `accept` wird die Frage **beantwortet und aus den „Open Questions“
+    entfernt** (kein Auto-Eintrag mehr in `decisions.yml` — eine offene Frage
+    ist selbst keine Entscheidung; die Antwort dokumentiert der Companion im
+    Gespräch); bei `discard` nur entfernt; bei `clarify` wandert die Frage als
+    `kind: clarify` ins Planning Board.
+  - `POST /api/pts-denkstand/decision-accent` (`{ sessionId, title, text }`) —
+    übernimmt eine Entscheidung als nummerierten Akzent (`N. **Titel** — Text`)
+    unter „## Educational Intention“ in `learning-design.md`; idempotent
+    (Duplikat-Titel → `added:false`), ersetzt die Placeholder-Zeile beim ersten
+    Akzent.
   - `POST /api/pts-denkstand/thoughts` (`{ sessionId, statement, delta }`) — passt
     den Vote-Wert einer Pinnwand-Aussage in `thoughts.json` an (≥ 0).
   Atomarer Schreibzugriff, Pfad auf den Denkraum begrenzt. Der kompakte YAML-Parser
   deckt den Schemata-Subset ab (Block-Mappings, Block-Sequenzen, Verschachtelung
-  über Einrückung, Flow-Sequenzen, Skalare, Kommentare) – `yaml` ist aus dem
-  Profil-node_modules nicht auflösbar. **Einschränkung:** der Parser verarbeitet
-  keine YAML-Fold-/Literal-Skalare (`>`/`|`); Entscheidungen deshalb einzeilig.
-  Fehlende Dateien → `null`; unparsbare Dateien → kurze Fehlermeldung.
+  über Einrückung, Flow-Sequenzen, Skalare, Kommentare sowie gefaltete/literale
+  Block-Skalare `>`/`|` mit Chomping) – `yaml` ist aus dem Profil-node_modules
+  nicht auflösbar. `parseDecisions` liefert je Eintrag `id`, `title`, `detail`
+  (Entscheidungstext bzw. `description`), `rationale`, `references`, `category`
+  und `status`. Fehlende Dateien → `null`; unparsbare Dateien → kurze Fehlermeldung.
 - **Client-Hälfte** registriert einen `conversation.view`-Tab (`id: denkstand`,
   `order: 40`, `label: "Denkstand"`). Er lädt die Route und rendert Brett,
   Timeline und Entscheidungen mit React.createElement (kein JSX/TS).

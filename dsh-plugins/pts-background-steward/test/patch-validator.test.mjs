@@ -128,13 +128,33 @@ test('Verfälschte oder unvollständige base-Hashes werden abgelehnt', () => {
 	assert.equal(r.ok, false);
 });
 
-test('Evidence außerhalb des Gesprächsfensters wird abgelehnt', () => {
+test('Beobachtungen mit ungültiger Evidence werden einzeln verworfen, nicht das Ergebnis', () => {
 	const result = validResult({
-		observations: [{ type: 'open_question', evidence: 'm99', content: 'x' }],
+		observations: [
+			{ type: 'open_question', evidence: 'm99', content: 'falscher Beleg' },
+			{ type: 'teacher_statement', evidence: 'm3', content: 'gültig bleibt' },
+			{ type: 'unbekannt', evidence: 'm3', content: 'unbekannter Typ' },
+			{ type: 'teacher_statement', evidence: 'm3', content: '' },
+		],
 	});
 	const r = validateResult(result, expectation());
+	assert.equal(r.ok, true);
+	assert.deepEqual(r.result.observations.map((o) => o.content), ['gültig bleibt']);
+	assert.equal(r.dropped.observations, 3);
+});
+
+test('teacher_decisions mit ungültiger Evidence werden einzeln verworfen (keine Autorisierung)', () => {
+	const result = validResult({
+		observations: [],
+		operations: [{ target: 'decisions.yml', kind: 'add-decision', value: 'X.', evidence: 'm3' }],
+		teacher_decisions: [{ evidence: 'm99', explicit: true }, { evidence: 'm3', explicit: false }],
+	});
+	const r = validateResult(result, expectation());
+	// Der add-decision wird separat abgelehnt (kein expliziter, belegter
+	// Entscheid überlebt), aber das ERGEBNIS selbst ist gültig.
 	assert.equal(r.ok, false);
-	assert.ok(r.errors.some((e) => e.includes('evidence')));
+	assert.ok(r.errors.some((e) => e.includes('decisions.yml')));
+	assert.equal(r.dropped.teacher_decisions, 1);
 });
 
 // ——— Politik: Entscheidungen, Board, Landschaft, Temporal ———
@@ -317,6 +337,63 @@ test('höchstens ein Planning-Board-Vorschlag pro Lauf', () => {
 	const r = validateResult(two, expectation());
 	assert.equal(r.ok, false);
 	assert.ok(r.errors.some((e) => e.includes('höchstens ein Planning-Board-Vorschlag')));
+});
+
+test('settle-board-item braucht im selben Lauf eine dokumentierende Operation (Anti-Blur)', () => {
+	const settleOnly = validResult({
+		operations: [
+			{ target: 'planning-board.yml', kind: 'settle-board-item', item_id: 'pb-1', value: 'decisions.yml#irgendwas', evidence: 'm3' },
+		],
+	});
+	let r = validateResult(settleOnly, expectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('settle-board-item braucht im selben Lauf')));
+
+	// Mit dokumentierender Op (add-design-accent) im selben Lauf: gültig.
+	const withDoc = validResult({
+		operations: [
+			{ target: 'learning-design.md', kind: 'add-design-accent', title: 'Hoffnung als Grund statt Projektion', value: 'Christliche Hoffnung gründet im Kreuz.', evidence: 'm3' },
+			{ target: 'planning-board.yml', kind: 'settle-board-item', item_id: 'pb-1', value: 'learning-design.md#educational-intention', evidence: 'm3' },
+		],
+	});
+	r = validateResult(withDoc, expectation());
+	assert.equal(r.ok, true);
+});
+
+test('add-design-accent: Evidence-Pflicht, Ziel-Datei, höchstens drei pro Lauf', () => {
+	const good = validResult({
+		operations: [
+			{ target: 'learning-design.md', kind: 'add-design-accent', title: 'Leitfrage als roter Faden', value: 'Wovon hoffst du, wenn die Fakten dagegen sprechen?', evidence: 'm3' },
+		],
+	});
+	let r = validateResult(good, expectation());
+	assert.equal(r.ok, true);
+
+	const noEvidence = validResult({
+		operations: [
+			{ target: 'learning-design.md', kind: 'add-design-accent', title: 't', value: 'x', evidence: 'm99' },
+		],
+	});
+	r = validateResult(noEvidence, expectation());
+	assert.equal(r.ok, false);
+
+	const wrongTarget = validResult({
+		operations: [
+			{ target: 'planning-board.yml', kind: 'add-design-accent', title: 't', value: 'x', evidence: 'm3' },
+		],
+	});
+	r = validateResult(wrongTarget, expectation());
+	assert.equal(r.ok, false);
+
+	const four = validResult({
+		operations: [1, 2, 3, 4].map((i) => ({
+			target: 'learning-design.md', kind: 'add-design-accent',
+			title: 'Leitidee ' + i, value: 'Text ' + i, evidence: 'm3',
+		})),
+	});
+	r = validateResult(four, expectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('höchstens drei Leitideen-Akzente')));
 });
 
 test('Wertlängengrenzen werden durchgesetzt', () => {

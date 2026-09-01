@@ -88,8 +88,34 @@ function extractDialogue(session, config) {
 
 export function apply(ctx, rawConfig) {
 	const { config, warnings } = normalizeConfig(rawConfig);
-	const log = (msg) => console.log(`[pts-background-steward] ${msg}`);
-	const logError = (msg) => console.error(`[pts-background-steward] ${msg}`);
+	// Console stays primary; a file mirror (<ptsRoot>/.steward/steward.log)
+	// makes run failures diagnosable without the server terminal. Best-effort:
+	// logging must never break a run. Rotation at ~512 KB.
+	let logSinkPromise = null;
+	const appendLog = (line) => {
+		if (logSinkPromise === null) {
+			logSinkPromise = ptsRoot().then((root) => {
+				if (root === null) return null;
+				const dir = path.join(root, '.steward');
+				return { dir, file: path.join(dir, 'steward.log') };
+			});
+		}
+		void logSinkPromise.then(async (sink) => {
+			if (sink === null) return;
+			await fsp.mkdir(sink.dir, { recursive: true });
+			const st = await fsp.stat(sink.file).catch(() => null);
+			if (st !== null && st.size > 524288) await fsp.writeFile(sink.file, '', 'utf8');
+			await fsp.appendFile(sink.file, line + '\n', 'utf8');
+		}).catch(() => {});
+	};
+	const log = (msg) => {
+		console.log(`[pts-background-steward] ${msg}`);
+		appendLog(`${new Date().toISOString()} ${msg}`);
+	};
+	const logError = (msg) => {
+		console.error(`[pts-background-steward] ${msg}`);
+		appendLog(`${new Date().toISOString()} ERROR ${msg}`);
+	};
 	for (const w of warnings) logError(`Konfiguration: ${w}`);
 
 	if (!config.enabled) {

@@ -45,7 +45,34 @@ function parseYaml(source) {
       }
       return null;
     }
+    // YAML block scalar (folded `>` / literal `|`, optional chomping `+`/`-`):
+    // its content lines are indented deeper than the owner key.
+    if (/^[>|][+-]?$/.test(trimmed)) {
+      return parseBlockScalar(ownerIndent, trimmed);
+    }
     return parseValue(trimmed);
+  }
+
+  /** Parse the content of a YAML block scalar (`>` folded, `|` literal). */
+  function parseBlockScalar(ownerIndent, indicator) {
+    const style = indicator[0];
+    const chomp = indicator.length > 1 ? indicator.charAt(1) : '';
+    const rawLines = [];
+    while (i < nodes.length && nodes[i].indent > ownerIndent) {
+      rawLines.push(nodes[i].text);
+      i += 1;
+    }
+    let out;
+    if (style === '|') {
+      out = rawLines.join('\n');
+    } else {
+      // folded: a newline between non-blank lines becomes a space. Blank lines
+      // are dropped during tokenization, so this yields one joined paragraph.
+      out = rawLines.join(' ');
+    }
+    // `-` strips trailing newlines, `+` keeps them; default trims one.
+    if (chomp === '+') return out + '\n';
+    return out.replace(/\n+$/, '');
   }
 
   /** Parse a sequence whose items start at seqIndent (`- ` markers). */
@@ -250,6 +277,7 @@ function statusLabel(status) {
     blocked: 'Blockiert',
     discarded: 'Verworfen',
   };
+  if (typeof status === 'string' && status.toLowerCase().startsWith('resolved')) return 'Beantwortet';
   return map[status] || status || '—';
 }
 
@@ -303,8 +331,8 @@ export function _removeDesignQuestion(content, question) {
   return removeDesignQuestion(content, question);
 }
 
-export function _appendDecisionYaml(yml, question) {
-  return appendDecisionYaml(yml, question);
+export function _upsertAccent(content, title, text) {
+  return upsertAccent(content, title, text);
 }
 
 export function _appendBoardClarify(yml, question) {
@@ -375,14 +403,33 @@ function parseTemporal(raw) {
 function parseDecisions(raw) {
   const dec = parseYaml(raw);
   const decisions = Array.isArray(dec.decisions) ? dec.decisions : [];
-  return {
-    decisions: decisions.map((d) => ({
-      id: d?.id ?? '',
-      title: typeof d?.title === 'string' ? d.title : display(d),
-      detail: typeof d?.evidence === 'string' ? d.evidence : (typeof d?.note === 'string' ? d.note : ''),
-    })),
-    empty: decisions.length === 0,
-  };
+  const out = decisions.map((d) => {
+    if (d === null || typeof d !== 'object') {
+      return { id: '', title: display(d), detail: '', rationale: '', references: [], category: '', status: '' };
+    }
+    const decisionText = (typeof d.decision === 'string' ? d.decision : '').trim();
+    const detail = decisionText
+      || (typeof d.description === 'string' ? d.description : '')
+      || (typeof d.evidence === 'string' ? d.evidence : '')
+      || (typeof d.note === 'string' ? d.note : '');
+    const title = (typeof d.title === 'string' && d.title.trim() !== '')
+      ? d.title
+      : (typeof d.id === 'string' && d.id.trim() !== '' && decisionText !== '')
+        ? decisionText.slice(0, 80)
+        : display(d);
+    return {
+      id: d.id === null || d.id === undefined ? '' : String(d.id),
+      title,
+      detail,
+      rationale: (typeof d.rationale === 'string' ? d.rationale : '').trim(),
+      references: Array.isArray(d.references)
+        ? d.references.map((r) => (r === null || r === undefined ? '' : String(r))).filter((r) => r !== '')
+        : [],
+      category: typeof d.category === 'string' ? d.category : '',
+      status: typeof d.status === 'string' ? d.status : '',
+    };
+  });
+  return { decisions: out, empty: out.length === 0 };
 }
 
 // Remove a single `- ` list item (matched by its stripped text) from the
@@ -408,25 +455,55 @@ function removeDesignQuestion(content, question) {
   return { removed, content: out.join('\n') };
 }
 
-// Append a minimal decision block to decisions.yml (next E<NN> id, binding).
-function appendDecisionYaml(yml, question) {
-  const src = String(yml);
-  const ids = [];
-  const re = /^\s*-\s*id:\s*(E\d+)/gim;
-  let m;
-  while ((m = re.exec(src)) !== null) ids.push(parseInt(m[1].replace(/^E/i, ''), 10));
-  const next = 'E' + String((ids.length ? Math.max.apply(null, ids) : 0) + 1).padStart(3, '0');
-  const today = new Date().toISOString().slice(0, 10);
-  const cleanQ = question.replace(/^[✅✔✓☑]\s*/, '').replace(/"/g, '\\"');
-  const title = cleanQ.split(':')[0].replace(/[*_]+/g, '').trim() || 'Entscheidung';
-  const base = src.replace(/\s*$/, '');
-  return base + '\n' +
-    '  - id: ' + next + '\n' +
-    '    title: ' + title + '\n' +
-    '    date: ' + today + '\n' +
-    '    category: design\n' +
-    '    status: binding\n' +
-    '    description: "Vom Denkstand bestätigt: ' + cleanQ + '"\n';
+// Upsert a numbered accent under "## Educational Intention" in
+// learning-design.md: `N. **Title** — text`. Removes the placeholder line
+// ("Noch nicht entschieden." etc.) when the first accent is added. Returns
+// { added, content }; added=false when an accent with the same title exists.
+function upsertAccent(content, title, text) {
+  const lines = String(content).replace(/\r\n?/g, '\n').split('\n');
+  const cleanTitle = String(title).replace(/\*\*/g, '').trim();
+  const cleanText = String(text).replace(/\*\*/g, '').trim();
+  if (cleanTitle === '' || cleanText === '') return { added: false, content: String(content), reason: 'leer' };
+  const headingRe = /^#{1,6}\s+Educational Intention\s*$/i;
+  const headingIdx = lines.findIndex((l) => headingRe.test(l.trim()));
+  if (headingIdx < 0) return { added: false, content: String(content), reason: 'Abschnitt fehlt' };
+
+  // Section body: lines after the heading until the next heading of any level.
+  let end = lines.length;
+  for (let k = headingIdx + 1; k < lines.length; k++) {
+    if (/^#{1,6}\s+/.test(lines[k])) { end = k; break; }
+  }
+  const body = lines.slice(headingIdx + 1, end);
+
+  // Duplicate guard: same accent title already present?
+  const titleNorm = cleanTitle.toLowerCase();
+  for (const line of body) {
+    const m = line.trim().match(/^\d+[.)]\s+(\*\*[^*]+\*\*)?\s*(?:—|[-:])?\s*(.*)$/);
+    if (m !== null && m[1] !== undefined && m[1].replace(/\*\*/g, '').trim().toLowerCase() === titleNorm) {
+      return { added: false, content: String(content), reason: 'bereits Leitidee' };
+    }
+  }
+
+  // Next number: max existing "N." in the section.
+  let n = 0;
+  for (const line of body) {
+    const m = line.trim().match(/^(\d+)[.)]\s+/);
+    if (m !== null) n = Math.max(n, parseInt(m[1], 10));
+  }
+
+  // Drop placeholder lines ("Noch nicht entschieden." etc.) when adding the
+  // first real accent, then rebuild the section from the kept lines.
+  const isPlaceholderLine = (t) => {
+    const s = String(t || '').trim().toLowerCase();
+    return s !== '' && (s.startsWith('noch nicht') || s.startsWith('noch keine'));
+  };
+  const keptBody = body.filter((l) => !(n === 0 && isPlaceholderLine(l)));
+  while (keptBody.length > 0 && keptBody[keptBody.length - 1].trim() === '') keptBody.pop();
+  const entry = (n + 1) + '. **' + cleanTitle + '** — ' + cleanText;
+  const lead = (keptBody.length === 0 ? [''] : []);
+  const out = lines.slice(0, headingIdx + 1)
+    .concat(lead, keptBody, [entry, ''], lines.slice(end));
+  return { added: true, content: out.join('\n') };
 }
 
 // Append a `kind: clarify` board item (planning-board.yml) to the Klären column.
@@ -583,9 +660,11 @@ export function apply(ctx) {
 
   ctx.effect(() => dispose, 'pts-denkstand: route');
 
-  // Teacher decides a Learning-Design "Open Question": 'accept' records it as a
-  // binding decision (decisions.yml) and removes it from the open list;
-  // 'discard' removes it as no longer relevant. Both rewrite learning-design.md.
+  // Teacher decides a Learning-Design "Open Question": 'accept' answers the
+  // question and removes it from the open list (the answer itself is
+  // documented by the companion in the conversation — an open question is NOT
+  // auto-recorded as a decision); 'clarify' moves it to the planning board;
+  // 'discard' removes it as no longer relevant. All rewrite learning-design.md.
   const disposeQuestion = webServer.register({
     kind: 'exact',
     path: '/api/pts-denkstand/design-question',
@@ -604,11 +683,7 @@ export function apply(ctx) {
         const r = removeDesignQuestion(designFile.raw, question);
         if (r.removed !== true) { sendJson(res, 404, { ok: false, error: 'Frage nicht gefunden' }); return; }
         await atomicWriteFile(base, 'learning-design.md', r.content);
-        if (action === 'accept') {
-          const decFile = await readWorkspaceFile(base, 'decisions.yml');
-          const decContent = (decFile.ok && !decFile.missing) ? decFile.raw : 'decisions: []';
-          await atomicWriteFile(base, 'decisions.yml', appendDecisionYaml(decContent, question));
-        } else if (action === 'clarify') {
+        if (action === 'clarify') {
           const boardFile = await readWorkspaceFile(base, 'planning-board.yml');
           const boardContent = (boardFile.ok && !boardFile.missing) ? boardFile.raw : 'schema: ptspace.planning-board/v1\nitems:';
           await atomicWriteFile(base, 'planning-board.yml', appendBoardClarify(boardContent, question));
@@ -620,6 +695,33 @@ export function apply(ctx) {
     },
   });
   ctx.effect(() => disposeQuestion, 'pts-denkstand: design-question route');
+
+  // Teacher promotes a decision to a Leitidee: adds it as a numbered accent
+  // under "## Educational Intention" in learning-design.md. Idempotent.
+  const disposeAccent = webServer.register({
+    kind: 'exact',
+    path: '/api/pts-denkstand/decision-accent',
+    handler: async (req, res) => {
+      try {
+        const method = typeof req.method === 'string' ? req.method.toUpperCase() : 'GET';
+        if (method !== 'POST') { sendJson(res, 405, { ok: false, error: 'Methode nicht erlaubt' }); return; }
+        const body = JSON.parse((await readBody(req)) || '{}');
+        const sessionId = typeof body.sessionId === 'string' ? body.sessionId : '';
+        const title = typeof body.title === 'string' ? body.title : '';
+        const text = typeof body.text === 'string' ? body.text : '';
+        if (title.trim() === '' || text.trim() === '') { sendJson(res, 400, { ok: false, error: 'title/text fehlt' }); return; }
+        const base = sessionWorkspace(sessionId) ?? fallbackRoot;
+        const designFile = await readWorkspaceFile(base, 'learning-design.md');
+        if (!designFile.ok || designFile.missing) { sendJson(res, 404, { ok: false, error: 'learning-design.md nicht lesbar' }); return; }
+        const r = upsertAccent(designFile.raw, title, text);
+        if (r.added === true) await atomicWriteFile(base, 'learning-design.md', r.content);
+        sendJson(res, 200, { ok: true, added: r.added, reason: r.reason || '' });
+      } catch (e) {
+        sendJson(res, 400, { ok: false, error: String(e && e.message ? e.message : e) });
+      }
+    },
+  });
+  ctx.effect(() => disposeAccent, 'pts-denkstand: decision-accent route');
 
   // Pinboard vote: adjust the per-statement importance count in thoughts.json.
   const disposeThoughts = webServer.register({
@@ -647,5 +749,5 @@ export function apply(ctx) {
   });
   ctx.effect(() => disposeThoughts, 'pts-denkstand: thoughts route');
 
-  console.log('[pts-denkstand] host half active; routes /api/pts-denkstand, /api/pts-denkstand/design-question, /api/pts-denkstand/thoughts registered');
+  console.log('[pts-denkstand] host half active; routes /api/pts-denkstand, /api/pts-denkstand/design-question, /api/pts-denkstand/decision-accent, /api/pts-denkstand/thoughts registered');
 }
