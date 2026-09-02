@@ -90,11 +90,14 @@ export function apply(ctx, rawConfig) {
 	const { config, warnings } = normalizeConfig(rawConfig);
 	// Console stays primary; a file mirror (<ptsRoot>/.steward/steward.log)
 	// makes run failures diagnosable without the server terminal. Best-effort:
-	// logging must never break a run. Rotation at ~512 KB.
+	// logging must never break a run. Rotation at ~512 KB. The sink resolves
+	// in a microtask ON PURPOSE: apply() logs synchronously before the
+	// ptsRoot() internals (cachedRootPromise) are initialized, and a direct
+	// call there would hit the temporal dead zone and kill the plugin load.
 	let logSinkPromise = null;
 	const appendLog = (line) => {
 		if (logSinkPromise === null) {
-			logSinkPromise = ptsRoot().then((root) => {
+			logSinkPromise = Promise.resolve().then(() => ptsRoot()).then((root) => {
 				if (root === null) return null;
 				const dir = path.join(root, '.steward');
 				return { dir, file: path.join(dir, 'steward.log') };
@@ -168,7 +171,6 @@ export function apply(ctx, rawConfig) {
 	log(`aktiv (provider=${config.provider || 'Eltern-Provider'}, model=${config.model || 'Eltern-Modell'}, debounce=${config.debounceMs} ms)`);
 
 	// ————— PTS root + Denkraum resolution (marker-validated, cached) —————
-	let cachedRootPromise = null;
 
 	async function looksLikePtsRoot(dir) {
 		for (const marker of ['AGENTS.md', 'workspace']) {
@@ -180,6 +182,10 @@ export function apply(ctx, rawConfig) {
 		}
 		return true;
 	}
+
+	// Hoisted: log helpers below may resolve the sink via ptsRoot() as early
+	// as during apply()'s synchronous prologue — the binding must exist then.
+	let cachedRootPromise = null;
 
 	function ptsRoot() {
 		if (cachedRootPromise) return cachedRootPromise;
@@ -364,7 +370,7 @@ export function apply(ctx, rawConfig) {
 						}));
 						sendJson(200, {
 							ok: true,
-							version: '0.1.0',
+							version: '0.2.0',
 							schemaVersion: 'ptspace.stewardship-result/v1',
 							config: configPayload(await effectiveModelConfig()),
 							ptsRoot: root,

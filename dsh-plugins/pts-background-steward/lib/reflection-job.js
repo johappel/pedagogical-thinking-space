@@ -37,6 +37,7 @@ export function buildStewardPersona() {
 		'- Du darfst Übergänge (add-draft-transition) zwischen bereits vorhandenen Lernmomenten als Entwurf vorschlagen, wenn das Gespräch den Lernfluss erkennen lässt (Reihenfolge, Wahl, Parallel, Treffpunkt, Voraussetzung); höchstens zwei pro Lauf; from_id und to_id müssen vorhandene Lernmomente sein.',
 		'- temporal-plan.yml darfst du nur als VORSCHLAG beschreiben (propose-window / propose-placement); Fenster und Platzierungen werden mit Status "proposed" angelegt und binden nichts. Bindende Terminierung bleibt Lehrkraft-Sache.',
 		'- Du produzierst keine Unterrichtsmaterialien, startest keine Recherchen oder Worker und schreibst nichts in Memory oder kuratiertes Wissen.',
+		'- Das Produktions-Gate des sichtbaren Begleiters (kein pts_edit am learning-design.md während der Klärungs-Phase) gilt NICHT für dich: Deine strukturierten Operationen SIND die erlaubte, reversible Synchronisation des bereits im Gespräch festgelegten Denkstands. Eine ausdrückliche Zustimmung der Lehrkraft wie „ja, synchronisieren" ist ein Synchronisations-Auftrag, keine neue pädagogische Entscheidung.',
 		'- Du schreibst NICHT selbst Dateien; du lieferst ausschließlich dein strukturiertes Ergebnis zurück. Die Anwendung prüft es und wendet es an.',
 		'- Halte Beobachtung, wiedergegebene Aussage, Deutung, Hypothese und offene Frage begrifflich auseinander.',
 		'Antworte auf Deutsch. Beende deinen Lauf, indem du genau einmal das Tool structured_output mit deinem Ergebnis aufrufst.',
@@ -91,7 +92,9 @@ ${dialogueText}
 4. \`operations\`: schlage nur Änderungen vor, die den bereits erkennbaren Stand dokumentieren — keine neuen pädagogischen Entscheidungen, keine Materialproduktion.
    - learning-design.md: \`set-section\` oder \`append-under-section\` (z. B. Context, Current Status, Open Questions, Learning Journey). Absätze sachlich, knapp, ohne Entscheidungssprache.
    - learning-design.md: \`add-design-accent\` — trägt eine Leitidee als nummerierten Akzent unter „Educational Intention" ein (\`title\` = knapper Leitideen-Titel, \`value\` = ein bis zwei Sätze Akzenttext, \`evidence\` = Beleg). Nur für tragende Aussagen, die die Lehrkraft im Gespräch ausdrücklich bekräftigt hat. Kopiere sie NICHT zusätzlich in „Design Decisions" — verbindliche Entscheidungen bleiben in decisions.yml; höchstens drei Akzente pro Lauf.
-   - learning-landscape.md: nur \`add-draft-moment\`, und nur wenn ALLE Pflichtfelder eines vollständigen Entwurfs belastbar aus dem Gespräch belegbar sind (Titel, Typ, Funktion, Lernaktivität, Erwartete Lernerfahrung). Sonst unterlassen.
+   - learning-design.md: \`sync-design-accents\` — spiegelt BEREITS in decisions.yml festgehaltene Entscheidungen wortgleich als nummerierte Leitideen-Akzente unter „Educational Intention" (\`decision_ids\` = IDs vorhandener decisions.yml-Einträge, höchstens drei pro Lauf; \`evidence\` = Beleg der Lehrkraftbestätigung der Synchronisation; \`value\` = knapper Hinweis, z. B. „Spiegelt die festgelegten Leitideen nach Educational Intention"). Kein neuer Inhalt, keine Umformulierung: Titel und Text stammen unverändert aus decisions.yml. Sind tragende Leitideen bereits in decisions.yml oder unter „Design Decisions" dokumentiert, aber unter „Educational Intention" noch nicht als nummerierte Akzente sichtbar, und hat die Lehrkraft die Synchronisation im Gespräch bestätigt, ist \`operations: []\` FALSCH — dann gehört genau diese Operation in die Operationen.
+   - learning-landscape.md: \`add-draft-moment\` für einen neuen Moment, wenn ALLE Pflichtfelder eines vollständigen Entwurfs belastbar aus dem Gespräch belegbar sind (Titel, Typ, Funktion, Lernaktivität, Erwartete Lernerfahrung).
+   - learning-landscape.md: \`update-draft-moment\` entwickelt einen BEREITS vorhandenen Moment mit Status draft/needs_review gezielt weiter (\`moment_id\`, \`evidence\`, \`value\` als knapper Änderungsgrund; mindestens eines aus title, moment_type, moment_function, learning_activity, expected_experience, open_questions, material_needs). Verändere nur Felder, für die der Gesprächsausschnitt neue belastbare Aussagen enthält; stable-Momente sind tabu. Das ist der bevorzugte Weg, wenn sich der Lernweg konkretisiert, ohne dass ein völlig neuer Moment entsteht.
    - learning-landscape.md: höchstens zwei \`add-draft-transition\` pro Lauf, wenn das Gespräch den Lernfluss erkennen lässt (Reihenfolge/Wahl/Parallel/Treffpunkt/Voraussetzung). \`from_id\` und \`to_id\` müssen bereits vorhandene Lernmomente sein; \`transition_type\` aus required|choice|parallel|return|meeting_point|prerequisite.
    - decisions.yml: nur \`add-decision\`, wenn die Lehrkraft sich eindeutig entschieden hat UND du das Feld \`teacher_decisions\` mit \`explicit: true\` und passender Evidence füllst. Im Zweifel: unterlassen.
    - planning-board.yml: höchstens ein \`propose-board-item\` pro Lauf; der Eintrag wird mit Status "proposed" und Spalte "clarify" angelegt. Nur wenn echte Klärungsarbeit sichtbar wurde.
@@ -214,8 +217,8 @@ export function createReflectionRunner({
 			return { status: 'invalid', detail: `${checked.errors.length} Verstoß/Vorstöße gegen Schema oder Politik`, errors: checked.errors };
 		}
 		const value = checked.result;
-		if (checked.dropped && (checked.dropped.observations > 0 || checked.dropped.teacher_decisions > 0)) {
-			log(`${key}: ${checked.dropped.observations} Beobachtung(en) und ${checked.dropped.teacher_decisions} Entscheidungsbeleg(e) wegen ungültiger Evidence einzeln verworfen (Ergebnis bleibt gültig)`);
+		if (checked.dropped && (checked.dropped.observations > 0 || checked.dropped.teacher_decisions > 0 || checked.dropped.operations > 0)) {
+			log(`${key}: ${checked.dropped.observations} Beobachtung(en), ${checked.dropped.teacher_decisions} Entscheidungsbeleg(e) und ${checked.dropped.operations} Operation(en) wegen ungültiger Evidence einzeln verworfen (Rest-Ergebnis bleibt gültig)`);
 		}
 
 		// 6. Revision check immediately before applying.
@@ -231,7 +234,8 @@ export function createReflectionRunner({
 		}
 
 		// 7. Apply atomically against CURRENT uncapped contents.
-		const dateIso = new Date().toISOString().slice(0, 10);
+		const updatedAt = new Date().toISOString();
+		const dateIso = updatedAt.slice(0, 10);
 		const makeId = makeIdFactory(dateIso);
 		const baseFiles = new Map();
 		for (const name of Object.keys(freshHashes)) {
@@ -243,6 +247,7 @@ export function createReflectionRunner({
 		}
 		const { updates, applied, rejected } = applyOperations(baseFiles, value.operations, {
 			dateIso,
+			updatedAt,
 			makeId,
 			turnRef: `Turn ${turn}`,
 		});

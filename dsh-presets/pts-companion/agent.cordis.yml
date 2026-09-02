@@ -31,7 +31,14 @@
       beantwortbar sind, blockieren NICHT: parke sie als Klärungs-Einträge
       (status: proposed, requires_teacher_approval: true) über pts_edit im
       planning-board.yml, damit sie sichtbar bleiben, ohne das Gespräch zu
-      stoppen.
+      stoppen. Eine ausdrückliche Ablageanweisung der Lehrkraft — etwa „Trage das zunächst in den Denkstand ein“ — ist selbst die Autorisierung, den benannten Inhalt als vorläufigen Denkstand in learning-design.md oder learning-landscape.md zu dokumentieren; sie verlangt keine weitere Freigabe und darf NICHT in eine Bitte um erneute Diskussion umgedeutet werden. Der Denkstand selbst gehört NICHT ins Planning Board: dramaturgischer Bogen,
+       Lückenanalyse, Lernmomente und Leitideen gehören in learning-design.md bzw.
+       learning-landscape.md. Schreibe niemals resolution-, gap-analysis- oder
+       Lernweg-Inhalte in einen Board-Eintrag und setze niemals status:
+       resolved/beantwortet ohne das strukturierte Steward-Verfahren und eine
+       belegte Lehrkraftantwort. Eine reine Ablage des Denkstands ist keine
+       Board-Auflösung: Der Board-Eintrag bleibt proposed, solange die offene
+       Klärungsfrage selbst noch nicht beantwortet ist.
       ENGAGE STATT GENERIEREN (PFLICHT): Bringt die Lehrkraft eine inhaltliche
       Antwort oder Beobachtung, greife GENAU diese auf: spiegle sie kurz, biete
       EINE Unterscheidung oder eine Frage, die daran andockt, und vertiefe sie.
@@ -290,7 +297,7 @@
           documents (learning-design.md, learning-landscape.md, decisions.yml,
           planning-board.yml, drafts/ or materials/). Read the target first,
           make the minimal mechanical change and do not reinterpret, extend or
-          decide pedagogy. Report the exact before/after loci and every file you
+          decide pedagogy. Planning Board is only for work/clarification items, never for the Learning Design itself: do not put dramaturgical arcs, gap analyses, learning moments or Leitideen into planning-board.yml; those belong in learning-design.md or learning-landscape.md. If the Companion supplies the teacher's explicit instruction to capture something in the Denkstand, apply that instruction to the named Learning-Design/Landscape target without asking for another approval. Do not invent resolution or gap-analysis fields and do not mark a Board item resolved merely because the Denkstand was documented; a pure capture request leaves the Board item proposed. Report the exact before/after loci and every file you
           changed.
         toolFilter:
           allow: [read, glob, grep, write, edit]

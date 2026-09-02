@@ -17,6 +17,7 @@ import {
 	mdReplaceSection,
 	mdAppendUnderSection,
 	landscapeAppendMoment,
+	landscapeUpdateDraftMoment,
 	landscapeAppendTransition,
 	decisionsAppendEntry,
 	boardAppendItem,
@@ -294,6 +295,7 @@ test('applyOperations: Batch mit Ablehnungen (temporal-plan-Section, leere Werte
 	];
 	const { updates, applied, rejected } = applyOperations(base, ops, {
 		dateIso: '2026-09-08',
+		updatedAt: '2026-09-08T10:11:12.123Z',
 		makeId,
 		turnRef: 'Turn 42',
 	});
@@ -415,6 +417,42 @@ test('ensureUniqueId: Kollisionsfreie IDs trotz Neustart des Lauf-Zählers', () 
 	assert.equal(ensureUniqueId('', 'pb-1'), 'pb-1');
 });
 
+test('landscapeUpdateDraftMoment entwickelt vorhandene Drafts, aber nie stabile Momente', () => {
+	const landscape = LANDSCAPE.replace('Noch keine Lernmomente festgehalten.', [
+		'### lm-a', '', '- Titel: Alter Titel', '- Typ: reflection', '- Funktion: Alte Funktion',
+		'- Lernaktivität: Alt.', '- Erwartete Lernerfahrung: Alt.', '- Materialbedarfe:', '  - Alt',
+		'- Materialien: []', '- Offene Fragen:', '  - Alt?', '- Status: draft',
+	].join('\n'));
+	const r = landscapeUpdateDraftMoment(landscape, {
+		moment_id: 'lm-a', moment_function: 'Vom Reflektieren ins konkrete Handeln führen.',
+		learning_activity: 'Lernende entwickeln eine lokale Handlungsoption.',
+		open_questions: 'Welche Form trägt für diese Lerngruppe?',
+	});
+	assert.ok(r.ok);
+	assert.equal(r.changed, true);
+	assert.ok(r.content.includes('- Funktion: Vom Reflektieren ins konkrete Handeln führen.'));
+	assert.ok(r.content.includes('  - Welche Form trägt für diese Lerngruppe?'));
+	assert.ok(r.content.includes('- Status: draft'));
+	const stable = landscape.replace('- Status: draft', '- Status: stable');
+	assert.equal(landscapeUpdateDraftMoment(stable, { moment_id: 'lm-a', title: 'Neu' }).reason, 'stable-moment-is-read-only');
+});
+
+test('applyOperations aktualisiert Last-updated und Change Log bei echtem Design-Write', () => {
+	const design = LEARNING_DESIGN.replace('## Context', '## Metadata\n\n- Last updated: 2026-01-01\n\n## Context');
+	const base = new Map([
+		['learning-design.md', design], ['learning-landscape.md', LANDSCAPE],
+		['decisions.yml', 'decisions: []\n'], ['planning-board.yml', 'items: []\n'],
+		['temporal-plan.yml', 'windows: []\nplacements: []\n'],
+	]);
+	const r = applyOperations(base, [{ target: 'learning-design.md', kind: 'set-section', section: 'Context', value: 'Neuer Stand.' }], {
+		dateIso: '2026-09-01', updatedAt: '2026-09-01T08:12:29.123Z', makeId: makeIdFactory('2026-09-01'), turnRef: 'Turn 12',
+	});
+	const updated = r.updates.get('learning-design.md');
+	assert.ok(updated.includes('- Last updated: 2026-09-01T08:12:29.123Z'));
+	assert.ok(updated.includes('### 2026-09-01T08:12:29.123Z · Turn 12'));
+	assert.ok(updated.includes('By: pts-background-steward'));
+});
+
 test('applyOperations: settle-board-item (nur Verweis) + add-design-accent, ID-Kollisionen werden vermieden', () => {
 	// Gleicher Tag wie der Lauf (2026-09-08): der generierte Vorschlag läuft
 	// bewusst gegen die bestehende ID und muss hochgezählt werden.
@@ -434,7 +472,7 @@ test('applyOperations: settle-board-item (nur Verweis) + add-design-accent, ID-K
 		// Der Vorschlag generiert pb-steward-20260908-1 → Kollision → -2.
 		{ target: 'planning-board.yml', kind: 'propose-board-item', title: 'Neue Klärung', board_kind: 'clarify', value: 'Noch offen.' },
 	];
-	const { updates, applied, rejected } = applyOperations(base, ops, { dateIso: '2026-09-08', makeId, turnRef: 'Turn 9' });
+	const { updates, applied, rejected } = applyOperations(base, ops, { dateIso: '2026-09-08', updatedAt: '2026-09-08T10:11:12.123Z', makeId, turnRef: 'Turn 9' });
 	assert.deepEqual(rejected, []);
 	assert.equal(applied.length, 3);
 	const board = updates.get('planning-board.yml');

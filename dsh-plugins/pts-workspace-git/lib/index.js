@@ -18,7 +18,13 @@
 // This module imports no @deepseek-ai packages; it is mounted through a
 // Windows junction into the pts-web profile like the other PTS host plugins.
 
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+// Async on purpose: this shares the Node event loop with the pts-web server.
+// A synchronous git call here froze every HTTP request (page loads/refreshes
+// included) for the duration of git status/add/commit.
+const execFileP = promisify(execFile);
 
 export const name = 'pts-workspace-git';
 export const inject = ['sessions', 'agents'];
@@ -28,9 +34,9 @@ const GIT = 'git';
 const pending = new Map();
 const running = new Set();
 
-function runGit(repoRoot, args) {
+async function runGit(repoRoot, args) {
 	try {
-		execFileSync(GIT, ['-C', repoRoot, ...args], { stdio: 'ignore', timeout: 15000 });
+		await execFileP(GIT, ['-C', repoRoot, ...args], { timeout: 15000, windowsHide: true });
 		return true;
 	} catch (error) {
 		console.error(`[pts-workspace-git] git ${String(args[0])} fehlgeschlagen in ${repoRoot}:`, String((error && error.message) || error));
@@ -38,20 +44,21 @@ function runGit(repoRoot, args) {
 	}
 }
 
-function commitWorkspace(repoRoot) {
+async function commitWorkspace(repoRoot) {
 	if (running.has(repoRoot)) return; // one commit at a time; next debounce retries
 	running.add(repoRoot);
 	try {
 		let status = '';
 		try {
-			status = execFileSync(GIT, ['-C', repoRoot, 'status', '--porcelain'], { encoding: 'utf8', timeout: 10000 });
+			const res = await execFileP(GIT, ['-C', repoRoot, 'status', '--porcelain'], { encoding: 'utf8', timeout: 10000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 });
+			status = res.stdout;
 		} catch (error) {
 			console.error(`[pts-workspace-git] status fehlgeschlagen in ${repoRoot}:`, String((error && error.message) || error));
 			return;
 		}
 		if (String(status).trim() === '') return; // nothing to commit
-		if (!runGit(repoRoot, ['add', '-A'])) return;
-		runGit(repoRoot, ['commit', '-m', `pts: Workspace-Update ${new Date().toISOString()}`]);
+		if (!(await runGit(repoRoot, ['add', '-A']))) return;
+		await runGit(repoRoot, ['commit', '-m', `pts: Workspace-Update ${new Date().toISOString()}`]);
 	} finally {
 		running.delete(repoRoot);
 	}
@@ -81,7 +88,7 @@ export function apply(ctx) {
 			if (existing !== undefined) clearTimeout(existing.timer);
 			const timer = setTimeout(() => {
 				pending.delete(repoRoot);
-				commitWorkspace(repoRoot);
+				void commitWorkspace(repoRoot);
 			}, DEBOUNCE_MS);
 			pending.set(repoRoot, { timer });
 		} catch (error) {

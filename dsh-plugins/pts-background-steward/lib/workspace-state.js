@@ -206,6 +206,30 @@ function singleLine(text) {
 	return String(text ?? '').replace(/\s*\r?\n\s*/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+/** Keep visible metadata and the Learning Design change log in sync with writes. */
+export function recordLearningDesignUpdate(content, { dateIso, updatedAt, turnRef, applied = [] } = {}) {
+	if (typeof content !== 'string') return { ok: false, reason: 'file-missing-or-absent' };
+	const date = singleLine(dateIso);
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, reason: 'invalid-date' };
+	const timestamp = singleLine(updatedAt);
+	if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(timestamp)) return { ok: false, reason: 'invalid-timestamp' };
+	let next = content.replace(/^- Last updated:\s*.*$/m, `- Last updated: ${timestamp}`);
+	const heading = `### ${timestamp} · ${singleLine(turnRef) || 'Steward'}`;
+	if (!next.includes(heading)) {
+		const labels = applied.map((a) => {
+			if (a.kind === 'set-section' || a.kind === 'append-under-section') return `${a.section} aktualisiert`;
+			if (a.kind === 'add-design-accent') return `Leitidee „${singleLine(a.title)}“ ergänzt`;
+			if (a.kind === 'sync-design-accents') return `${Array.isArray(a.ids) ? a.ids.length : 0} Leitidee(n) synchronisiert`;
+			return a.kind;
+		}).filter(Boolean);
+		const block = `${heading}\n\nChanged: ${labels.join('; ') || 'Denkstand aktualisiert.'}\n\nReason: Reversible Denkstandspflege nach ${singleLine(turnRef) || 'abgeschlossenem Turn'}.\n\nBy: pts-background-steward`;
+		const r = mdAppendUnderSection(next, 'Change Log', block);
+		if (!r.ok) return r;
+		next = r.content;
+	}
+	return { ok: true, changed: next !== content, content: next };
+}
+
 /**
  * Append one schema-conformant learning moment as a reversible draft under
  * `## Lernmomente` (before `## Übergänge` when that section exists).
@@ -246,6 +270,61 @@ export function landscapeAppendMoment(content, moment) {
 		return { ok: true, content: joinLines([...lines, '', ...block, '']) };
 	}
 	return { ok: true, content: joinLines([...lines.slice(0, anchor), ...block, '', ...lines.slice(anchor)]) };
+}
+
+/** Update one existing non-stable learning moment without replacing its block. */
+export function landscapeUpdateDraftMoment(content, patch = {}) {
+	if (typeof content !== 'string') return { ok: false, reason: 'file-missing-or-absent' };
+	const id = singleLine(patch.moment_id);
+	if (id === '') return { ok: false, reason: 'missing-moment-id' };
+	const lines = toLines(content);
+	const headingRe = new RegExp(`^###\\s+${escapeRegExp(id)}\\s*$`);
+	const start = lines.findIndex((line) => headingRe.test(line.trim()));
+	if (start < 0) return { ok: false, reason: 'unknown-moment-id' };
+	let end = lines.length;
+	for (let i = start + 1; i < lines.length; i += 1) {
+		if (/^#{2,3}\s+/.test(lines[i].trim())) { end = i; break; }
+	}
+	const block = lines.slice(start, end);
+	const statusLine = block.find((line) => /^- Status:\s*/i.test(line.trim()));
+	const status = statusLine ? statusLine.trim().replace(/^- Status:\s*/i, '').toLowerCase() : '';
+	if (status === 'stable') return { ok: false, reason: 'stable-moment-is-read-only' };
+	if (status !== 'draft' && status !== 'needs_review') return { ok: false, reason: 'moment-status-not-editable' };
+
+	const scalarFields = [
+		['title', 'Titel'], ['moment_type', 'Typ'], ['moment_function', 'Funktion'],
+		['learning_activity', 'Lernaktivität'], ['expected_experience', 'Erwartete Lernerfahrung'],
+	];
+	let changed = false;
+	for (const [field, label] of scalarFields) {
+		if (patch[field] === undefined) continue;
+		const value = singleLine(patch[field]);
+		if (value === '') continue;
+		const idx = block.findIndex((line) => new RegExp(`^- ${escapeRegExp(label)}:\\s*`, 'i').test(line.trim()));
+		if (idx < 0) return { ok: false, reason: `moment-field-missing:${field}` };
+		const next = `- ${label}: ${value}`;
+		if (block[idx] !== next) { block[idx] = next; changed = true; }
+	}
+
+	for (const [field, label] of [['material_needs', 'Materialbedarfe'], ['open_questions', 'Offene Fragen']]) {
+		if (patch[field] === undefined) continue;
+		const value = singleLine(patch[field]);
+		if (value === '') continue;
+		const idx = block.findIndex((line) => new RegExp(`^- ${escapeRegExp(label)}:\\s*`, 'i').test(line.trim()));
+		if (idx < 0) return { ok: false, reason: `moment-field-missing:${field}` };
+		let listEnd = block.length;
+		for (let i = idx + 1; i < block.length; i += 1) {
+			if (/^- [A-ZÄÖÜ][^:]*:\s*/.test(block[i].trim())) { listEnd = i; break; }
+		}
+		const replacement = [`- ${label}:`, `  - ${value}`];
+		if (block.slice(idx, listEnd).join('\n') !== replacement.join('\n')) {
+			block.splice(idx, listEnd - idx, ...replacement);
+			changed = true;
+		}
+	}
+	if (!changed) return { ok: true, changed: false, content };
+	lines.splice(start, end - start, ...block);
+	return { ok: true, changed: true, content: joinLines(lines) };
 }
 
 /**
@@ -479,6 +558,105 @@ export function designUpsertAccent(content, { title, text } = {}) {
 }
 
 /**
+ * Minimal conservative parser for decisions.yml entries. Understands exactly
+ * the layout the steward and the Denkstand tooling write: a two-space
+ * `- id:` list under `decisions:`, plain or quoted `title:` scalars, and
+ * `decision:` as either an inline scalar or a folded/literal block (`>-`,
+ * `|`, …) whose continuation lines are more indented than the key.
+ * Everything else (implications, references, comments) is ignored. The
+ * parser never throws — an entry it cannot read simply comes back with
+ * empty title/decision and is skipped by callers.
+ */
+export function parseDecisionEntries(content) {
+	const entries = [];
+	if (typeof content !== 'string') return entries;
+	const unquote = (s) => {
+		const t = String(s ?? '').trim();
+		if (t.length >= 2 && ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'")))) {
+			return t.slice(1, -1).trim();
+		}
+		return t;
+	};
+	const startRe = /^[ ]{2}-[ ]id:[ ]*(.+?)[ ]*$/;
+	let cur = null;
+	let blockKey = null;
+	let blockIndent = 0;
+	const flush = () => {
+		if (cur !== null) entries.push(cur);
+		cur = null;
+		blockKey = null;
+	};
+	for (const raw of toLines(content)) {
+		const line = raw.replaceAll('\t', '  ');
+		const start = line.match(startRe);
+		if (start !== null) {
+			flush();
+			cur = { id: unquote(start[1]), title: '', decision: '' };
+			continue;
+		}
+		if (cur === null) continue;
+		const trimmed = line.trim();
+		const indent = line.length - line.trimStart().length;
+		if (trimmed === '') continue;
+		// A non-indented line ends the `decisions:` list entirely.
+		if (indent < 2) { flush(); continue; }
+		if (blockKey !== null) {
+			if (indent > blockIndent) {
+				cur[blockKey] = cur[blockKey] === '' ? trimmed : `${cur[blockKey]} ${trimmed}`;
+				continue;
+			}
+			blockKey = null;
+		}
+		const kv = trimmed.match(/^(title|decision):[ ]*(.*)$/);
+		if (kv === null) continue;
+		const val = kv[2].trim();
+		blockIndent = indent;
+		if (val === '' || /^(>-?>?|\|[-+]?|>)$/.test(val)) {
+			blockKey = kv[1];
+		} else {
+			cur[kv[1]] = unquote(val);
+		}
+	}
+	flush();
+	return entries;
+}
+
+/**
+ * Reflect already-recorded decisions.yml entries as numbered Leitideen
+ * accents under "## Educational Intention" in learning-design.md. This is a
+ * pure MIRROR: titles and texts are copied word-for-word from decisions.yml
+ * — the steward neither reformulates nor adds content. Missing/unreadable
+ * decisions are reported; at least one resolvable decision is required.
+ * Duplicate accents remain an idempotent no-op via designUpsertAccent.
+ */
+export function syncDesignAccents(content, decisionsContent, decisionIds) {
+	if (typeof content !== 'string') return { ok: false, reason: 'file-missing-or-absent' };
+	if (typeof decisionsContent !== 'string') return { ok: false, reason: 'decisions-missing' };
+	const ids = (Array.isArray(decisionIds) ? decisionIds : [])
+		.map((s) => String(s ?? '').trim())
+		.filter((s) => s !== '');
+	if (ids.length === 0) return { ok: false, reason: 'no-decision-ids' };
+	const byId = new Map(parseDecisionEntries(decisionsContent).map((e) => [e.id, e]));
+	let next = content;
+	const added = [];
+	const missing = [];
+	for (const id of ids) {
+		const e = byId.get(id);
+		if (!e || e.title.trim() === '' || e.decision.trim() === '') { missing.push(id); continue; }
+		const r = designUpsertAccent(next, { title: e.title, text: e.decision });
+		if (!r.ok) { missing.push(id); continue; }
+		if (r.changed) {
+			next = r.content;
+			added.push(id);
+		}
+	}
+	if (added.length === 0 && missing.length === ids.length) {
+		return { ok: false, reason: 'no-decision-resolved', missing };
+	}
+	return { ok: true, changed: added.length > 0, added, missing, content: next };
+}
+
+/**
  * Bump a generated `-N` suffix until the id is unused in the target content.
  * The per-run id counter restarts at 1 for every stewardship run, so two runs
  * on the same day would otherwise emit colliding ids (observed as four
@@ -634,6 +812,17 @@ export function applyOperations(baseFiles, ops, ctx) {
 					stage(name, r.content, { target: name, kind: op.kind, title: op.title });
 					break;
 				}
+				case 'learning-design.md:sync-design-accents': {
+					// Mirror already-recorded decisions.yml entries as Leitideen
+					// accents; source is the CURRENT working copy so a same-run
+					// add-decision can be synced in the same pass.
+					const r = syncDesignAccents(content, current('decisions.yml'), op.decision_ids);
+					if (!r.ok) { rejected.push({ op, reason: r.reason }); break; }
+					// Fully idempotent run: idempotent no-op, not an error.
+					if (r.changed === false) break;
+					stage(name, r.content, { target: name, kind: op.kind, ids: r.added });
+					break;
+				}
 				case 'learning-landscape.md:add-draft-moment': {
 					const id = ensureUniqueId(content, ctx.makeId('lm-steward'));
 					const r = landscapeAppendMoment(content, {
@@ -649,6 +838,13 @@ export function applyOperations(baseFiles, ops, ctx) {
 					});
 					if (!r.ok) { rejected.push({ op, reason: r.reason }); break; }
 					stage(name, r.content, { target: name, kind: op.kind, id });
+					break;
+				}
+				case 'learning-landscape.md:update-draft-moment': {
+					const r = landscapeUpdateDraftMoment(content, op);
+					if (!r.ok) { rejected.push({ op, reason: r.reason }); break; }
+					if (r.changed === false) break;
+					stage(name, r.content, { target: name, kind: op.kind, id: op.moment_id });
 					break;
 				}
 				case 'learning-landscape.md:add-draft-transition': {
@@ -733,6 +929,19 @@ export function applyOperations(baseFiles, ops, ctx) {
 		} catch (error) {
 			rejected.push({ op, reason: `transform-error:${String(error && error.message || error)}` });
 		}
+	}
+	// A real Learning Design write must also be visible as a current document:
+	// update its metadata date and append one compact, idempotent change-log entry.
+	if (updates.has('learning-design.md')) {
+		const designOps = applied.filter((a) => a.target === 'learning-design.md');
+		const r = recordLearningDesignUpdate(updates.get('learning-design.md'), {
+			dateIso: ctx.dateIso,
+			updatedAt: ctx.updatedAt ?? `${ctx.dateIso}T00:00:00.000Z`,
+			turnRef: ctx.turnRef,
+			applied: designOps,
+		});
+		if (r.ok) updates.set('learning-design.md', r.content);
+		else rejected.push({ op: { target: 'learning-design.md', kind: 'record-update' }, reason: r.reason });
 	}
 	return { updates, applied, rejected };
 }

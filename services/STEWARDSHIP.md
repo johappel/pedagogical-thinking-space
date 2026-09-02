@@ -5,7 +5,8 @@ top-level dialogue turn. It never delays the visible Companion response.
 
 ## Responsibility
 
-The Steward may update draft sections of `learning-design.md` and
+The Steward may update draft sections of `learning-design.md`, create complete
+draft moments and partially develop existing non-stable moments in
 `learning-landscape.md`, record a recognizable teacher decision in
 `decisions.yml`, propose at most one Planning Board item, propose at most
 one temporal-plan window and one placement per run (both forced to

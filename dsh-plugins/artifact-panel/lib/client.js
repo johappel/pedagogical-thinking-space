@@ -710,15 +710,27 @@ window.__ModuleLoader__.load({
 		// update). We poll that key to observe tool-card selections without
 		// touching their private store instance.
 		// ------------------------------------------------------------------
+		// The persisted snapshot can grow to several MB. Firefox serves
+		// localStorage synchronously on the main thread, so JSON.parse over the
+		// whole blob on every poll tick is a visible freeze cost — especially
+		// while a stream rewrites the key continuously. Parse only when the
+		// raw string actually changed; return the cached result otherwise.
+		let selectionCache = { key: null, raw: null, result: null };
 		function readPersistedSelection(sessionId) {
 			if (typeof localStorage === "undefined" || sessionId === null || sessionId === undefined || sessionId === "") return null;
+			const key = "dsh.conversation.chat." + String(sessionId);
 			try {
-				const raw = localStorage.getItem("dsh.conversation.chat." + String(sessionId));
+				const raw = localStorage.getItem(key);
 				if (raw === null || typeof raw !== "string" || raw === "") return null;
-				const parsed = JSON.parse(raw);
-				if (parsed === null || typeof parsed !== "object" || parsed.selection === null || parsed.selection === undefined) return null;
+				if (selectionCache.key === key && selectionCache.raw === raw) return selectionCache.result;
+				let parsed = null;
+				try { parsed = JSON.parse(raw); } catch (e) { return null; } // broken blob: fail clean, cache nothing
+				if (parsed === null || typeof parsed !== "object") return null;
 				const sel = parsed.selection;
-				return sel !== null && typeof sel === "object" && sel.callId !== undefined && sel.callId !== null ? String(sel.callId) : null;
+				let result = null;
+				if (sel !== null && sel !== undefined && typeof sel === "object" && sel.callId !== undefined && sel.callId !== null) result = String(sel.callId);
+				selectionCache = { key: key, raw: raw, result: result };
+				return result;
 			} catch (e) {
 				return null;
 			}
@@ -757,7 +769,7 @@ window.__ModuleLoader__.load({
 						last = next;
 						setCallId(next);
 					}
-				}, 300);
+				}, 1000);
 				return function() { clearInterval(timer); };
 			}, [sessionId]);
 

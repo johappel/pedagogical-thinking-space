@@ -214,8 +214,9 @@ test('propose-window: ungültige Art, fehlender Beleg oder Dopplung wird abgeleh
 		}],
 	});
 	r = validateResult(noEvidence, expectation());
-	assert.equal(r.ok, false);
-	assert.ok(r.errors.some((e) => e.includes('evidence')));
+	assert.equal(r.ok, true);
+	assert.deepEqual(r.result.operations, []);
+	assert.equal(r.dropped.operations, 1);
 
 	const two = validResult({
 		operations: [
@@ -285,6 +286,34 @@ test('unvollständiger Lernmoment-Entwurf wird abgelehnt; vollständiger besteht
 	});
 	r = validateResult(complete, expectation());
 	assert.equal(r.ok, true);
+});
+
+test('update-draft-moment erlaubt belegte Teilfortschreibung vorhandener Entwürfe', () => {
+	const good = validResult({ operations: [{
+		target: 'learning-landscape.md', kind: 'update-draft-moment', moment_id: 'lm-a',
+		moment_function: 'Vom Reflektieren ins Handeln führen.', value: 'Funktion konkretisiert.', evidence: 'm3',
+	}] });
+	let r = validateResult(good, expectation());
+	assert.equal(r.ok, true);
+	const emptyPatch = validResult({ operations: [{
+		target: 'learning-landscape.md', kind: 'update-draft-moment', moment_id: 'lm-a',
+		value: 'ohne Feld', evidence: 'm3',
+	}] });
+	r = validateResult(emptyPatch, expectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('mindestens ein Moment-Feld')));
+});
+
+test('fremde Evidence verwirft nur die betroffene Operation, nicht den gültigen Rest', () => {
+	const mixed = validResult({ operations: [
+		{ target: 'learning-design.md', kind: 'set-section', section: 'Current Status', value: 'Gültiger Stand.' },
+		{ target: 'learning-landscape.md', kind: 'update-draft-moment', moment_id: 'lm-a', moment_function: 'x', value: 'x', evidence: 'm99' },
+	] });
+	const r = validateResult(mixed, expectation());
+	assert.equal(r.ok, true);
+	assert.equal(r.result.operations.length, 1);
+	assert.equal(r.result.operations[0].kind, 'set-section');
+	assert.equal(r.dropped.operations, 1);
 });
 
 test('add-draft-transition: gültig bei vorhandenen Momenten; fehlende Felder abgelehnt', () => {
@@ -375,7 +404,9 @@ test('add-design-accent: Evidence-Pflicht, Ziel-Datei, höchstens drei pro Lauf'
 		],
 	});
 	r = validateResult(noEvidence, expectation());
-	assert.equal(r.ok, false);
+	assert.equal(r.ok, true);
+	assert.deepEqual(r.result.operations, []);
+	assert.equal(r.dropped.operations, 1);
 
 	const wrongTarget = validResult({
 		operations: [

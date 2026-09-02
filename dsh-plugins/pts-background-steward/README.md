@@ -95,6 +95,11 @@ Konfiguration ohne Schema unverändert durch) und in `config.js` normalisiert.
      Learning Design ein (höchstens 3/Lauf, Evidence-Pflicht) — nicht als
      Kopie unter „Design Decisions“, verbindliche Entscheidungen bleiben in
      decisions.yml;
+   - Leitideen-Synchronisation: `sync-design-accents` spiegelt bereits in
+     decisions.yml vorhandene Entscheidungen wortgleich als nummerierte
+     Akzente unter „Educational Intention“ (höchstens 1 Operation/Lauf,
+     höchstens 3 IDs, Evidence-Pflicht für die Lehrkraftbestätigung,
+     idempotent, keine Umformulierung);
    - Board-Klärungen abschließen: `settle-board-item` höchstens 1/Lauf, nur
      wenn die Lehrkraft eine offene Klärung im Gespräch eindeutig beantwortet
      hat (Beleg-Pflicht). Das Board erhält **nur einen Verweis**
@@ -105,11 +110,17 @@ Konfiguration ohne Schema unverändert durch) und in `config.js` normalisiert.
      (`ensureUniqueId`) — der Lauf-Zähler startet pro Lauf neu.
    - `set-section`/`append-under-section` nur an `learning-design.md`;
    - Wertlängengrenzen.
-8. **Revisionsschutz** — unmittelbar vor dem Anwenden werden die Hashes neu
+8. **Teilfortschreibung statt Stillstand** — `update-draft-moment` darf vorhandene
+   Lernmomente mit Status `draft`/`needs_review` feldweise weiterentwickeln;
+   `stable` bleibt schreibgeschützt. Eine Operation mit einer veralteten
+   Evidence-ID verwirft nur diese Operation, nicht mehr den gesamten gültigen
+   Rest des Laufs. Jeder echte Write am Learning Design aktualisiert außerdem
+   `Last updated` als UTC-ISO-Zeitstempel (z. B. `2026-09-01T08:12:29.123Z`) und ergänzt einen kompakten, idempotenten Change-Log-Eintrag.
+9. **Revisionsschutz** — unmittelbar vor dem Anwenden werden die Hashes neu
    gebildet. Jede Abweichung verwirft das Gesamtergebnis (`stale`): Ein
    langsamer Hintergrundlauf kann nie einen neueren Gesprächsstand
    überschreiben. Ein frischer Trigger liefert ohnehin einen neuen Lauf.
-9. **Anwendung** — überlebende Operationen werden als reine Text-
+10. **Anwendung** — überlebende Operationen werden als reine Text-
    transformationen berechnet und je Datei **atomar** geschrieben
    (Temp-Datei im Denkraum + Rename).
 

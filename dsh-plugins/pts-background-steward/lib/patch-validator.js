@@ -30,7 +30,9 @@ export const OPERATION_KINDS = Object.freeze([
 	'set-section',
 	'append-under-section',
 	'add-design-accent',
+	'sync-design-accents',
 	'add-draft-moment',
+	'update-draft-moment',
 	'add-draft-transition',
 	'add-decision',
 	'propose-board-item',
@@ -99,7 +101,8 @@ export const STEWARDSHIP_RESULT_SCHEMA = Object.freeze({
 					from_id: { type: 'string', description: 'Von-Lernmoment-ID für add-draft-transition.' },
 					to_id: { type: 'string', description: 'Zu-Lernmoment-ID für add-draft-transition.' },
 					transition_type: { type: 'string', enum: [...TRANSITION_TYPES] },
-					evidence: { type: 'string', description: 'Pflicht bei add-decision und add-design-accent: Beleg-Nachrichten-ID der expliziten Lehrkraftäußerung; bei settle-board-item: Beleg der Antwort; bei propose-window/propose-placement: Beleg aus dem Gesprächsfenster.' },
+					decision_ids: { type: 'array', items: { type: 'string' }, description: 'Nur für sync-design-accents: IDs bereits vorhandener decisions.yml-Einträge, die wortgleich als nummerierte Leitideen-Akzente unter „Educational Intention" gespiegelt werden.' },
+					evidence: { type: 'string', description: 'Pflicht bei add-decision und add-design-accent: Beleg-Nachrichten-ID der expliziten Lehrkraftäußerung; bei sync-design-accents: Beleg der Lehrkraftbestätigung der Synchronisation; bei settle-board-item: Beleg der Antwort; bei propose-window/propose-placement: Beleg aus dem Gesprächsfenster.' },
 				},
 			},
 		},
@@ -234,14 +237,33 @@ export function validateResult(structured, expectation) {
 	const explicitEvidence = new Set(keptDecisions
 		.filter((d) => d.explicit === true && typeof d.evidence === 'string')
 		.map((d) => d.evidence.trim()));
+	// A stale/file-internal m-reference on ONE operation must not discard every
+	// otherwise valid update. Drop only that operation; the remaining batch is
+	// still policy-checked below. This mirrors observation handling and fixes
+	// the real failure mode seen in the steward log.
+	const evidenceRequiredKinds = new Set([
+		'add-design-accent', 'sync-design-accents', 'update-draft-moment',
+		'add-draft-transition', 'add-decision', 'settle-board-item',
+		'propose-window', 'propose-placement',
+	]);
+	const candidateOperations = [];
+	let droppedOperations = 0;
+	for (const op of r.operations ?? []) {
+		if (isPlainObject(op) && evidenceRequiredKinds.has(op.kind) && !evidenceOk(op.evidence)) {
+			droppedOperations += 1;
+			continue;
+		}
+		candidateOperations.push(op);
+	}
 	let boardItems = 0;
 	let settleItems = 0;
 	let designAccents = 0;
+	let syncOps = 0;
 	let documentingOps = 0;
 	let windowProposals = 0;
 	let placementProposals = 0;
 	let opIdx = 0;
-	for (const op of r.operations ?? []) {
+	for (const op of candidateOperations) {
 		opIdx += 1;
 		const label = `operations[${opIdx}]`;
 		if (!isPlainObject(op)) { errors.push(`${label} ist kein Objekt`); continue; }
@@ -253,7 +275,7 @@ export function validateResult(structured, expectation) {
 		// (Learning Design prose / accent, decisions.yml). settle-board-item is
 		// only allowed in a run that documents — a Klärung is closed only when
 		// the answer has landed somewhere canonical.
-		if (op.kind === 'set-section' || op.kind === 'append-under-section' || op.kind === 'add-decision' || op.kind === 'add-design-accent') documentingOps += 1;
+		if (op.kind === 'set-section' || op.kind === 'append-under-section' || op.kind === 'add-decision' || op.kind === 'add-design-accent' || op.kind === 'sync-design-accents') documentingOps += 1;
 		switch (op.kind) {
 			case 'set-section':
 			case 'append-under-section': {
@@ -271,6 +293,17 @@ export function validateResult(structured, expectation) {
 				if (!evidenceOk(op.evidence)) errors.push(`${label}.evidence verweist nicht auf das angebotene Gesprächsfenster`);
 				break;
 			}
+			case 'sync-design-accents': {
+				if (op.target !== 'learning-design.md') { errors.push(`${label}: sync-design-accents ist nur an learning-design.md erlaubt`); break; }
+				syncOps += 1;
+				if (syncOps > 1) errors.push(`${label}: höchstens eine Synchronisation pro Lauf`);
+				const ids = Array.isArray(op.decision_ids) ? op.decision_ids : [];
+				if (ids.length === 0) errors.push(`${label}.decision_ids fehlt oder ist leer`);
+				else if (ids.length > 3) errors.push(`${label}: höchstens drei Entscheidungen pro Lauf synchronisieren`);
+				else if (ids.some((s) => typeof s !== 'string' || s.trim() === '')) errors.push(`${label}.decision_ids enthält leere Einträge`);
+				if (!evidenceOk(op.evidence)) errors.push(`${label}.evidence verweist nicht auf das angebotene Gesprächsfenster`);
+				break;
+			}
 			case 'add-draft-moment': {
 				if (op.target !== 'learning-landscape.md') { errors.push(`${label}: add-draft-moment ist nur an learning-landscape.md erlaubt`); break; }
 				for (const field of ['title', 'moment_function', 'learning_activity', 'expected_experience']) {
@@ -278,6 +311,14 @@ export function validateResult(structured, expectation) {
 					else if (op[field].length > TITLE_MAX_CHARS && field === 'title') errors.push(`${label}.title ist zu lang`);
 				}
 				if (!MOMENT_TYPES.includes(op.moment_type)) errors.push(`${label}.moment_type ist kein zulässiger Lerntyp`);
+				break;
+			}
+			case 'update-draft-moment': {
+				if (op.target !== 'learning-landscape.md') { errors.push(`${label}: update-draft-moment ist nur an learning-landscape.md erlaubt`); break; }
+				if (typeof op.moment_id !== 'string' || op.moment_id.trim() === '') errors.push(`${label}.moment_id fehlt`);
+				const patchFields = ['title', 'moment_type', 'moment_function', 'learning_activity', 'expected_experience', 'open_questions', 'material_needs'];
+				if (!patchFields.some((field) => typeof op[field] === 'string' && op[field].trim() !== '')) errors.push(`${label}: mindestens ein Moment-Feld muss aktualisiert werden`);
+				if (op.moment_type !== undefined && !MOMENT_TYPES.includes(op.moment_type)) errors.push(`${label}.moment_type ist kein zulässiger Lerntyp`);
 				break;
 			}
 			case 'add-draft-transition': {
@@ -348,7 +389,7 @@ export function validateResult(structured, expectation) {
 	// Anti-blur guard: a board Klärung is closed only when the answer content
 	// lands in its canonical home in the SAME run — never as board prose.
 	if (settleItems > 0 && documentingOps === 0) {
-		errors.push('settle-board-item braucht im selben Lauf eine dokumentierende Operation (set-section/append-under-section an learning-design.md, add-decision oder add-design-accent) — der Antworttext gehört nicht ins Board, sondern ins Learning Design bzw. decisions.yml');
+		errors.push('settle-board-item braucht im selben Lauf eine dokumentierende Operation (set-section/append-under-section an learning-design.md, add-decision, add-design-accent oder sync-design-accents) — der Antworttext gehört nicht ins Board, sondern ins Learning Design bzw. decisions.yml');
 	}
 
 	if (r.next_turn_hint !== null) {
@@ -357,10 +398,11 @@ export function validateResult(structured, expectation) {
 		if (typeof h.content !== 'string' || h.content.trim() === '') errors.push('next_turn_hint.content fehlt');
 	}
 
-	if (errors.length > 0) return { ok: false, errors, dropped: { observations: droppedObservations, teacher_decisions: droppedDecisions } };
+	const dropped = { observations: droppedObservations, teacher_decisions: droppedDecisions, operations: droppedOperations };
+	if (errors.length > 0) return { ok: false, errors, dropped };
 	return {
 		ok: true,
-		result: { ...r, observations: keptObservations, teacher_decisions: keptDecisions },
-		dropped: { observations: droppedObservations, teacher_decisions: droppedDecisions },
+		result: { ...r, observations: keptObservations, teacher_decisions: keptDecisions, operations: candidateOperations },
+		dropped,
 	};
 }
