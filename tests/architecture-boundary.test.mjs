@@ -64,6 +64,16 @@ test('PTS workspace sessions pin the companion preset instead of inheriting a de
   assert.doesNotMatch(client, /startSession:\s*\(id\)\s*=>\s*workspaces\.startSession\(id\)/);
 });
 
+test('PTS workspace sidebar preserves native session actions after its scoped-tree takeover', async () => {
+  const client = await read('dsh-plugins/pts-workspaces/lib/client.js');
+  for (const label of ['Umbenennen', 'Sitzung verzweigen', 'Sitzung archivieren']) {
+    assert.match(client, new RegExp(label));
+  }
+  assert.match(client, /session\.rename\(title\)/);
+  assert.match(client, /sessions\.fork\(\{ sessionId, increaseTitle: true \}\)/);
+  assert.match(client, /workspaces\.archiveSession\(sessionId\)/);
+});
+
 test('steward code has no service dispatch seam', async () => {
   const index = await read('dsh-plugins/pts-background-steward/lib/index.js');
   const reflection = await read('dsh-plugins/pts-background-steward/lib/reflection-job.js');

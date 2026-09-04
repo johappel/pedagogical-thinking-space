@@ -50,6 +50,14 @@ window.__ModuleLoader__.load({
 .ptsw-dot-wait { background:#e0a34c; }
 .ptsw-stitle { font-size:12.5px; line-height:17px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; min-width:0; opacity:.92; }
 .ptsw-stime { font-size:10.5px; opacity:.45; flex:none; }
+.ptsw-sactions { display:none; flex:none; }
+.ptsw-srow:hover .ptsw-sactions { display:inline-flex; }
+.ptsw-srow:hover .ptsw-stime { display:none; }
+.ptsw-smenubtn { width:20px; height:20px; padding:0 0 4px; border:none; border-radius:5px; background:transparent; color:inherit; cursor:pointer; opacity:.72; font-size:16px; line-height:1; }
+.ptsw-smenubtn:hover { background:rgba(128,128,128,.2); opacity:1; }
+.ptsw-session-menu { position:fixed; z-index:1400; min-width:190px; background:Canvas; color:CanvasText; border:1px solid rgba(128,128,128,.35); border-radius:12px; box-shadow:0 10px 32px rgba(0,0,0,.24); padding:6px; box-sizing:border-box; }
+.ptsw-session-menu button { display:block; width:100%; border:none; border-radius:7px; background:transparent; color:inherit; cursor:pointer; padding:8px 10px; text-align:left; font:inherit; font-size:13px; }
+.ptsw-session-menu button:hover { background:rgba(128,128,128,.16); }
 .ptsw-note { font-size:12px; line-height:1.55; opacity:.6; padding:10px 8px; }
 .ptsw-note-error { opacity:.85; color:#e06c75; }
 .ptsw-empty-btn { margin:6px 8px 0; align-self:flex-start; }
@@ -180,6 +188,76 @@ window.__ModuleLoader__.load({
 			return React.createElement("span", { className: "ptsw-dot" + cls });
 		}
 
+		/**
+		 * Session actions deliberately use the native DSH wire APIs. The PTS
+		 * browser shadows the shipped sidebar seat, so it must retain these
+		 * standard session operations instead of inventing PTS-owned copies.
+		 */
+		function SessionActionsMenu({ session, onRename, onFork, onArchive }) {
+			const [open, setOpen] = React.useState(false);
+			const [position, setPosition] = React.useState(null);
+			const rootRef = React.useRef(null);
+			React.useEffect(() => {
+				if (!open) return undefined;
+				const closeIfOutside = (event) => {
+					if (rootRef.current && !rootRef.current.contains(event.target)) setOpen(false);
+				};
+				const closeOnEscape = (event) => { if (event.key === "Escape") setOpen(false); };
+				document.addEventListener("mousedown", closeIfOutside);
+				document.addEventListener("keydown", closeOnEscape);
+				return () => {
+					document.removeEventListener("mousedown", closeIfOutside);
+					document.removeEventListener("keydown", closeOnEscape);
+				};
+			}, [open]);
+			const show = (event) => {
+				event.stopPropagation();
+				const rect = event.currentTarget.getBoundingClientRect();
+				setPosition({ top: Math.min(rect.bottom + 4, window.innerHeight - 150), left: Math.max(8, rect.right - 190) });
+				setOpen((value) => !value);
+			};
+			const choose = (action) => {
+				setOpen(false);
+				action();
+			};
+			return React.createElement("span", { className: "ptsw-sactions", ref: rootRef },
+				React.createElement("button", {
+					className: "ptsw-smenubtn", type: "button", title: "Sitzungsaktionen",
+					"aria-label": "Sitzungsaktionen: " + (session.displayTitle || "Sitzung"),
+					"aria-expanded": open, onClick: show,
+				}, "..."),
+				open && position ? React.createElement("div", {
+					className: "ptsw-session-menu", role: "menu",
+					style: { top: position.top + "px", left: position.left + "px" },
+				},
+				React.createElement("button", { type: "button", role: "menuitem", onClick: () => choose(() => onRename(session)) }, "Sitzung umbenennen"),
+				React.createElement("button", { type: "button", role: "menuitem", onClick: () => choose(() => onFork(session.id)) }, "Sitzung verzweigen"),
+				React.createElement("button", { type: "button", role: "menuitem", onClick: () => choose(() => onArchive(session.id)) }, "Sitzung archivieren")) : null);
+		}
+
+		function RenameSessionDialog({ target, busy, error, onClose, onSubmit }) {
+			const [title, setTitle] = React.useState("");
+			const inputRef = React.useRef(null);
+			React.useEffect(() => {
+				if (!target) return undefined;
+				setTitle(target.displayTitle || "");
+				const timer = window.setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select(); }, 30);
+				return () => window.clearTimeout(timer);
+			}, [target]);
+			if (!target) return null;
+			const trimmed = title.trim();
+			const submit = () => { if (!busy && trimmed !== "") onSubmit(trimmed); };
+			return React.createElement("div", { className: "ptsw-overlay", onMouseDown: (e) => { if (e.target === e.currentTarget && !busy) onClose(); } },
+				React.createElement("div", { className: "ptsw-dialog", role: "dialog", "aria-modal": "true", "aria-label": "Sitzung umbenennen", onKeyDown: (e) => { if (e.key === "Escape" && !busy) onClose(); if (e.key === "Enter") submit(); } },
+					React.createElement("h3", null, "Sitzung umbenennen"),
+					React.createElement("p", { className: "ptsw-dialog-sub" }, "Der Verlauf der Sitzung bleibt erhalten."),
+					React.createElement("input", { ref: inputRef, className: "ptsw-input", value: title, disabled: busy, onChange: (e) => setTitle(e.target.value) }),
+					error ? React.createElement("div", { className: "ptsw-error", role: "alert" }, error) : null,
+					React.createElement("div", { className: "ptsw-actions" },
+						React.createElement("button", { className: "ptsw-btn", disabled: busy, onClick: onClose }, "Abbrechen"),
+						React.createElement("button", { className: "ptsw-btn ptsw-btn-primary", disabled: busy || trimmed === "", onClick: submit }, busy ? "Benenne um..." : "Umbenennen"))));
+		}
+
 		// ------------------------------------------------------------------
 		// Shared create dialog (name only for this spike).
 		// ------------------------------------------------------------------
@@ -303,7 +381,7 @@ window.__ModuleLoader__.load({
 		// Sidebar seat: the "Arbeitsräume" region.
 		// ------------------------------------------------------------------
 		function PtsWorkspaceBrowser(props) {
-			const { wide, expandSidebar, useWorkspaces, useSessions, createDenkraum, removeDenkraum, startSession, openSession, clearSelection, loadConfig } = props;
+			const { wide, expandSidebar, useWorkspaces, useSessions, createDenkraum, removeDenkraum, startSession, openSession, clearSelection, loadConfig, renameSession, forkSession, archiveSession } = props;
 			const sessSnap = useSessions((s) => s);
 			const scope = usePtsScope(useWorkspaces, loadConfig);
 			const [expanded, setExpanded] = React.useState({});
@@ -311,6 +389,9 @@ window.__ModuleLoader__.load({
 			const [deleteTarget, setDeleteTarget] = React.useState(null);
 			const [delBusy, setDelBusy] = React.useState(false);
 			const [delError, setDelError] = React.useState(null);
+			const [renameTarget, setRenameTarget] = React.useState(null);
+			const [renameBusy, setRenameBusy] = React.useState(false);
+			const [renameError, setRenameError] = React.useState(null);
 
 			const onCreate = () => setDialogOpen(true);
 			const onSubmit = (name) => Promise.resolve().then(() => createDenkraum(name)).then((ws) => {
@@ -320,6 +401,15 @@ window.__ModuleLoader__.load({
 
 			const askDelete = (ws) => { setDelError(null); setDeleteTarget(ws); };
 			const closeDelete = () => { if (!delBusy) { setDeleteTarget(null); setDelError(null); } };
+			const closeRename = () => { if (!renameBusy) { setRenameTarget(null); setRenameError(null); } };
+			const submitRename = (title) => {
+				if (!renameTarget || renameBusy) return;
+				setRenameBusy(true);
+				setRenameError(null);
+				Promise.resolve(renameSession(renameTarget.id, title)).then(() => {
+					setRenameTarget(null);
+				}, (err) => setRenameError(err && err.message ? err.message : String(err))).finally(() => setRenameBusy(false));
+			};
 			/**
 			 * Unregister (official wire API) and optionally trash the folder.
 			 * Afterwards keep selection consistent: if the CURRENT session lived
@@ -393,7 +483,13 @@ window.__ModuleLoader__.load({
 						},
 						StatusDot(s),
 						React.createElement("span", { className: "ptsw-stitle" }, s.blank ? "Neue Sitzung" : (s.displayTitle || "Sitzung")),
-						s.blank ? null : React.createElement("span", { className: "ptsw-stime" }, relTimeDe(s.updatedAt))));
+						s.blank ? null : React.createElement("span", { className: "ptsw-stime" }, relTimeDe(s.updatedAt)),
+						s.blank ? null : React.createElement(SessionActionsMenu, {
+							session: s,
+							onRename: (session) => { setRenameError(null); setRenameTarget(session); },
+							onFork: (id) => { Promise.resolve(forkSession(id)).catch((err) => console.warn("[pts-workspaces] fork session failed:", err)); },
+							onArchive: (id) => { Promise.resolve(archiveSession(id)).catch((err) => console.warn("[pts-workspaces] archive session failed:", err)); },
+						})));
 					}
 				}
 			}
@@ -432,6 +528,10 @@ window.__ModuleLoader__.load({
 					onClose: closeDelete,
 					onKeep: () => doRemove(deleteTarget, false),
 					onDeleteFolder: () => doRemove(deleteTarget, true),
+				}),
+				React.createElement(RenameSessionDialog, {
+					target: renameTarget, busy: renameBusy, error: renameError,
+					onClose: closeRename, onSubmit: submitRename,
 				}));
 		}
 
@@ -718,6 +818,22 @@ window.__ModuleLoader__.load({
 				return sessionId;
 			}
 
+			async function renamePtsSession(sessionId, title) {
+				const session = sessions.binding(sessionId)?.session;
+				if (session === undefined) throw new Error("Sitzung nicht gefunden.");
+				const result = await session.rename(title);
+				if (!result.ok) throw new Error(result.error.message);
+			}
+
+			async function forkPtsSession(sessionId) {
+				const childId = await sessions.fork({ sessionId, increaseTitle: true });
+				sessions.open(childId);
+			}
+
+			async function archivePtsSession(sessionId) {
+				await workspaces.archiveSession(sessionId);
+			}
+
 			installGlobalNewSessionGuard(ctx, workspaces, sessions, loadConfig, startPtsSession);
 
 			ctx.slots.inject("sidebar.workspaces", () => ctx.slots.register({
@@ -731,6 +847,9 @@ window.__ModuleLoader__.load({
 					startSession: (id) => startPtsSession(id),
 					openSession: (id) => sessions.open(id),
 					clearSelection: () => sessions.clear(),
+					renameSession: renamePtsSession,
+					forkSession: forkPtsSession,
+					archiveSession: archivePtsSession,
 					loadConfig,
 				}),
 			}, (props) => React.createElement(PtsWorkspaceBrowser, props)));
