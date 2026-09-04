@@ -17,5 +17,16 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Run repo consistency checks
         run: python scripts/check_repo.py
+
+      - name: Run architecture and Steward tests
+        run: node --test tests/*.test.mjs dsh-plugins/pts-background-steward/test/*.test.mjs dsh-plugins/pts-skill-manager/test/*.test.mjs
+
+      - name: Run activity projection checks
+        run: node dsh-plugins/pts-activity-stream/test-activity.cjs

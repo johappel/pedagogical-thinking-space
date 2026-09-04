@@ -1,30 +1,58 @@
-# config/ — reproducible PTS runtime configuration (repo-versioned)
+# DSH prototype configuration
 
-This folder versions the configuration PTS needs from a DSH deployment, so a
-`pts-web` profile can be reconstructed reproducibly **without** editing any
-shipped DSH files.
+The repository ships one canonical user preset under
+`dsh-presets/pts-companion/`. From the repository root, install it once as a
+junction into the DSH user preset directory:
 
-- `pts-web-profile.settings.example.yaml` — the profile-local settings sections
-  for the `pts-companion` preset selection and the background-steward model
-  route. Apply them to the user-local profile file
-  `~/.dsh/profiles/pts-web/settings.yaml` (Windows:
-  `%USERPROFILE%\.dsh\profiles\pts-web\settings.yaml`). API keys stay in the
-  shared `~/.dsh/.credentials.yaml` and are never versioned here.
+```powershell
+pwsh -File .\scripts\install-pts-preset.ps1
+```
 
-The `pts-web` profile runs on port 3081. The default DSH profile (`web`, port
-3080) is never touched by PTS.
+The junction deliberately keeps the installed preset identical to the Git
+checkout. The installer refuses to replace an existing directory unless
+`-Replace` is supplied; in that case it moves the previous directory to a
+timestamped backup instead of deleting it.
 
-## Apply
+The `pts-web` profile still mounts the PTS UI plugins and
+`pts-background-steward`. Worker execution needs no PTS dispatcher plugin: the
+Companion preset exposes six native DSH subagent tools.
 
-1. Create the profile folder if missing:
-   `~/.dsh/profiles/pts-web/`.
-2. Merge the sections from `pts-web-profile.settings.example.yaml` into
-   `~/.dsh/profiles/pts-web/settings.yaml` (do not overwrite unrelated keys).
-3. Provide model credentials in `~/.dsh/.credentials.yaml` (shared, not in repo).
-4. Start: `dsh --profile pts-web`.
+Merge `pts-web-profile.settings.example.yaml` into the profile-local settings
+and adjust only provider/model identifiers that exist in the installation.
+Credentials remain outside the repository.
 
-The `pts-companion` preset composes the visible Pedagogical Companion role from
-the repository role contracts (`AGENTS.md` → `CRITICAL_FRIEND.md` etc.); its
-instruction context is the repository itself, loaded via the DSH boot chain from
-the Denkraum `cwd` up to the PTS root (see
-`docs/experiments/DSH_NATIVE_WORKSPACE.md`).
+After installing or changing the preset, restart DSH and open a **new**
+conversation. DSH fixes an agent composition when the session is created;
+existing conversations do not acquire the six worker tools retroactively.
+The PTS Workspace UI creates new Denkraum conversations with
+`agentPreset: pts-companion` explicitly; it does not rely on the machine-wide
+default. Old conversations retain their original preset and must not be used
+for the Worker acceptance test.
+
+The preset keeps web and write packages available for inherited child Agents,
+then applies `companion-tool-boundary.mjs` to the root Agent only. That DSH
+restriction removes direct web/write tools and rejects bypass attempts such as
+`skill`, shell or generic subagent execution. Role Workers keep only their
+declared `toolFilter`.
+
+Two further preset-local plugins inject context into the root Companion's
+system prompt so it operates from the framework and current Denkstand instead
+of rediscovering them: `pts-boot-docs` (`boot-docs.mjs`, a compressed PTS
+framework digest) and `pts-workspace-snapshot` (`workspace-snapshot.mjs`, a
+live Denkstand + fragment summary). Both skip worker subagents. See
+`dsh-presets/pts-companion/README.md`. Because a composition is fixed at
+session start, prompt changes require a fresh conversation.
+
+`scripts/start-pts-web.ps1` now fails before launch when the canonical preset is
+missing or does not contain `@deepseek-ai/dsh-tool-jobs` and all six PTS worker
+tools. A direct `dsh --profile pts-web` invocation bypasses that preflight.
+
+## Workspace-Git-Sicherheitsnetz (`pts-workspace-git`)
+
+The PTS root repo ignores `workspace/` (no concrete workspace content). To keep
+wrong edits revertible, `workspace/` carries its **own local git repository**
+(`workspace/.git`, gitignored by the root repo). The host plugin
+`pts-workspace-git` (mounted in the pts-web profile) commits all workspace
+changes after every completed top-level turn, so a wrong-file edit is
+revertible with `git -C workspace log/diff/revert`. See
+`dsh-plugins/pts-workspace-git/README.md`.

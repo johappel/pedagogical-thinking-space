@@ -12,7 +12,7 @@
 //    ids) and against the stewardship policy from services/STEWARDSHIP.md —
 //    independent of whatever the provider enforced.
 
-import { CANONICAL_FILES, WRITABLE_FILES, MOMENT_TYPES, BOARD_KINDS } from './workspace-state.js';
+import { CANONICAL_FILES, WRITABLE_FILES, MOMENT_TYPES, BOARD_KINDS, WINDOW_KINDS, DRAMATURGICAL_ROLES, PLACEMENT_MODES, TRANSITION_TYPES } from './workspace-state.js';
 
 export const STEWARDSHIP_SCHEMA_VERSION = 'ptspace.stewardship-result/v1';
 
@@ -29,31 +29,17 @@ export const OBSERVATION_TYPES = Object.freeze([
 export const OPERATION_KINDS = Object.freeze([
 	'set-section',
 	'append-under-section',
+	'add-design-accent',
+	'sync-design-accents',
 	'add-draft-moment',
+	'update-draft-moment',
+	'add-draft-transition',
 	'add-decision',
 	'propose-board-item',
+	'settle-board-item',
+	'propose-window',
+	'propose-placement',
 ]);
-
-// Bounded, source-grounded knowledge tasks a steward may propose as a service
-// intent are NOT a hardcoded allowlist here. The set of routable tasks is
-// derived at runtime from the capability registry (capabilities/registry.yml,
-// dispatchable knowledge capabilities) and injected as `expectation.allowedTasks`.
-// This keeps the registry the single routing source.
-
-// Only the sole authorization form that lets a steward-proposed knowledge
-// request start without a separate permission turn.
-export const SERVICE_INTENT_AUTHORIZATIONS = Object.freeze(['implied_bounded_request']);
-
-// Where a completed research result is stored. `draft` is the default (a
-// reviewable draft under drafts/). `knowledge_proposal` is only reached when
-// the teacher explicitly asked to store the verified information in Knowledge;
-// it stays a not-yet-curated proposal under knowledge-proposals/.
-export const SERVICE_INTENT_OUTPUT_TYPES = Object.freeze(['draft', 'knowledge_proposal']);
-
-// Public, non-personal scope fields for verify_curriculum_alignment. Anything
-// outside this allowlist is rejected as an open/unbounded or personal scope.
-export const CURRICULUM_SCOPE_REQUIRED = Object.freeze(['jurisdiction', 'subject', 'phase', 'grade', 'topic']);
-export const CURRICULUM_SCOPE_OPTIONAL = Object.freeze(['denomination']);
 
 const VALUE_MAX_CHARS = 4000;
 const TITLE_MAX_CHARS = 200;
@@ -63,7 +49,7 @@ const SECTION_MAX_CHARS = 80;
 export const STEWARDSHIP_RESULT_SCHEMA = Object.freeze({
 	type: 'object',
 	additionalProperties: false,
-	required: ['schema', 'session_id', 'turn', 'base', 'observations', 'operations', 'teacher_decisions', 'service_intents', 'next_turn_hint', 'forbidden_effects'],
+	required: ['schema', 'session_id', 'turn', 'base', 'observations', 'operations', 'teacher_decisions', 'next_turn_hint', 'forbidden_effects'],
 	properties: {
 		schema: { type: 'string', const: STEWARDSHIP_SCHEMA_VERSION },
 		session_id: { type: 'string', description: 'Session-ID des auslösenden Gesprächs (aus dem Auftrag übernehmen).' },
@@ -96,7 +82,7 @@ export const STEWARDSHIP_RESULT_SCHEMA = Object.freeze({
 					kind: { type: 'string', enum: [...OPERATION_KINDS] },
 					value: { type: 'string', description: 'Inhalt: Absatztext, Entscheidungsaussage bzw. Kurzbegründung.' },
 					section: { type: 'string', description: 'Nur für set-section / append-under-section an learning-design.md.' },
-					title: { type: 'string', description: 'Titel für add-draft-moment oder propose-board-item.' },
+					title: { type: 'string', description: 'Titel für add-draft-moment, propose-board-item oder add-design-accent.' },
 					moment_type: { type: 'string', enum: [...MOMENT_TYPES] },
 					moment_function: { type: 'string' },
 					learning_activity: { type: 'string' },
@@ -104,7 +90,19 @@ export const STEWARDSHIP_RESULT_SCHEMA = Object.freeze({
 					open_questions: { type: 'string' },
 					material_needs: { type: 'string' },
 					board_kind: { type: 'string', enum: [...BOARD_KINDS] },
-					evidence: { type: 'string', description: 'Pflicht bei add-decision: Beleg-Nachrichten-ID der expliziten Lehrkraftentscheidung.' },
+					item_id: { type: 'string', description: 'Vorhandene Board-Item-ID für settle-board-item (offene Klärung, die die Lehrkraft im Gespräch beantwortet hat).' },
+					window_kind: { type: 'string', enum: [...WINDOW_KINDS] },
+					duration_minutes: { type: 'integer', description: 'Fenster-/Platzierungsdauer in Minuten (propose-window / propose-placement).' },
+					moment_id: { type: 'string', description: 'Lernmoment-ID für propose-placement.' },
+					window_id: { type: 'string', description: 'Fenster-ID für propose-placement.' },
+					start_minute: { type: 'integer', description: 'Startminute innerhalb des Fensters (propose-placement).' },
+					dramaturgical_role: { type: 'string', enum: [...DRAMATURGICAL_ROLES] },
+					mode: { type: 'string', enum: [...PLACEMENT_MODES] },
+					from_id: { type: 'string', description: 'Von-Lernmoment-ID für add-draft-transition.' },
+					to_id: { type: 'string', description: 'Zu-Lernmoment-ID für add-draft-transition.' },
+					transition_type: { type: 'string', enum: [...TRANSITION_TYPES] },
+					decision_ids: { type: 'array', items: { type: 'string' }, description: 'Nur für sync-design-accents: IDs bereits vorhandener decisions.yml-Einträge, die wortgleich als nummerierte Leitideen-Akzente unter „Educational Intention" gespiegelt werden.' },
+					evidence: { type: 'string', description: 'Pflicht bei add-decision und add-design-accent: Beleg-Nachrichten-ID der expliziten Lehrkraftäußerung; bei sync-design-accents: Beleg der Lehrkraftbestätigung der Synchronisation; bei settle-board-item: Beleg der Antwort; bei propose-window/propose-placement: Beleg aus dem Gesprächsfenster.' },
 				},
 			},
 		},
@@ -118,52 +116,6 @@ export const STEWARDSHIP_RESULT_SCHEMA = Object.freeze({
 					evidence: { type: 'string' },
 					explicit: { type: 'boolean' },
 					statement: { type: 'string' },
-				},
-			},
-		},
-		service_intents: {
-			type: 'array',
-			description: 'Höchstens ein begrenzter, quellengebundener Knowledge-Request; leer ist der Normalfall.',
-			items: {
-				type: 'object',
-				additionalProperties: false,
-				required: ['task', 'reason', 'authorization', 'scope', 'return_to'],
-				properties: {
-					task: { type: 'string', description: 'Stabile Capability-Task-ID; gegen den Capability-Katalog geprüft.' },
-					reason: { type: 'string' },
-					authorization: {
-						type: 'object',
-						additionalProperties: false,
-						required: ['type', 'evidence'],
-						properties: {
-							type: { type: 'string', enum: [...SERVICE_INTENT_AUTHORIZATIONS] },
-							evidence: { type: 'string', description: 'Nachrichten-ID der Lehrkraft aus dem Gesprächsfenster.' },
-						},
-					},
-					scope: {
-						type: 'object',
-						additionalProperties: false,
-						required: [...CURRICULUM_SCOPE_REQUIRED],
-						properties: {
-							jurisdiction: { type: 'string' },
-							subject: { type: 'string' },
-							phase: { type: 'string' },
-							grade: { type: 'string' },
-							topic: { type: 'string' },
-							denomination: { type: 'string' },
-						},
-					},
-					expected_output: {
-						type: 'object',
-						additionalProperties: false,
-						required: ['type'],
-						description: 'Optional. Ablageziel des Rechercheergebnisses. Fehlt es, gilt draft.',
-						properties: {
-							type: { type: 'string', enum: [...SERVICE_INTENT_OUTPUT_TYPES] },
-							location: { type: 'string', description: 'Nur bei knowledge_proposal: Ablageort unter knowledge-proposals/.' },
-						},
-					},
-					return_to: { type: 'string', const: 'critical_friend' },
 				},
 			},
 		},
@@ -198,7 +150,7 @@ function checkShape(result) {
 	if (typeof r.session_id !== 'string' || r.session_id === '') errors.push('session_id fehlt');
 	if (!Number.isInteger(r.turn)) errors.push('turn muss eine Ganzzahl sein');
 	if (!isPlainObject(r.base)) errors.push('base muss ein Objekt sein');
-	for (const key of ['observations', 'operations', 'teacher_decisions', 'service_intents', 'forbidden_effects']) {
+	for (const key of ['observations', 'operations', 'teacher_decisions', 'forbidden_effects']) {
 		if (!Array.isArray(r[key])) errors.push(`${key} muss ein Array sein`);
 	}
 	if (r.next_turn_hint !== null && !isPlainObject(r.next_turn_hint)) errors.push('next_turn_hint muss null oder ein Objekt sein');
@@ -215,24 +167,12 @@ function checkShape(result) {
  * @param {number} expectation.turn - triggering turn number
  * @param {Record<string, string|null>} expectation.hashes - base hashes snapshot
  * @param {Set<string>} expectation.messageIds - dialogue ids offered to the child (m1, m2, …)
- * @param {Set<string>} [expectation.userMessageIds] - subset authored by the teacher (defaults to messageIds)
- * @param {Set<string>} [expectation.allowedTasks] - dispatchable capability task ids from the registry
  * @returns {{ ok: true, result: object } | { ok: false, errors: string[] }}
  */
 export function validateResult(structured, expectation) {
 	const errors = checkShape(structured);
 	if (errors.length > 0) return { ok: false, errors };
 	const r = structured;
-	// A service intent must be grounded in a TEACHER message, not any window id
-	// and not "context": the authorization models the teacher's own question.
-	const userMessageIds = expectation.userMessageIds instanceof Set
-		? expectation.userMessageIds
-		: expectation.messageIds;
-	// Routable tasks come from the capability registry (single source). Fail
-	// closed: without an injected catalogue, no service intent is routable.
-	const allowedTasks = expectation.allowedTasks instanceof Set
-		? expectation.allowedTasks
-		: new Set();
 
 	if (r.session_id !== expectation.sessionId) {
 		errors.push(`session_id "${r.session_id}" entspricht nicht der erwarteten Session ${expectation.sessionId}`);
@@ -259,36 +199,109 @@ export function validateResult(structured, expectation) {
 	const evidenceOk = (evidence) => typeof evidence === 'string'
 		&& evidence.trim() !== ''
 		&& (evidence === 'context' || expectation.messageIds.has(evidence.trim()));
+
+	// Observations are protocol notes, not authorizations: a broken entry
+	// (unknown evidence, unknown type, missing content) drops the SINGLE
+	// observation instead of the whole run. The canonical files quote old
+	// message ids ("vgl. m4"), so an over-eager child occasionally cites one
+	// — killing the entire maintenance pass for that was disproportionate.
+	const keptObservations = [];
+	let droppedObservations = 0;
 	let obsIdx = 0;
 	for (const o of r.observations ?? []) {
 		obsIdx += 1;
-		if (!isPlainObject(o)) { errors.push(`observations[${obsIdx}] ist kein Objekt`); continue; }
-		if (!OBSERVATION_TYPES.includes(o.type)) errors.push(`observations[${obsIdx}].type unbekannt: ${String(o.type)}`);
-		if (!evidenceOk(o.evidence)) errors.push(`observations[${obsIdx}].evidence verweist nicht auf das angebotene Gesprächsfenster`);
-		if (typeof o.content !== 'string' || o.content.trim() === '') errors.push(`observations[${obsIdx}].content fehlt`);
+		if (!isPlainObject(o)) { droppedObservations += 1; continue; }
+		if (!OBSERVATION_TYPES.includes(o.type)
+			|| !evidenceOk(o.evidence)
+			|| typeof o.content !== 'string' || o.content.trim() === '') {
+			droppedObservations += 1;
+			continue;
+		}
+		keptObservations.push(o);
+	}
+
+	// teacher_decisions only feed the add-decision policy gate: invalid
+	// entries are dropped individually (they then cannot authorize a
+	// decision, which keeps that gate conservative).
+	const keptDecisions = [];
+	let droppedDecisions = 0;
+	for (const d of r.teacher_decisions ?? []) {
+		if (!isPlainObject(d) || typeof d.explicit !== 'boolean' || !evidenceOk(d.evidence)) {
+			droppedDecisions += 1;
+			continue;
+		}
+		keptDecisions.push(d);
 	}
 
 	// Policy table over operations.
-	const explicitEvidence = new Set((r.teacher_decisions ?? [])
-		.filter((d) => isPlainObject(d) && d.explicit === true && typeof d.evidence === 'string')
+	const explicitEvidence = new Set(keptDecisions
+		.filter((d) => d.explicit === true && typeof d.evidence === 'string')
 		.map((d) => d.evidence.trim()));
-	let boardItems = 0;
-	let opIdx = 0;
+	// A stale/file-internal m-reference on ONE operation must not discard every
+	// otherwise valid update. Drop only that operation; the remaining batch is
+	// still policy-checked below. This mirrors observation handling and fixes
+	// the real failure mode seen in the steward log.
+	const evidenceRequiredKinds = new Set([
+		'add-design-accent', 'sync-design-accents', 'update-draft-moment',
+		'add-draft-transition', 'add-decision', 'settle-board-item',
+		'propose-window', 'propose-placement',
+	]);
+	const candidateOperations = [];
+	let droppedOperations = 0;
 	for (const op of r.operations ?? []) {
+		if (isPlainObject(op) && evidenceRequiredKinds.has(op.kind) && !evidenceOk(op.evidence)) {
+			droppedOperations += 1;
+			continue;
+		}
+		candidateOperations.push(op);
+	}
+	let boardItems = 0;
+	let settleItems = 0;
+	let designAccents = 0;
+	let syncOps = 0;
+	let documentingOps = 0;
+	let windowProposals = 0;
+	let placementProposals = 0;
+	let opIdx = 0;
+	for (const op of candidateOperations) {
 		opIdx += 1;
 		const label = `operations[${opIdx}]`;
 		if (!isPlainObject(op)) { errors.push(`${label} ist kein Objekt`); continue; }
 		if (!CANONICAL_FILES.includes(op.target)) { errors.push(`${label}.target ist keine kanonische Datei`); continue; }
-		if (op.target === 'temporal-plan.yml') { errors.push(`${label}: temporal-plan.yml ist kein Steward-Ziel (bindende Terminierung braucht Lehrkraft-Freigabe)`); continue; }
 		if (!WRITABLE_FILES.includes(op.target)) { errors.push(`${label}.target ist schreibgeschützt für den Steward`); continue; }
 		if (typeof op.value !== 'string' || op.value.trim() === '') { errors.push(`${label}.value fehlt`); continue; }
 		if (op.value.length > VALUE_MAX_CHARS) { errors.push(`${label}.value überschreitet ${VALUE_MAX_CHARS} Zeichen`); }
+		// Documenting ops carry the pedagogical CONTENT into its canonical home
+		// (Learning Design prose / accent, decisions.yml). settle-board-item is
+		// only allowed in a run that documents — a Klärung is closed only when
+		// the answer has landed somewhere canonical.
+		if (op.kind === 'set-section' || op.kind === 'append-under-section' || op.kind === 'add-decision' || op.kind === 'add-design-accent' || op.kind === 'sync-design-accents') documentingOps += 1;
 		switch (op.kind) {
 			case 'set-section':
 			case 'append-under-section': {
 				if (op.target !== 'learning-design.md') { errors.push(`${label}: ${op.kind} ist nur an learning-design.md erlaubt`); break; }
 				if (typeof op.section !== 'string' || op.section.trim() === '') errors.push(`${label}.section fehlt`);
 				else if (op.section.length > SECTION_MAX_CHARS) errors.push(`${label}.section ist zu lang`);
+				break;
+			}
+			case 'add-design-accent': {
+				if (op.target !== 'learning-design.md') { errors.push(`${label}: add-design-accent ist nur an learning-design.md erlaubt`); break; }
+				designAccents += 1;
+				if (designAccents > 3) errors.push(`${label}: höchstens drei Leitideen-Akzente pro Lauf`);
+				if (typeof op.title !== 'string' || op.title.trim() === '') errors.push(`${label}.title fehlt`);
+				else if (op.title.length > TITLE_MAX_CHARS) errors.push(`${label}.title ist zu lang`);
+				if (!evidenceOk(op.evidence)) errors.push(`${label}.evidence verweist nicht auf das angebotene Gesprächsfenster`);
+				break;
+			}
+			case 'sync-design-accents': {
+				if (op.target !== 'learning-design.md') { errors.push(`${label}: sync-design-accents ist nur an learning-design.md erlaubt`); break; }
+				syncOps += 1;
+				if (syncOps > 1) errors.push(`${label}: höchstens eine Synchronisation pro Lauf`);
+				const ids = Array.isArray(op.decision_ids) ? op.decision_ids : [];
+				if (ids.length === 0) errors.push(`${label}.decision_ids fehlt oder ist leer`);
+				else if (ids.length > 3) errors.push(`${label}: höchstens drei Entscheidungen pro Lauf synchronisieren`);
+				else if (ids.some((s) => typeof s !== 'string' || s.trim() === '')) errors.push(`${label}.decision_ids enthält leere Einträge`);
+				if (!evidenceOk(op.evidence)) errors.push(`${label}.evidence verweist nicht auf das angebotene Gesprächsfenster`);
 				break;
 			}
 			case 'add-draft-moment': {
@@ -298,6 +311,23 @@ export function validateResult(structured, expectation) {
 					else if (op[field].length > TITLE_MAX_CHARS && field === 'title') errors.push(`${label}.title ist zu lang`);
 				}
 				if (!MOMENT_TYPES.includes(op.moment_type)) errors.push(`${label}.moment_type ist kein zulässiger Lerntyp`);
+				break;
+			}
+			case 'update-draft-moment': {
+				if (op.target !== 'learning-landscape.md') { errors.push(`${label}: update-draft-moment ist nur an learning-landscape.md erlaubt`); break; }
+				if (typeof op.moment_id !== 'string' || op.moment_id.trim() === '') errors.push(`${label}.moment_id fehlt`);
+				const patchFields = ['title', 'moment_type', 'moment_function', 'learning_activity', 'expected_experience', 'open_questions', 'material_needs'];
+				if (!patchFields.some((field) => typeof op[field] === 'string' && op[field].trim() !== '')) errors.push(`${label}: mindestens ein Moment-Feld muss aktualisiert werden`);
+				if (op.moment_type !== undefined && !MOMENT_TYPES.includes(op.moment_type)) errors.push(`${label}.moment_type ist kein zulässiger Lerntyp`);
+				break;
+			}
+			case 'add-draft-transition': {
+				if (op.target !== 'learning-landscape.md') { errors.push(`${label}: add-draft-transition ist nur an learning-landscape.md erlaubt`); break; }
+				if (typeof op.from_id !== 'string' || op.from_id.trim() === '') errors.push(`${label}.from_id fehlt`);
+				if (typeof op.to_id !== 'string' || op.to_id.trim() === '') errors.push(`${label}.to_id fehlt`);
+				if (typeof op.from_id === 'string' && typeof op.to_id === 'string' && op.from_id.trim() !== '' && op.from_id.trim() === op.to_id.trim()) errors.push(`${label}: from und to müssen verschiedene Lernmomente sein`);
+				if (!TRANSITION_TYPES.includes(op.transition_type)) errors.push(`${label}.transition_type ist unzulässig`);
+				if (!evidenceOk(op.evidence)) errors.push(`${label}.evidence verweist nicht auf das angebotene Gesprächsfenster`);
 				break;
 			}
 			case 'add-decision': {
@@ -318,82 +348,48 @@ export function validateResult(structured, expectation) {
 				if (op.board_kind !== undefined && !BOARD_KINDS.includes(op.board_kind)) errors.push(`${label}.board_kind ist unzulässig`);
 				break;
 			}
+			case 'settle-board-item': {
+				if (op.target !== 'planning-board.yml') { errors.push(`${label}: settle-board-item ist nur an planning-board.yml erlaubt`); break; }
+				settleItems += 1;
+				if (settleItems > 1) errors.push(`${label}: höchstens eine Klärung pro Lauf abschließen`);
+				if (typeof op.item_id !== 'string' || op.item_id.trim() === '') errors.push(`${label}.item_id fehlt`);
+				if (!evidenceOk(op.evidence)) errors.push(`${label}.evidence verweist nicht auf das angebotene Gesprächsfenster`);
+				break;
+			}
+			case 'propose-window': {
+				if (op.target !== 'temporal-plan.yml') { errors.push(`${label}: propose-window ist nur an temporal-plan.yml erlaubt`); break; }
+				windowProposals += 1;
+				if (windowProposals > 1) errors.push(`${label}: höchstens ein Fenster-Vorschlag pro Lauf`);
+				if (typeof op.title !== 'string' || op.title.trim() === '') errors.push(`${label}.title fehlt`);
+				else if (op.title.length > TITLE_MAX_CHARS) errors.push(`${label}.title ist zu lang`);
+				if (!WINDOW_KINDS.includes(op.window_kind)) errors.push(`${label}.window_kind ist unzulässig`);
+				if (!Number.isInteger(op.duration_minutes) || op.duration_minutes <= 0) errors.push(`${label}.duration_minutes fehlt oder ist ungültig`);
+				if (!evidenceOk(op.evidence)) errors.push(`${label}.evidence verweist nicht auf das angebotene Gesprächsfenster`);
+				break;
+			}
+			case 'propose-placement': {
+				if (op.target !== 'temporal-plan.yml') { errors.push(`${label}: propose-placement ist nur an temporal-plan.yml erlaubt`); break; }
+				placementProposals += 1;
+				if (placementProposals > 1) errors.push(`${label}: höchstens ein Platzierungs-Vorschlag pro Lauf`);
+				for (const field of ['moment_id', 'window_id']) {
+					if (typeof op[field] !== 'string' || op[field].trim() === '') errors.push(`${label}.${field} fehlt`);
+				}
+				if (!Number.isInteger(op.start_minute) || op.start_minute < 0) errors.push(`${label}.start_minute ist ungültig`);
+				if (!Number.isInteger(op.duration_minutes) || op.duration_minutes <= 0) errors.push(`${label}.duration_minutes ist ungültig`);
+				if (!DRAMATURGICAL_ROLES.includes(op.dramaturgical_role)) errors.push(`${label}.dramaturgical_role ist unzulässig`);
+				if (!PLACEMENT_MODES.includes(op.mode)) errors.push(`${label}.mode ist unzulässig`);
+				if (!evidenceOk(op.evidence)) errors.push(`${label}.evidence verweist nicht auf das angebotene Gesprächsfenster`);
+				break;
+			}
 			default:
 				errors.push(`${label}.kind ist unbekannt: ${String(op.kind)}`);
 		}
 	}
 
-	for (const d of r.teacher_decisions ?? []) {
-		if (!isPlainObject(d)) { errors.push('teacher_decisions-Eintrag ist kein Objekt'); continue; }
-		if (typeof d.explicit !== 'boolean') errors.push('teacher_decisions.explicit muss boolean sein');
-		if (!evidenceOk(d.evidence)) errors.push('teacher_decisions.evidence verweist nicht auf das angebotene Gesprächsfenster');
-	}
-
-	// Bounded knowledge-request intents: at most one per run, source-grounded
-	// only, grounded in a teacher message, tightly bounded and non-personal.
-	if ((r.service_intents ?? []).length > 1) {
-		errors.push('service_intents: höchstens ein begrenzter Knowledge-Request pro Lauf');
-	}
-	let siIdx = 0;
-	for (const si of r.service_intents ?? []) {
-		siIdx += 1;
-		const label = `service_intents[${siIdx}]`;
-		if (!isPlainObject(si)) { errors.push(`${label} ist kein Objekt`); continue; }
-		if (!allowedTasks.has(si.task)) {
-			errors.push(`${label}.task "${String(si.task)}" ist keine dispatchbare Capability im Katalog (registry-getrieben)`);
-		}
-		if (typeof si.reason !== 'string' || si.reason.trim() === '') errors.push(`${label}.reason fehlt`);
-		if (si.return_to !== 'critical_friend') errors.push(`${label}.return_to muss critical_friend sein`);
-		const auth = si.authorization;
-		if (!isPlainObject(auth)) {
-			errors.push(`${label}.authorization fehlt`);
-		} else {
-			if (!SERVICE_INTENT_AUTHORIZATIONS.includes(auth.type)) {
-				errors.push(`${label}.authorization.type muss implied_bounded_request sein`);
-			}
-			const ev = typeof auth.evidence === 'string' ? auth.evidence.trim() : '';
-			// "context" is explicitly insufficient: a belegter Nutzerauftrag is required.
-			if (ev === '' || ev === 'context' || !userMessageIds.has(ev)) {
-				errors.push(`${label}.authorization.evidence verweist nicht auf eine belegte Nachricht der Lehrkraft`);
-			}
-		}
-		const scope = si.scope;
-		if (!isPlainObject(scope)) {
-			errors.push(`${label}.scope fehlt`);
-		} else if (si.task === 'verify_curriculum_alignment') {
-			for (const field of CURRICULUM_SCOPE_REQUIRED) {
-				if (typeof scope[field] !== 'string' || scope[field].trim() === '') {
-					errors.push(`${label}.scope.${field} fehlt (offener oder unbegrenzter Scope)`);
-				}
-			}
-			const allowedScopeKeys = new Set([...CURRICULUM_SCOPE_REQUIRED, ...CURRICULUM_SCOPE_OPTIONAL]);
-			for (const key of Object.keys(scope)) {
-				if (!allowedScopeKeys.has(key)) {
-					errors.push(`${label}.scope.${key} ist kein zulässiges, öffentliches Scope-Feld (mögliche personenbezogene Daten)`);
-				}
-			}
-		}
-		// Optional storage target. Absent → draft. A knowledge_proposal is only
-		// valid with a knowledge-proposals/ location and must never write into
-		// curated knowledge/ (no automatic curation).
-		if (si.expected_output !== undefined) {
-			const eo = si.expected_output;
-			if (!isPlainObject(eo)) {
-				errors.push(`${label}.expected_output muss ein Objekt sein`);
-			} else {
-				if (!SERVICE_INTENT_OUTPUT_TYPES.includes(eo.type)) {
-					errors.push(`${label}.expected_output.type muss draft oder knowledge_proposal sein`);
-				}
-				if (eo.type === 'knowledge_proposal') {
-					const loc = typeof eo.location === 'string' ? eo.location.replace(/\\/g, '/').trim() : '';
-					if (loc === '') {
-						errors.push(`${label}.expected_output.location fehlt (ein Knowledge Proposal braucht einen Ablageort unter knowledge-proposals/)`);
-					} else if (!loc.includes('knowledge-proposals/')) {
-						errors.push(`${label}.expected_output.location muss unter knowledge-proposals/ liegen (keine direkte Ablage im kuratierten knowledge/)`);
-					}
-				}
-			}
-		}
+	// Anti-blur guard: a board Klärung is closed only when the answer content
+	// lands in its canonical home in the SAME run — never as board prose.
+	if (settleItems > 0 && documentingOps === 0) {
+		errors.push('settle-board-item braucht im selben Lauf eine dokumentierende Operation (set-section/append-under-section an learning-design.md, add-decision, add-design-accent oder sync-design-accents) — der Antworttext gehört nicht ins Board, sondern ins Learning Design bzw. decisions.yml');
 	}
 
 	if (r.next_turn_hint !== null) {
@@ -402,6 +398,11 @@ export function validateResult(structured, expectation) {
 		if (typeof h.content !== 'string' || h.content.trim() === '') errors.push('next_turn_hint.content fehlt');
 	}
 
-	if (errors.length > 0) return { ok: false, errors };
-	return { ok: true, result: r };
+	const dropped = { observations: droppedObservations, teacher_decisions: droppedDecisions, operations: droppedOperations };
+	if (errors.length > 0) return { ok: false, errors, dropped };
+	return {
+		ok: true,
+		result: { ...r, observations: keptObservations, teacher_decisions: keptDecisions, operations: candidateOperations },
+		dropped,
+	};
 }

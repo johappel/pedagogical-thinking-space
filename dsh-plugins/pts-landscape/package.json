@@ -1,0 +1,20 @@
+{
+  "name": "pts-landscape",
+  "description": "PTS Lernlandschaft: rendert learning-landscape.md als grafische Moment-Karten (mit layout.json-Positionen, Status-Badges, Übergängen) und bietet einen Artefakt-Editor (md/yml) mit Host-Route /api/pts-artifact/save (Pfad-Grenze, atomar).",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [],
+      "platform": "web"
+    }
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "pts-workspace-git",
+  "description": "PTS Workspace-Git: lokales Git-Sicherheitsnetz ausschliesslich fuer workspace/ (das PTS-Root-Repo ignoriert workspace/). Committet nach jedem abgeschlossenen Top-Level-Dialog-Turn alle Workspace-Aenderungen, damit ein versehentlicher Fehl-Edit (z. B. falsche Datei) revertierbar ist.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./lib/index.js",
+  "license": "MIT"
+}

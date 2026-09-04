@@ -66,7 +66,7 @@ test('creates a minimal valid workspace without technical approval language', as
 		]) {
 			assert.equal((await stat(path.join(target, file))).isFile(), true, file);
 		}
-		for (const dir of ['materials', 'drafts', 'service-requests']) {
+		for (const dir of ['materials', 'drafts']) {
 			assert.equal((await stat(path.join(target, dir))).isDirectory(), true, dir);
 		}
 

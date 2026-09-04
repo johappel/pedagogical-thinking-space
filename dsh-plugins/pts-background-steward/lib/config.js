@@ -45,28 +45,6 @@ export const DEFAULT_CONFIG = Object.freeze({
 	// Global tool allowlist for the steward child. It must NEVER write files:
 	// the plugin applies validated operations itself, atomically.
 	allowedTools: ['read', 'glob', 'grep'],
-	// Separate model route + tool allowlist for the bounded knowledge-research
-	// subagent. This is a DIFFERENT actor from the steward: the steward only
-	// detects a knowledge gap and proposes a service intent; the research child
-	// alone has web access and alone executes the source-grounded lookup.
-	research: Object.freeze({
-		// Master switch for the research seam. When false, validated service
-		// intents are recorded/deduplicated but no research child is started.
-		enabled: true,
-		// Empty strings inherit the steward's own model route (see resolve).
-		provider: '',
-		model: '',
-		maxTokens: 8192,
-		// Whole-job timeout for one research run.
-		runTimeoutMs: 240000,
-		// Tool allowlist for the research child. Unlike the steward it MAY reach
-		// the web, but it still never writes files: the dispatcher writes the
-		// result. These are the REAL DSH model-facing web tool ids
-		// (@deepseek-ai/dsh-tool-web registers `web_search` and `web_fetch`).
-		// The generic dispatcher additionally intersects this with the resolved
-		// capability's declared `dsh_tools` from capabilities/registry.yml.
-		allowedTools: ['read', 'glob', 'grep', 'web_search', 'web_fetch'],
-	}),
 });
 
 function clampInt(value, fallback, min, max) {
@@ -134,45 +112,7 @@ export function normalizeConfig(raw) {
 	// mutating global tools. The plugin owns every workspace write itself.
 	c.allowedTools = c.allowedTools.filter((t) => t !== 'write' && t !== 'edit');
 
-	c.research = normalizeResearch(source.research, warnings);
-
 	return { config: c, warnings };
-}
-
-/**
- * Normalize the research sub-config over the frozen defaults. The research
- * child may reach the web but never writes files, so write/edit are always
- * stripped from its allowlist just like for the steward.
- * @param {unknown} raw - source.research (may be undefined)
- * @param {string[]} warnings - collected non-fatal problems
- * @returns {object}
- */
-function normalizeResearch(raw, warnings) {
-	const base = { ...DEFAULT_CONFIG.research };
-	const src = (raw !== null && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
-	if (raw !== undefined && (raw === null || typeof raw !== 'object' || Array.isArray(raw))) {
-		warnings.push('config.research muss ein Objekt sein - Default-Recherchekonfiguration wird verwendet');
-	}
-	base.enabled = coerceBool(src.enabled, base.enabled);
-	for (const key of ['provider', 'model']) {
-		if (src[key] !== undefined) {
-			if (typeof src[key] === 'string') base[key] = src[key].trim();
-			else warnings.push(`config.research.${key} erwartet einen String - Wert ignoriert`);
-		}
-	}
-	base.maxTokens = clampInt(src.maxTokens ?? base.maxTokens, base.maxTokens, 0, 200000);
-	base.runTimeoutMs = clampInt(src.runTimeoutMs ?? base.runTimeoutMs, base.runTimeoutMs, 5000, 3600000);
-	if (src.allowedTools !== undefined) {
-		if (Array.isArray(src.allowedTools) && src.allowedTools.every((t) => typeof t === 'string')) {
-			const cleaned = [...new Set(src.allowedTools.map((t) => t.trim()).filter(Boolean))];
-			if (cleaned.length > 0) base.allowedTools = cleaned;
-			else warnings.push('config.research.allowedTools ist leer - Default beibehalten');
-		} else {
-			warnings.push('config.research.allowedTools erwartet ein String-Array - Default beibehalten');
-		}
-	}
-	base.allowedTools = base.allowedTools.filter((t) => t !== 'write' && t !== 'edit');
-	return base;
 }
 
 /**
@@ -204,40 +144,3 @@ export function resolveModelConfig(config, settings) {
 	};
 }
 
-/**
- * Resolve the effective research model route + tool allowlist. Precedence:
- *   settings block (`pts-background-steward.research`) > patch row research >
- *   the steward's own model route (so an unset research route inherits the
- *   steward model but keeps the web-enabled research allowlist).
- * @param {object} config - normalized patch row config (with .research)
- * @param {object} stewardModel - result of resolveModelConfig
- * @param {object|null} settings - parsed settings section (or null)
- * @returns {{ enabled: boolean, provider: string, model: string, maxTokens: number, runTimeoutMs: number, allowedTools: string[], source: string }}
- */
-export function resolveResearchConfig(config, stewardModel, settings) {
-	const research = config.research ?? { ...DEFAULT_CONFIG.research };
-	const section = (settings !== null && typeof settings === 'object' && settings.research !== null && typeof settings.research === 'object')
-		? settings.research
-		: null;
-	const pick = (key, fallback) => (section && typeof section[key] === 'string' && section[key] !== '')
-		? section[key]
-		: (research[key] !== '' ? research[key] : fallback);
-	const provider = pick('provider', stewardModel.provider);
-	const model = pick('model', stewardModel.model);
-	const maxTokens = (section && Number.isFinite(section.maxTokens) && section.maxTokens > 0)
-		? section.maxTokens
-		: research.maxTokens;
-	const enabled = (section && typeof section.enabled === 'boolean') ? section.enabled : research.enabled;
-	const allowedTools = (section && Array.isArray(section.allowedTools) && section.allowedTools.every((t) => typeof t === 'string'))
-		? [...new Set(section.allowedTools.map((t) => t.trim()).filter(Boolean))].filter((t) => t !== 'write' && t !== 'edit')
-		: [...research.allowedTools];
-	return {
-		enabled,
-		provider,
-		model,
-		maxTokens,
-		runTimeoutMs: research.runTimeoutMs,
-		allowedTools,
-		source: section ? 'settings' : 'patch-row',
-	};
-}

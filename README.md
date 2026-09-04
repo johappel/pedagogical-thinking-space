@@ -155,7 +155,7 @@ This creates a slower and more thoughtful design process without slowing down pr
 
 # Import and Sharing
 
-Pedagogical Thinking Space is designed so that curated Knowledge and reviewed Capabilities can be shared without binding the framework to one model, provider or harness.
+Pedagogical Thinking Space is designed so that curated Knowledge and pedagogical Worker notes can be shared without binding the domain model to one provider.
 
 Curated Knowledge may be exported as a folder or ZIP archive based on:
 
@@ -192,12 +192,18 @@ capabilities/workers/DIAGRAM.md
 capabilities/workers/METRICS.md
 ```
 
-Imported Capabilities should be reviewed before becoming active.
+Imported Worker notes are documentation only. Executable roles are configured explicitly in the DSH preset.
 
 Concrete `workspace/` projects may be shared intentionally as examples or project handovers, but they are not the same as Knowledge sharing.
 
 ---
 # Core Components
+
+## ARCHITECTURE.md
+
+Defines the binding boundary: PTS owns the pedagogical domain; DeepSeek Harness owns agents, subagents, tools, jobs and model routing.
+
+---
 
 ## MANIFEST.md
 
@@ -353,13 +359,13 @@ All remain invisible unless needed.
 
 ---
 
-## specs/SERVICE_REQUEST_SCHEMA.md
+## Native DSH Workers
 
-Defines how the Pedagogical Companion delegates work to invisible services.
+The canonical `pts-companion` preset exposes separate DSH subagent tools for research, material creation, review and rendering. DSH owns their jobs and results; PTS supplies only the pedagogical task envelope and boundaries.
 
-It makes the boundary between reflection and execution explicit.
+The root Companion also receives two read-only system-prompt injections: a compressed digest of the PTS boot framework (`pts-boot-docs`) and a live Denkstand + fragment snapshot (`pts-workspace-snapshot`), so it operates from the framework and reuses existing results instead of rediscovering them.
 
-Service Requests are used when the system needs Memory, Knowledge, Worker, Renderer or Review support.
+See `ARCHITECTURE.md` and `dsh-presets/pts-companion/`.
 
 ---
 
@@ -439,3 +445,4 @@ You do not need an agent harness to understand or try Pedagogical Thinking Space
 Agent harnesses are only needed when you want file-based workflows, background workers or automated rendering.
 
 read **GET_STARTED.md** and follow the instructions
+

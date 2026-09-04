@@ -22,4 +22,3 @@
 ## Specifications
 
 - [specs/LEARNING_DESIGN_SCHEMA.md](specs/LEARNING_DESIGN_SCHEMA.md)
-- [specs/SERVICE_CONTRACTS.md](specs/SERVICE_CONTRACTS.md)

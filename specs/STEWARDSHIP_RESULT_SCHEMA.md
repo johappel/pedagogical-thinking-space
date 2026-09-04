@@ -79,18 +79,18 @@ forbidden_effects:
 
 ## Felder
 
-| Feld | Typ | Bedeutung |
-|---|---|---|
-| `schema` | const | Immer `ptspace.stewardship-result/v1`. Abweichung → Verwerfen. |
-| `session_id` | string | Muss exakt der Session-ID des Auftrags entsprechen. |
-| `turn` | integer | Turn-Nummer des auslösenden Gesprächs; Bindung gegen Halluzination. |
-| `base` | object | Vom Auftrag übernommene Hashes (`sha256:<hex>` oder `null`). Muss exakt echoen werden. |
-| `observations` | array | Epistemisch getrennte Feststellungen mit `type`, `evidence`, `content`. |
-| `operations` | array | Vorgeschlagene Änderungen (siehe unten); leer ist erlaubt und oft richtig. |
-| `teacher_decisions` | array | Erkannte Entscheidungen mit `evidence` und `explicit` (boolean). |
-| `service_intents` | array | Höchstens ein begrenzter, quellengebundener Knowledge-Request; leer ist der Normalfall (siehe unten). |
-| `next_turn_hint` | object/null | Höchstens eine offene Frage (`kind: none \| open_question`). Angebot, keine Vorgabe. |
-| `forbidden_effects` | array | Was bewusst unterlassen wurde; reine Protokollhilfe. |
+| Feld                | Typ         | Bedeutung                                                                                             |
+| ------------------- | ----------- | ----------------------------------------------------------------------------------------------------- |
+| `schema`            | const       | Immer `ptspace.stewardship-result/v1`. Abweichung → Verwerfen.                                        |
+| `session_id`        | string      | Muss exakt der Session-ID des Auftrags entsprechen.                                                   |
+| `turn`              | integer     | Turn-Nummer des auslösenden Gesprächs; Bindung gegen Halluzination.                                   |
+| `base`              | object      | Vom Auftrag übernommene Hashes (`sha256:<hex>` oder `null`). Muss exakt echoen werden.                |
+| `observations`      | array       | Epistemisch getrennte Feststellungen mit `type`, `evidence`, `content`.                               |
+| `operations`        | array       | Vorgeschlagene Änderungen (siehe unten); leer ist erlaubt und oft richtig.                            |
+| `teacher_decisions` | array       | Erkannte Entscheidungen mit `evidence` und `explicit` (boolean).                                      |
+| `service_intents`   | array       | Höchstens ein begrenzter, quellengebundener Knowledge-Request; leer ist der Normalfall (siehe unten). |
+| `next_turn_hint`    | object/null | Höchstens eine offene Frage (`kind: none \| open_question`). Angebot, keine Vorgabe.                  |
+| `forbidden_effects` | array       | Was bewusst unterlassen wurde; reine Protokollhilfe.                                                  |
 
 ## Beobachtungstypen
 
@@ -98,24 +98,46 @@ forbidden_effects:
 `decision_signal`, `contradiction`, `focus_shift`.
 
 `evidence` verweist auf eine Nachrichten-ID des angebotenen Gesprächsfensters
-(z. B. `m3`) oder auf `"context"`; fremde Belege verwerfen das Ergebnis.
+(z. B. `m3`) oder auf `"context"`. **Zweistufige Behandlung:** Bei
+`observations` und `teacher_decisions` werden Einträge mit fremdem Beleg
+**einzeln verworfen** (Protokollverlust, nicht Laufverlust) — die kanonischen
+Dateien zitieren alte m-Nummern, denen ein über-eifriges Kind gelegentlich
+erliegt. Bei **Operationen** bleibt der Beleg strikt: ein fremder
+`evidence`-Verweis verwirft die Operation bzw. das Ergebnis.
 
 ## Operationen
 
-| `target` + `kind` | Pflichtfelder | Wirkung / Nebenbedingungen |
-|---|---|---|
-| `learning-design.md` + `set-section` | `section`, `value` | Ersetzt den Rumpf einer `##`-Ebene oder legt sie an. |
-| `learning-design.md` + `append-under-section` | `section`, `value` | Hängt einen Block unter die Überschrift. |
-| `learning-landscape.md` + `add-draft-moment` | `title`, `moment_type`, `moment_function`, `learning_activity`, `expected_experience`, `value` | Vollständiger Entwurf; Status wird zwangsläufig `draft`; ID und Herkunft generiert die Anwendung. |
-| `decisions.yml` + `add-decision` | `value`, `evidence` | Nur mit passendem `teacher_decisions`-Eintrag `explicit: true`; sonst abgelehnt. |
-| `planning-board.yml` + `propose-board-item` | `title`, `board_kind`, `value` | Höchstens einer pro Lauf; wird mit `status: proposed`, `column: clarify`, `requires_teacher_approval: true` angelegt. |
+| `target` + `kind`                                | Pflichtfelder                                                                                                   | Wirkung / Nebenbedingungen                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `learning-design.md` + `set-section`             | `section`, `value`                                                                                              | Ersetzt den Rumpf einer `##`-Ebene oder legt sie an.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `learning-design.md` + `append-under-section`    | `section`, `value`                                                                                              | Hängt einen Block unter die Überschrift.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `learning-design.md` + `add-design-accent`       | `title`, `value`, `evidence`                                                                                    | Trägt eine Lehrkraft-bekräftigte Leitidee als nummerierten Akzent `N. **Titel** — Text` unter „## Educational Intention“ ein (höchstens drei pro Lauf, Evidence-Pflicht, Duplikat-Titel = No-op, Placeholder wird beim ersten Akzent ersetzt). Verbindliche Entscheidungen bleiben in decisions.yml; „Design Decisions“ wird nicht zur Kopie.                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `learning-design.md` + `sync-design-accents`     | `decision_ids`, `evidence`, `value`                                                                             | Höchstens eine pro Lauf, höchstens drei IDs; spiegelt **bereits in decisions.yml vorhandene** Entscheidungen wortgleich als nummerierte Akzente unter „## Educational Intention“ (Titel/Text unverändert aus decisions.yml, keine Umformulierung, Duplikate = idempotenter No-op, nicht auflösbare IDs werden protokolliert). `evidence` belegt die Lehrkraftbestätigung der Synchronisation; ein fehlender Akzent trotz dokumentierter Leitidee und bestätigter Synchronisation ist kein Grund für leere `operations`. Zählt als dokumentierende Operation für den Anti-Blur-Guard.                                                                                                                                                                                            |
+| `learning-landscape.md` + `add-draft-moment`     | `title`, `moment_type`, `moment_function`, `learning_activity`, `expected_experience`, `value`                  | Vollständiger Entwurf; Status wird zwangsläufig `draft`; ID und Herkunft generiert die Anwendung.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `learning-landscape.md` + `update-draft-moment`  | `moment_id`, `evidence`, `value` plus mindestens ein Moment-Feld                                                | Entwickelt einen vorhandenen Moment mit Status `draft`/`needs_review` feldweise weiter (`title`, `moment_type`, `moment_function`, `learning_activity`, `expected_experience`, `open_questions`, `material_needs`). `stable` bleibt schreibgeschützt; nicht genannte Felder bleiben unverändert.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `learning-landscape.md` + `add-draft-transition` | `from_id`, `to_id`, `transition_type`, `value`, `evidence`                                                      | Höchstens zwei pro Lauf; verbindet **vorhandene** Lernmomente (`§`-`### <id>`); `transition_type` ∈ `required`, `choice`, `parallel`, `return`, `meeting_point`, `prerequisite`; `evidence` muss aus dem Gesprächsfenster stammen.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `decisions.yml` + `add-decision`                 | `value`, `evidence`                                                                                             | Nur mit passendem `teacher_decisions`-Eintrag `explicit: true`; sonst abgelehnt.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `planning-board.yml` + `propose-board-item`      | `title`, `board_kind`, `value`                                                                                  | Höchstens einer pro Lauf; wird mit `status: proposed`, `column: clarify`, `requires_teacher_approval: true` angelegt.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `planning-board.yml` + `settle-board-item`       | `item_id`, `value`, `evidence`                                                                                  | Höchstens einer pro Lauf; markiert eine offene Klärung (`kind: clarify`, `status: proposed`), die die Lehrkraft im Gespräch eindeutig beantwortet hat, als `status: resolved`. `value` ist **nur ein Verweis** auf den kanonischen Dokumentationsort (`resolved_ref`, z. B. `learning-design.md#educational-intention` oder eine decisions.yml-ID); der Antworttext selbst wird **nie** ins Board geschrieben. **Anti-Blur-Guard:** im selben Lauf muss eine dokumentierende Operation vorhanden sein (set-section/append-under-section am Learning Design, add-decision oder add-design-accent). Spalte, `requires_teacher_approval` und `kind: approve`-Einträge bleiben unangetastet — der Steward genehmigt nichts; bereits beantwortete Items sind ein idempotenter No-op. |
+| `temporal-plan.yml` + `propose-window`           | `title`, `window_kind`, `duration_minutes`, `evidence`, `value`                                                 | Höchstens einer pro Lauf; Fenster wird mit `status: proposed` angelegt; `evidence` muss aus dem Gesprächsfenster stammen.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `temporal-plan.yml` + `propose-placement`        | `moment_id`, `window_id`, `start_minute`, `duration_minutes`, `dramaturgical_role`, `mode`, `evidence`, `value` | Höchstens einer pro Lauf; Platzierung nur auf vorhandenes Fenster und vorhandenen Lernmoment, `status: proposed`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 Unabhängig davon gilt:
 
-- `temporal-plan.yml` ist als Ziel immer unzulässig;
+- `temporal-plan.yml` wird nur als **Vorschlag** beschrieben (Fenster und
+  Platzierungen mit erzwungenem `status: proposed`); bindende Terminierung
+  bleibt Lehrkraft-Sache;
 - `moment_type` muss dem Lerntyp-Vokabular von `specs/LEARNING_LANDSCAPE_SCHEMA.md`
   folgen (`impulse` … `other`);
+- `window_kind` folgt `specs/TEMPORAL_PLAN_SCHEMA.md` (`lesson`,
+  `double_lesson`, `project_block`, `open_learning_time`), ebenso
+  `dramaturgical_role` und `mode`;
 - `board_kind` folgt `specs/PLANNING_BOARD_SCHEMA.md`;
+- generierte Steward-IDs (`pb-steward-…`, `dec-steward-…`, `lm-steward-…`,
+  `tw-steward-…`, `tp-steward-…`) werden vor dem Anwenden gegen die
+  vorhandenen Einträge kollisionsgeprüft und bei Bedarf hochgezählt — der
+  Lauf-Zähler startet bei jedem Lauf neu, ohne Prüfung entstünden mehrere
+  identische IDs am selben Tag;
 - `value` ist auf 4000 Zeichen begrenzt, Titel auf 200;
 - unbekannte Ziel-/Art-Kombinationen werden einzeln abgelehnt und protokolliert.
 
@@ -126,15 +148,15 @@ Knowledge-Request vorschlagen (`services/STEWARDSHIP.md`). Er recherchiert nie
 selbst; die Anwendung übergibt den validierten Request an einen getrennten
 DSH-Recherche-Subagenten.
 
-| Feld | Typ | Bedeutung |
-|---|---|---|
-| `task` | const | Allowlist; derzeit ausschließlich `verify_curriculum_alignment`. |
-| `reason` | string | Kurzbegründung des Wissensbedarfs. |
-| `authorization.type` | const | Muss `implied_bounded_request` sein. |
-| `authorization.evidence` | string | Nachrichten-ID **der Lehrkraft** aus dem Gesprächsfenster. |
-| `scope` | object | Eng begrenzter, öffentlicher, nicht personenbezogener Umfang. |
-| `expected_output` | object/optional | Speicherziel des Rechercheergebnisses. Fehlt es, gilt `draft`. |
-| `return_to` | const | Muss `critical_friend` sein. |
+| Feld                     | Typ             | Bedeutung                                                        |
+| ------------------------ | --------------- | ---------------------------------------------------------------- |
+| `task`                   | const           | Allowlist; derzeit ausschließlich `verify_curriculum_alignment`. |
+| `reason`                 | string          | Kurzbegründung des Wissensbedarfs.                               |
+| `authorization.type`     | const           | Muss `implied_bounded_request` sein.                             |
+| `authorization.evidence` | string          | Nachrichten-ID **der Lehrkraft** aus dem Gesprächsfenster.       |
+| `scope`                  | object          | Eng begrenzter, öffentlicher, nicht personenbezogener Umfang.    |
+| `expected_output`        | object/optional | Speicherziel des Rechercheergebnisses. Fehlt es, gilt `draft`.   |
+| `return_to`              | const           | Muss `critical_friend` sein.                                     |
 
 `scope` bei `verify_curriculum_alignment` trägt nur öffentliche Felder:
 `jurisdiction`, `subject`, `phase`, `grade`, `topic` (Pflicht) sowie optional
@@ -144,9 +166,9 @@ katholisch.
 
 `expected_output` unterscheidet das Speicherziel des zurückkehrenden Befunds:
 
-| `type` | Wirkung |
-|---|---|
-| `draft` (Default) | Ergebnis als überprüfbarer Draft unter `drafts/`. Reine Lehrplanfrage ohne Speicherauftrag. |
+| `type`               | Wirkung                                                                                                                                                                                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `draft` (Default)    | Ergebnis als überprüfbarer Draft unter `drafts/`. Reine Lehrplanfrage ohne Speicherauftrag.                                                                                                                                                                                     |
 | `knowledge_proposal` | Nur wenn die Lehrkraft ausdrücklich verlangt hat, das verifizierte Ergebnis im Knowledge zu speichern. Ergebnis als OKF-kompatibles Knowledge Proposal unter `knowledge-proposals/`; `location` ist dann Pflicht. Das Proposal bleibt überprüfbar und **noch nicht kuratiert**. |
 
 Ein `knowledge_proposal` ist kein zweiter Genehmigungsbedarf und keine Umgehung

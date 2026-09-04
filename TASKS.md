@@ -1,68 +1,43 @@
-# Pedagogical Thinking Space – Implementation Tasks
+# Pedagogical Thinking Space – Aktuelle Aufgaben
 
-This file turns the reference architecture into small, testable work packages. It is intentionally separate from individual application roadmaps.
+Statusübersicht der laufenden und offenen Arbeit. Historische Phasen (K1–K4,
+Service-Request-Ära) sind abgeschlossen oder durch die DSH-native Architektur
+ersetzt — siehe `ARCHITECTURE.md` unter „Deliberately absent“ (kein
+Service-Request-Queue, kein Capability-Registry, kein PTS-Dispatcher).
 
-## Current Decisions
+## Implementiert (Stand)
 
-- [x] Learning Design is the shared pedagogical object.
-- [x] Workers operate only from approved Service Requests.
-- [x] Knowledge, Worker, Renderer and Review remain invisible services.
-- [x] The app is a teacher-facing environment, not a harness UI.
-- [ ] Learning Landscape is the canonical topology for non-linear as well as linear learning.
-- [ ] Planning Board models teacher planning work separately from learner pathways.
-- [ ] Teaching Windows place learning nodes in time without reducing them to one-lesson objects.
+- [x] Planning Board (`planning-board.yml`) ersetzt Legacy `service-requests/`.
+- [x] Denkraum-Scaffold ohne `service-requests/` (pts-workspaces).
+- [x] Background Steward pflegt den Denkstand nach abgeschlossenen Turns:
+  - `learning-design.md` (Abschnitte),
+  - `learning-landscape.md` (Lernmomente als vollständige Entwürfe, Status `draft`),
+  - `decisions.yml` (nur bei belegter Lehrkraftentscheidung),
+  - `planning-board.yml` (höchstens ein Vorschlag pro Lauf),
+  - `temporal-plan.yml` (Fenster/Platzierungen nur als Vorschlag,
+    Status `proposed`, siehe Steward-Policy).
+- [x] Skill-Bibliothek `skills/<id>/SKILL.md` mit Rolle↔Skill-Matrix
+      (pts-skill-manager).
+- [x] Denkstand-Tab (pts-denkstand) rendert Planning Board und Timeline.
 
-## Phase K1 — Kernel Contracts
+## Offen / in Arbeit
 
-- [x] Define `specs/LEARNING_LANDSCAPE_SCHEMA.md`.
-- [x] Define `specs/PLANNING_BOARD_SCHEMA.md`.
-- [ ] Add a machine-readable validation schema for Learning Landscape.
-- [ ] Add a machine-readable validation schema for Planning Board.
-- [ ] Define stable material ids and a material manifest.
-- [ ] Define compatibility and migration rules for existing `learning-design.md` workspaces.
-- [ ] Define the migration of legacy `service-requests/` into Planning Board items and the teacher-facing translation “Nächste Schritte”.
-
-**Done when:** an agent can validate a landscape, board and their cross-references without interpreting free prose.
-
-## Phase K2 — Pedagogical Companion Behaviour
-
-- [ ] Extend `CRITICAL_FRIEND.de.md` with the distinction:
-  - learner pathway / Learning Landscape,
-  - teacher planning work / Planning Board,
-  - material outputs.
-- [ ] Require a proposal preview for every AI landscape change.
-- [ ] Forbid silent node deletion, goal changes, temporal replanning and material release.
-- [ ] Define one-at-a-time Planning Board proposal behaviour.
-- [ ] Define contextual Pedagogical Companion behaviour for a focused learning moment, transition, Board item or material.
-- [ ] Require the focused conversation to remain part of the same PlanningSpace conversation; it must not create a second, isolated chat.
-- [ ] Define the return action from focused context to overall planning context.
-- [ ] Forbid focused conversation or a Board move from silently starting a Worker; only an explicit approved proposal may create a Service Request.
-- [ ] Add conversation examples for linear, stations, buffet, project and hybrid learning landscapes.
-
-**Done when:** the Pedagogical Companion does not misuse “Nächste Schritte” for lessons or learning activities, and the term always points to an actionable Planning Board item.
-
-## Phase K3 — Service Contracts
-
-- [x] Extend Service Request schema with `related_nodes`, `related_windows` and expected material ids.
-- [x] Define Worker input snapshots for landscape-bound material tasks.
-- [ ] Define Review criteria for changed nodes, transitions and time placements.
-- [ ] Define Knowledge result requirements: official sources, citation, retrieval date, uncertainty.
-- [ ] Define an explicit `landscape_change_proposal` artefact.
-
-**Done when:** every service result can be traced to a node, time window or board item.
-
-## Phase K4 — Tests and Examples
-
-- [ ] Create a linear example landscape.
-- [ ] Create a stations/buffet example landscape.
-- [ ] Create a project/deeper-learning example landscape.
-- [ ] Test invalid references, cycles, missing material ids and unsafe AI patches.
-- [ ] Test that layout-only changes never alter semantic files.
-- [ ] Test that unapproved proposals never change the canonical landscape.
-
-## Handover Order
-
-1. Complete K1 before application implementation.
-2. Complete K2 before enabling AI canvas changes.
-3. Complete K3 before connecting Workers or Knowledge to the board.
-4. Complete K4 before declaring the new model stable.
+- [ ] Memory- und Knowledge-Pflege umsetzen: gepflegtes Wissen und lokale
+      Lehrer-Erfahrung sollen allen künftigen Projekten zur Verfügung stehen —
+      Konzept: `docs/CONCEPT_MEMORY_AND_KNOWLEDGE.md`.
+- [x] Web-Workflow Stufe 1: Lernlandschaft-View (Moment-Karten, layout.json,
+      Übergänge, Status-Badges) + Artefakt-Editor mit Save-Route
+      (`dsh-plugins/pts-landscape`, Patch-Row im pts-web-Profil aktiv).
+- [x] Web-Workflow Stufe 2+3: Material↔Moment-Zuordnung,
+      Drag&Drop-Stundenzuordnung (Platzierungen, `proposed`→`binding`),
+      „Stundenverlauf vorschlagen“ (Prompt in Chat-Composer) — ebenfalls in
+      `dsh-plugins/pts-landscape`.
+- [ ] Web-Workflow Stufe 4: Offene-Fragen-Panel, „Nächster Schritt“-Karte,
+      Dokument-Buttons nach Turns — Konzept: `docs/CONCEPT_WEB_WORKFLOW.md`.
+- [ ] Bestehende Denkräume auf gefüllte Lernlandschaft und Timeline-Vorschläge
+      nachziehen.
+- [ ] Maschinenlesbare Validierung für Learning Landscape und Planning Board.
+- [ ] Review-Kriterien für geänderte Knoten, Übergänge und Zeitplatzierungen.
+- [ ] Beispiel-Landschaften (linear, Stationen/Buffet, Projekt/Hybrid).
+- [ ] Tests: ungültige Referenzen, Zyklen und unbestätigte Vorschläge dürfen
+      nie die kanonischen Dateien verändern.

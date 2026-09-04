@@ -15,10 +15,14 @@ knowledge/_cache/
 knowledge/_raw/
 knowledge/_proposals/
 
-# OS / editor
+# OS / editor / local tooling
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+.opencode/
 config/models.yml
 
+.kilo/
+*.log
+tmp/

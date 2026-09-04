@@ -14,10 +14,14 @@
 
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
 
 const ARTIFACT_EXTS = ['.md', '.markdown', '.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.html', '.htm'];
-const TEXT_EXTS = ['.md', '.markdown', '.html', '.htm', '.svg', '.txt'];
+const TEXT_EXTS = ['.md', '.markdown', '.html', '.htm', '.svg', '.txt', '.yml', '.yaml'];
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'out', '.next', 'coverage', '.venv', 'venv', '__pycache__', '.opencode']);
+// Only the teacher-decision control file is a readable artifact; the other
+// control YAMLs (planning-board.yml, temporal-plan.yml) stay out of the tree.
+const DECISION_FILE_RE = /^decisions\.(yml|yaml)$/i;
 const MIME = {
   '.pdf': 'application/pdf',
   '.png': 'image/png',
@@ -69,7 +73,18 @@ export function apply(ctx) {
     if (ext === '.pdf') return 'pdf';
     if (['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'].includes(ext)) return 'image';
     if (ext === '.html' || ext === '.htm') return 'html';
+    if (ext === '.yml' || ext === '.yaml') return 'yaml';
     return 'markdown';
+  };
+
+  /** Only decisions.yml (and decisions.yaml) is a listable control artifact. */
+  const isArtifactExt = (relStr) => {
+    const ext = extOf(relStr);
+    if (ext === '.yml' || ext === '.yaml') {
+      const base = String(relStr).slice(String(relStr).lastIndexOf('/') + 1);
+      return DECISION_FILE_RE.test(base);
+    }
+    return ARTIFACT_EXTS.includes(ext);
   };
 
   async function realKey(p) {
@@ -112,7 +127,7 @@ export function apply(ctx) {
 
   function record(absPosix, size, origin) {
     const ext = extOf(absPosix);
-    if (!ARTIFACT_EXTS.includes(ext)) return;
+    if (!isArtifactExt(absPosix)) return;
     const rel = relOf(absPosix);
     const prev = artifacts.get(rel);
     if (prev !== undefined) {
@@ -148,7 +163,7 @@ export function apply(ctx) {
         if (depth < 6 && !SKIP_DIRS.has(dirent.name)) await walk(child, depth + 1, mySeq);
       } else if (dirent.isFile()) {
         const posix = toPosix(child);
-        if (!ARTIFACT_EXTS.includes(extOf(posix))) continue;
+        if (!isArtifactExt(posix)) continue;
         let size = null;
         try {
           size = (await fsp.stat(child)).size;
@@ -257,6 +272,21 @@ export function apply(ctx) {
       key = await realKey(path.resolve(base, stripped));
       if (key !== null && containedUnder(baseKey, key)) return { target: key, key };
     }
+
+    // A bare filename (no subdir) may be an artifact the scan found under a
+    // subdir — resolve it against the warm registry so it does not 404.
+    if (candidate.indexOf('/') < 0 && candidate.indexOf('\\') < 0) {
+      const baseName = candidate.toLowerCase();
+      for (const [rel] of artifacts.entries()) {
+        const reBase = rel.slice(rel.lastIndexOf('/') + 1).toLowerCase();
+        if (reBase === baseName) {
+          const abs = path.resolve(base, rel);
+          const k = await realKey(abs);
+          if (k !== null && containedUnder(baseKey, k)) return { target: k, key: k };
+        }
+      }
+    }
+
     return { reason: 'outside', candidate };
   }
 
@@ -280,6 +310,7 @@ export function apply(ctx) {
         if (sub === '/artifacts/v2/list') action = 'list';
         else if (sub === '/artifacts/v2/file') action = 'file';
         else if (sub === '/artifacts/v2/text') action = 'text';
+        else if (sub === '/artifacts/v2/reveal') action = 'reveal';
         if (action === '') {
           res.statusCode = 404;
           res.end('unknown artifact endpoint');
@@ -333,6 +364,23 @@ export function apply(ctx) {
         }
         const ext = extOf(found.key.split('?')[0]);
 
+        if (action === 'reveal') {
+          // Open the file's location in the OS file explorer (Windows dev).
+          // `cmd /c start "" explorer.exe /select,"<path>"` is the reliable form;
+          // a bare explorer.exe spawn can silently not reveal (exit code 1 = it
+          // forwards to the already-running shell instance).
+          const winPath = found.target.replace(/\//g, path.sep);
+          try {
+            const child = spawn('cmd.exe', ['/c', 'start', '', 'explorer.exe', '/select,"' + winPath + '"'], { detached: true, stdio: 'ignore' });
+            if (child.unref !== undefined) child.unref();
+          } catch (e) {
+            sendJson(res, 500, { ok: false, error: String(e && e.message ? e.message : e) });
+            return;
+          }
+          sendJson(res, 200, { ok: true });
+          return;
+        }
+
         if (action === 'text') {
           if (!TEXT_EXTS.includes(ext)) {
             res.statusCode = 415;
@@ -340,7 +388,21 @@ export function apply(ctx) {
             return;
           }
           const text = await fsp.readFile(found.target, 'utf8');
-          sendJson(res, 200, { text: text.slice(0, 2 * 1024 * 1024) });
+          const payload = { text: text.slice(0, 2 * 1024 * 1024) };
+          // decisions.yml: also return a structured, teacher-readable view. The
+          // decoder is borrowed from the sibling pts-denkstand plugin (same repo);
+          // if it is not resolvable, degrade to the raw YAML text above.
+          if (DECISION_FILE_RE.test(path.basename(found.target))) {
+            try {
+              const denk = await import('../../pts-denkstand/lib/index.js');
+              if (denk && typeof denk._parseDecisions === 'function') {
+                payload.decisions = denk._parseDecisions(text).decisions;
+              }
+            } catch (e) {
+              // fall back to raw text
+            }
+          }
+          sendJson(res, 200, payload);
           return;
         }
 

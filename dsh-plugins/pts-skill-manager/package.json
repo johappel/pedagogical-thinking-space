@@ -1,0 +1,23 @@
+{
+  "name": "pts-skill-manager",
+  "description": "PTS Skill-Manager: verwaltet die Skill-Bibliothek des Repos (skills/<id>/SKILL.md) und die Rolle-Skill-Matrix in der Settings-Sektion 'pts-worker-skills'. Web-Tab 'Skills' plus Host-Routen /api/pts-skills/*. Die Zuordnung wirkt über den Preset-Enforcement-Plugin worker-skill-scope.mjs ab der nächsten Session.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./lib/index.js",
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [],
+      "platform": "web"
+    }
+  },
+  "license": "MIT"
+}

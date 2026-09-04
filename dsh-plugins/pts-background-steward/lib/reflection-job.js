@@ -34,10 +34,10 @@ export function buildStewardPersona() {
 		'- Du triffst KEINE pädagogischen Entscheidungen und formulierst keine Empfehlungen über die pädagogische Richtung.',
 		'- decisions.yml wird nur verändert, wenn die Lehrkraft eine Entscheidung eindeutig und erkennbar getroffen hat; sonst unterbleibt der Eintrag.',
 		'- Lernmomente werden ausschließlich als vollständige Entwürfe mit Status draft erfasst; stable vergibst du nie.',
-		'- temporal-plan.yml ist für dich tabu; bindende zeitliche Platzierungen brauchen die Lehrkraft.',
-		'- Du produzierst keine Unterrichtsmaterialien und schreibst nichts in Memory oder kuratiertes Wissen.',
-		'- Du recherchierst NIEMALS selbst und führst keine Worker oder Dienste aus.',
-		'- Fehlt nach dem Gesprächsschritt geprüftes externes Wissen (z. B. eine Lehrplan-Zuordnung), darfst du GENAU EINEN begrenzten, quellengebundenen Knowledge-Request als service_intents-Eintrag vorschlagen. Ein getrennter Recherche-Subagent führt ihn aus, nicht du. Nur quellengebundenes Wissen, keine pädagogische Entscheidung, kein Material.',
+		'- Du darfst Übergänge (add-draft-transition) zwischen bereits vorhandenen Lernmomenten als Entwurf vorschlagen, wenn das Gespräch den Lernfluss erkennen lässt (Reihenfolge, Wahl, Parallel, Treffpunkt, Voraussetzung); höchstens zwei pro Lauf; from_id und to_id müssen vorhandene Lernmomente sein.',
+		'- temporal-plan.yml darfst du nur als VORSCHLAG beschreiben (propose-window / propose-placement); Fenster und Platzierungen werden mit Status "proposed" angelegt und binden nichts. Bindende Terminierung bleibt Lehrkraft-Sache.',
+		'- Du produzierst keine Unterrichtsmaterialien, startest keine Recherchen oder Worker und schreibst nichts in Memory oder kuratiertes Wissen.',
+		'- Das Produktions-Gate des sichtbaren Begleiters (kein pts_edit am learning-design.md während der Klärungs-Phase) gilt NICHT für dich: Deine strukturierten Operationen SIND die erlaubte, reversible Synchronisation des bereits im Gespräch festgelegten Denkstands. Eine ausdrückliche Zustimmung der Lehrkraft wie „ja, synchronisieren" ist ein Synchronisations-Auftrag, keine neue pädagogische Entscheidung.',
 		'- Du schreibst NICHT selbst Dateien; du lieferst ausschließlich dein strukturiertes Ergebnis zurück. Die Anwendung prüft es und wendet es an.',
 		'- Halte Beobachtung, wiedergegebene Aussage, Deutung, Hypothese und offene Frage begrifflich auseinander.',
 		'Antworte auf Deutsch. Beende deinen Lauf, indem du genau einmal das Tool structured_output mit deinem Ergebnis aufrufst.',
@@ -55,10 +55,7 @@ function formatDialogue(dialogue) {
 }
 
 export function buildTaskPrompt(task) {
-	const { dir, sessionId, turn, hashes, files, dialogue, allowedTasks } = task;
-	const taskList = Array.isArray(allowedTasks) && allowedTasks.length > 0
-		? allowedTasks.join(', ')
-		: '(derzeit keine dispatchbare Knowledge-Capability im Katalog)';
+	const { dir, sessionId, turn, hashes, files, dialogue } = task;
 	const hashLines = Object.entries(hashes)
 		.map(([name, h]) => `- ${name}: ${h ?? '(nicht vorhanden)'}`)
 		.join('\n');
@@ -91,24 +88,22 @@ ${dialogueText}
 
 1. Rufe am Ende GENAU EINMAL \`structured_output\` auf; nur dieser Aufruf ist dein Ergebnis. Kein freier Schlusssatz.
 2. Übernimm \`schema\`, \`session_id\`, \`turn\` und \`base\` unverändert aus diesem Auftrag.
-3. \`observations\`: halte fest, was im Ausschnitt erkennbar ist (Aussagen der Lehrkraft, offene Fragen, Hypothesen, Widersprüche, Fokuswechsel). Jede Beobachtung braucht \`evidence\` (eine Nachrichten-ID wie m3, oder "context") und kurzen \`content\`. Erfinde nichts.
+3. \`observations\`: halte fest, was im Ausschnitt erkennbar ist (Aussagen der Lehrkraft, offene Fragen, Hypothesen, Widersprüche, Fokuswechsel). Jede Beobachtung braucht \`evidence\` (eine Nachrichten-ID wie m3, oder "context") und kurzen \`content\`. Erfinde nichts. \`evidence\` MUSS eine Nachrichten-ID sein, die im Gesprächsausschnitt unten EXPLIZIT vergeben wird — niemals eine m-Nummer aus den Dateiinhalten (die zitieren alte Turns, die du nicht belegen darfst) und keine erfundene ID.
 4. \`operations\`: schlage nur Änderungen vor, die den bereits erkennbaren Stand dokumentieren — keine neuen pädagogischen Entscheidungen, keine Materialproduktion.
    - learning-design.md: \`set-section\` oder \`append-under-section\` (z. B. Context, Current Status, Open Questions, Learning Journey). Absätze sachlich, knapp, ohne Entscheidungssprache.
-   - learning-landscape.md: nur \`add-draft-moment\`, und nur wenn ALLE Pflichtfelder eines vollständigen Entwurfs belastbar aus dem Gespräch belegbar sind (Titel, Typ, Funktion, Lernaktivität, Erwartete Lernerfahrung). Sonst unterlassen.
+   - learning-design.md: \`add-design-accent\` — trägt eine Leitidee als nummerierten Akzent unter „Educational Intention" ein (\`title\` = knapper Leitideen-Titel, \`value\` = ein bis zwei Sätze Akzenttext, \`evidence\` = Beleg). Nur für tragende Aussagen, die die Lehrkraft im Gespräch ausdrücklich bekräftigt hat. Kopiere sie NICHT zusätzlich in „Design Decisions" — verbindliche Entscheidungen bleiben in decisions.yml; höchstens drei Akzente pro Lauf.
+   - learning-design.md: \`sync-design-accents\` — spiegelt BEREITS in decisions.yml festgehaltene Entscheidungen wortgleich als nummerierte Leitideen-Akzente unter „Educational Intention" (\`decision_ids\` = IDs vorhandener decisions.yml-Einträge, höchstens drei pro Lauf; \`evidence\` = Beleg der Lehrkraftbestätigung der Synchronisation; \`value\` = knapper Hinweis, z. B. „Spiegelt die festgelegten Leitideen nach Educational Intention"). Kein neuer Inhalt, keine Umformulierung: Titel und Text stammen unverändert aus decisions.yml. Sind tragende Leitideen bereits in decisions.yml oder unter „Design Decisions" dokumentiert, aber unter „Educational Intention" noch nicht als nummerierte Akzente sichtbar, und hat die Lehrkraft die Synchronisation im Gespräch bestätigt, ist \`operations: []\` FALSCH — dann gehört genau diese Operation in die Operationen.
+   - learning-landscape.md: \`add-draft-moment\` für einen neuen Moment, wenn ALLE Pflichtfelder eines vollständigen Entwurfs belastbar aus dem Gespräch belegbar sind (Titel, Typ, Funktion, Lernaktivität, Erwartete Lernerfahrung).
+   - learning-landscape.md: \`update-draft-moment\` entwickelt einen BEREITS vorhandenen Moment mit Status draft/needs_review gezielt weiter (\`moment_id\`, \`evidence\`, \`value\` als knapper Änderungsgrund; mindestens eines aus title, moment_type, moment_function, learning_activity, expected_experience, open_questions, material_needs). Verändere nur Felder, für die der Gesprächsausschnitt neue belastbare Aussagen enthält; stable-Momente sind tabu. Das ist der bevorzugte Weg, wenn sich der Lernweg konkretisiert, ohne dass ein völlig neuer Moment entsteht.
+   - learning-landscape.md: höchstens zwei \`add-draft-transition\` pro Lauf, wenn das Gespräch den Lernfluss erkennen lässt (Reihenfolge/Wahl/Parallel/Treffpunkt/Voraussetzung). \`from_id\` und \`to_id\` müssen bereits vorhandene Lernmomente sein; \`transition_type\` aus required|choice|parallel|return|meeting_point|prerequisite.
    - decisions.yml: nur \`add-decision\`, wenn die Lehrkraft sich eindeutig entschieden hat UND du das Feld \`teacher_decisions\` mit \`explicit: true\` und passender Evidence füllst. Im Zweifel: unterlassen.
    - planning-board.yml: höchstens ein \`propose-board-item\` pro Lauf; der Eintrag wird mit Status "proposed" und Spalte "clarify" angelegt. Nur wenn echte Klärungsarbeit sichtbar wurde.
-   - temporal-plan.yml: niemals als Ziel.
+   - planning-board.yml: höchstens ein \`settle-board-item\` pro Lauf — nur wenn die Lehrkraft eine bereits offene Klärung (kind: clarify, status: proposed) im Gesprächsausschnitt eindeutig beantwortet hat. \`item_id\` ist die vorhandene Board-ID; \`value\` ist NUR ein Verweis, wo die Antwort kanonisch dokumentiert ist (z. B. \`learning-design.md#educational-intention\` oder die decisions.yml-ID) — der Antworttext selbst gehört nie ins Board, sondern muss im SELBEN Lauf dokumentiert werden (set-section/append-under-section am Learning Design, add-decision oder add-design-accent). \`evidence\` nennt die belegende Nachrichten-ID. Im Zweifel: unterlassen. Niemals Einträge mit kind: approve anfassen, keine Freigaben erteilen, nichts verschieben oder löschen.
+   - temporal-plan.yml: höchstens ein Fenster-Vorschlag (propose-window) und ein Platzierungs-Vorschlag (propose-placement) pro Lauf — nur wenn die Lehrkraft im Gespräch konkrete Stunden/Fenster oder Verortungen genannt hat. Der Status wird zwangsläufig "proposed"; Platzierungen brauchen ein vorhandenes Fenster und einen vorhandenen Lernmoment. Im Zweifel: unterlassen.
 5. Leere \`operations\` sind ausdrücklich erlaubt und oft richtig (z. B. nach reinen Begrüßungen).
 6. \`next_turn_hint\`: höchstens eine offene Frage, die sich aus dem Gespräch ergibt — oder null. Die Frage ist ein Angebot an den Begleiter, keine Vorgabe.
 7. \`forbidden_effects\`: liste hier auf, was du bewusst NICHT getan hast (z. B. "keine Entscheidung erkannt").
-8. \`service_intents\`: normalerweise leer. Nur wenn nach diesem Gesprächsschritt geprüftes externes Wissen fehlt (z. B. ob ein Thema in einen Lehrplan/Jahrgang passt) und die Lehrkraft selbst danach fragt oder einen direkten Auftrag gibt („Kannst du … verifizieren?", „Prüfe …", „Speichere das als Knowledge"), schlage GENAU EINEN begrenzten, quellengebundenen Request vor:
-   - \`task\`: eine dispatchbare Capability aus dem Katalog. Aktuell verfügbar: ${taskList}. Nutze ausschließlich eine dieser Task-IDs.
-   - \`authorization\`: \`{ type: implied_bounded_request, evidence: <Nachrichten-ID der Lehrkraft> }\`. Die Evidence MUSS eine Nachricht der Lehrkraft sein (nicht "context"). Ein direkter Arbeitsauftrag der Lehrkraft ist bereits die Autorisierung; verlange keine zweite Freigabe.
-   - \`scope\`: nur öffentliche, nicht personenbezogene Felder — \`jurisdiction\`, \`subject\`, \`phase\`, \`grade\`, \`topic\` (Pflicht) und optional \`denomination\` (bei Unklarheit "unknown"; das blockiert die Prüfung nicht).
-   - \`expected_output\`: OPTIONAL. Nur wenn die Lehrkraft ausdrücklich verlangt hat, das verifizierte Ergebnis im Knowledge zu speichern, setze \`{ type: knowledge_proposal, location: "knowledge-proposals/" }\`. Sonst weglassen (dann wird ein Draft abgelegt). Das Proposal bleibt überprüfbar und noch nicht kuratiert; niemals direkt in kuratiertes knowledge/.
-   - \`return_to\`: \`critical_friend\`.
-   - Kein Vergleich pädagogischer Ansätze, keine Entscheidung, kein Material. Im Zweifel: leer lassen.
-9. Bleibe beim Wortlaut der Lehrkraft, wo sie selbst Formulierungen genutzt hat; kennzeichne Deutungen deutlich als solche.`;
+8. Bleibe beim Wortlaut der Lehrkraft, wo sie selbst Formulierungen genutzt hat; kennzeichne Deutungen deutlich als solche.`;
 }
 
 function agentOptionsFrom(config) {
@@ -169,9 +164,7 @@ export function createReflectionRunner({
 	externalSignal,
 }) {
 	async function reflectOnce(job) {
-		const { key, dir, sessionId, turn, dialogue, messageIds, userMessageIds } = job;
-		const allowedTasks = Array.isArray(job.allowedTasks) ? job.allowedTasks : [];
-		const allowedTaskSet = new Set(allowedTasks);
+		const { key, dir, sessionId, turn, dialogue, messageIds } = job;
 		// Effective model target resolved per job (settings block > patch row).
 		// reasoningEffort is deliberately NOT passed: the one-shot seam cannot
 		// route it to the child, so the child always runs with provider default.
@@ -186,7 +179,7 @@ export function createReflectionRunner({
 
 		// 2. Prompt material (truncated copies for context only).
 		const files = await readCanonicalFiles(dir, config.maxFileChars);
-		const prompt = buildTaskPrompt({ dir, sessionId, turn, hashes, files, dialogue, allowedTasks });
+		const prompt = buildTaskPrompt({ dir, sessionId, turn, hashes, files, dialogue });
 
 		// 3+4. Native one-shot child through the spawn provider.
 		const request = {
@@ -218,15 +211,15 @@ export function createReflectionRunner({
 		}
 
 		// 5. Validate against expectations + policy.
-		const checked = validateResult(result.structured, { sessionId, turn, hashes, messageIds, userMessageIds, allowedTasks: allowedTaskSet });
+		const checked = validateResult(result.structured, { sessionId, turn, hashes, messageIds });
 		if (!checked.ok) {
 			logError(`${key}: Ergebnis verworfen — Validierung fehlgeschlagen:\n- ${checked.errors.join('\n- ')}`);
 			return { status: 'invalid', detail: `${checked.errors.length} Verstoß/Vorstöße gegen Schema oder Politik`, errors: checked.errors };
 		}
 		const value = checked.result;
-		// Validated bounded knowledge-request intents (usually none). These are
-		// surfaced to the coordinator only after the revision re-check passes.
-		const serviceIntents = Array.isArray(value.service_intents) ? value.service_intents : [];
+		if (checked.dropped && (checked.dropped.observations > 0 || checked.dropped.teacher_decisions > 0 || checked.dropped.operations > 0)) {
+			log(`${key}: ${checked.dropped.observations} Beobachtung(en), ${checked.dropped.teacher_decisions} Entscheidungsbeleg(e) und ${checked.dropped.operations} Operation(en) wegen ungültiger Evidence einzeln verworfen (Rest-Ergebnis bleibt gültig)`);
+		}
 
 		// 6. Revision check immediately before applying.
 		const freshHashes = await snapshotHashes(dir);
@@ -237,11 +230,12 @@ export function createReflectionRunner({
 		}
 
 		if (!Array.isArray(value.operations) || value.operations.length === 0) {
-			return { status: 'no-change', detail: 'keine Operationen vorgeschlagen', hint: value.next_turn_hint ?? null, serviceIntents };
+			return { status: 'no-change', detail: 'keine Operationen vorgeschlagen', hint: value.next_turn_hint ?? null };
 		}
 
 		// 7. Apply atomically against CURRENT uncapped contents.
-		const dateIso = new Date().toISOString().slice(0, 10);
+		const updatedAt = new Date().toISOString();
+		const dateIso = updatedAt.slice(0, 10);
 		const makeId = makeIdFactory(dateIso);
 		const baseFiles = new Map();
 		for (const name of Object.keys(freshHashes)) {
@@ -253,6 +247,7 @@ export function createReflectionRunner({
 		}
 		const { updates, applied, rejected } = applyOperations(baseFiles, value.operations, {
 			dateIso,
+			updatedAt,
 			makeId,
 			turnRef: `Turn ${turn}`,
 		});
@@ -260,7 +255,7 @@ export function createReflectionRunner({
 			logError(`${key}: Operation abgelehnt (${r.reason}): ${JSON.stringify(r.op).slice(0, 240)}`);
 		}
 		if (updates.size === 0) {
-			return { status: 'no-change', detail: `alle ${rejected.length} Vorschläge von der Politik abgelehnt`, hint: value.next_turn_hint ?? null, serviceIntents };
+			return { status: 'no-change', detail: `alle ${rejected.length} Vorschläge von der Politik abgelehnt`, hint: value.next_turn_hint ?? null };
 		}
 		for (const [name, content] of updates) {
 			await atomicWrite(dir, name, content);
@@ -270,7 +265,7 @@ export function createReflectionRunner({
 		if (Array.isArray(value.forbidden_effects) && value.forbidden_effects.length > 0) {
 			log(`${key}: laut Steward unterlassen: ${value.forbidden_effects.join('; ')}`);
 		}
-		return { status: 'applied', detail: summary, applied, rejectedCount: rejected.length, hint: value.next_turn_hint ?? null, serviceIntents };
+		return { status: 'applied', detail: summary, applied, rejectedCount: rejected.length, hint: value.next_turn_hint ?? null };
 	}
 
 	return async function runReflection(job) {
@@ -283,7 +278,25 @@ export function createReflectionRunner({
 			config.runTimeoutMs,
 		);
 
-		const executeOnce = async () => {
+	// Transient provider failures (free-tier rate limits, blips) surface as
+	// terse errors; one bounded retry keeps a single blip from silently
+	// dropping the whole maintenance pass. Politics outcomes (invalid, stale,
+	// skipped, aborted) are NOT retried.
+	const RETRYABLE_STATUSES = new Set(['failed']);
+
+	async function sleepAbortable(ms, signal) {
+		return new Promise((resolve) => {
+			const timer = setTimeout(resolve, ms);
+			if (signal) {
+				const onAbort = () => { clearTimeout(timer); resolve(); };
+				if (signal.aborted) { clearTimeout(timer); resolve(); return; }
+				signal.addEventListener('abort', onAbort, { once: true });
+			}
+		});
+	}
+
+	const executeOnce = async () => {
+		const attempt = async () => {
 			try {
 				return await reflectOnce(job);
 			} catch (error) {
@@ -294,6 +307,16 @@ export function createReflectionRunner({
 				return { status: 'failed', detail: String((error && error.message) || error) };
 			}
 		};
+		let outcome = await attempt();
+		if (RETRYABLE_STATUSES.has(outcome.status) && !job.retriedOnce && !job.controller.signal.aborted) {
+			job.retriedOnce = true;
+			log(`${key}: Lauf fehlgeschlagen (${outcome.detail}) — einmaliger Wiederholungsversuch in 20 s`);
+			await sleepAbortable(20000, job.controller.signal);
+			if (job.controller.signal.aborted) return outcome;
+			outcome = await attempt();
+		}
+		return outcome;
+	};
 
 		try {
 			const jobsUsable = Boolean(jobs && typeof jobs.start === 'function');
@@ -340,3 +363,4 @@ export function createReflectionRunner({
 		}
 	};
 }
+

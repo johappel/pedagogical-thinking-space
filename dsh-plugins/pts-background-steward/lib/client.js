@@ -26,9 +26,6 @@ window.__ModuleLoader__.load({
 				provider: "",
 				model: "",
 				maxTokens: 8192,
-				rProvider: "",
-				rModel: "",
-				rMaxTokens: 8192,
 				saving: false,
 				message: null,
 				messageKind: null,
@@ -48,9 +45,6 @@ window.__ModuleLoader__.load({
 						provider: data.effective?.provider || "",
 						model: data.effective?.model || "",
 						maxTokens: data.effective?.maxTokens ?? 8192,
-						rProvider: data.effective?.research?.provider || "",
-						rModel: data.effective?.research?.model || "",
-						rMaxTokens: data.effective?.research?.maxTokens ?? 8192,
 					}));
 				} catch (error) {
 					setState((s) => ({ ...s, loading: false, error: String(error && error.message || error) }));
@@ -74,32 +68,13 @@ window.__ModuleLoader__.load({
 				setState((s) => ({ ...s, provider: nextProvider, model: first ? first.id : "" }));
 			};
 
-			// Research route pickers (second, web-enabled subagent).
-			const researchProviderList = [{ value: "", label: "leer — wie Steward-Modell" }].concat(
-				providerKeys.map((key) => ({ value: key, label: state.providers[key].displayName || key })),
-			);
-			const researchModels = state.providers[state.rProvider]?.models || [];
-			const researchModelList = [{ value: "", label: "leer — wie Steward-Modell" }].concat(
-				researchModels.map((m) => ({ value: m.id, label: m.name || m.id })),
-			);
-			const changeResearchProvider = (value) => {
-				const nextProvider = value || "";
-				const first = (state.providers[nextProvider]?.models || [])[0];
-				setState((s) => ({ ...s, rProvider: nextProvider, rModel: first ? first.id : "" }));
-			};
-
 			const save = async () => {
 				setState((s) => ({ ...s, saving: true, message: null, messageKind: null }));
 				try {
 					const res = await fetch(API, {
 						method: "POST",
 						headers: { "content-type": "application/json", accept: "application/json" },
-						body: JSON.stringify({
-							provider: state.provider,
-							model: state.model,
-							maxTokens: state.maxTokens,
-							research: { provider: state.rProvider, model: state.rModel, maxTokens: state.rMaxTokens },
-						}),
+						body: JSON.stringify({ provider: state.provider, model: state.model, maxTokens: state.maxTokens }),
 					});
 					const data = await res.json();
 					if (!res.ok) throw new Error(data && data.error || `HTTP ${res.status}`);
@@ -110,9 +85,6 @@ window.__ModuleLoader__.load({
 						provider: data.effective?.provider || "",
 						model: data.effective?.model || "",
 						maxTokens: data.effective?.maxTokens ?? s.maxTokens,
-						rProvider: data.effective?.research?.provider || "",
-						rModel: data.effective?.research?.model || "",
-						rMaxTokens: data.effective?.research?.maxTokens ?? s.rMaxTokens,
 						message: "Übernommen — wirkt beim nächsten Steward-Lauf.",
 						messageKind: "ok",
 					}));
@@ -153,36 +125,11 @@ window.__ModuleLoader__.load({
 							state.effective && state.effective.reasoningEffort
 								? `reasoningEffort: ${state.effective.reasoningEffort} (nicht an das One-Shot-Child durchgereicht)`
 								: "reasoningEffort: Provider-Default (nicht einstellbar)"),
-						React.createElement("hr", { className: "pts-steward-sep" }),
-						React.createElement("p", { className: "pts-steward-intro" },
-							"Modell für den quellengebundenen Recherche-Subagenten (Lehrplan-Prüfung). Braucht Webzugriff; leer = wie Steward-Modell."),
-						label("Recherche-Provider"),
-						React.createElement("select", {
-							value: state.rProvider,
-							onChange: (e) => changeResearchProvider(e.target.value),
-						}, researchProviderList.map((opt) => React.createElement("option", { key: opt.value, value: opt.value }, opt.label))),
-						label("Recherche-Modell"),
-						React.createElement("select", {
-							value: state.rModel,
-							onChange: (e) => setState((s) => ({ ...s, rModel: e.target.value })),
-						}, researchModelList.map((opt) => React.createElement("option", { key: opt.value, value: opt.value }, opt.label))),
-						label("Recherche-maxTokens"),
-						React.createElement("input", {
-							type: "number",
-							min: 0,
-							max: 200000,
-							value: state.rMaxTokens,
-							onChange: (e) => setState((s) => ({ ...s, rMaxTokens: Number(e.target.value) || 0 })),
-						}),
-						React.createElement("p", { className: "pts-steward-hint" },
-							state.effective && state.effective.research && state.effective.research.allowedTools
-								? `Recherche-Werkzeuge: ${state.effective.research.allowedTools.join(", ")}`
-								: "Recherche-Werkzeuge: read, glob, grep, web"),
 						React.createElement("button", {
 							className: "pts-steward-save",
 							onClick: save,
 							disabled: state.saving,
-						}, state.saving ? "Speichere …" : "Beide Modelle speichern"),
+						}, state.saving ? "Speichere …" : "Steward-Modell speichern"),
 						state.error
 							? React.createElement("p", { className: "pts-steward-err" }, `Fehler: ${state.error}`)
 							: null,
@@ -230,7 +177,6 @@ window.__ModuleLoader__.load({
 						"  cursor: pointer;",
 						"}",
 						".pts-steward-save:disabled { opacity: .6; cursor: wait; }",
-						".pts-steward-sep { margin: 12px 0; border: 0; border-top: 1px solid var(--dsw-alias-border-l1); }",
 						".pts-steward-hint { margin: 8px 0 4px; font-size: 11px; color: var(--dsw-alias-label-secondary); }",
 						".pts-steward-ok { margin-top: 8px; font-size: 12px; color: var(--dsw-alias-state-success-primary); }",
 						".pts-steward-err { margin-top: 8px; font-size: 12px; color: var(--dsw-alias-state-error-primary); }",
@@ -245,3 +191,4 @@ window.__ModuleLoader__.load({
 		};
 	},
 });
+

@@ -36,7 +36,7 @@ window.__ModuleLoader__.load({
 .apx-previewwrap { display:flex; flex-direction:column; gap:8px; min-height:420px; flex:1; }
 .apx-preview-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .apx-path { font-size:11px; opacity:.55; word-break:break-all; }
-.apx-frame { width:100%; flex:1; min-height:400px; border:1px solid rgba(128,128,128,.3); border-radius:8px; background:#fff; }
+.apx-frame { width:100%; flex:1; min-height:200px; border:1px solid rgba(128,128,128,.3); border-radius:8px; background:#fff; }
 .apx-imgwrap { display:flex; justify-content:center; align-items:flex-start; overflow:auto; border:1px solid rgba(128,128,128,.3); border-radius:8px; padding:10px; box-sizing:border-box; background:rgba(128,128,128,.06); }
 .apx-img { max-width:100%; height:auto; border-radius:4px; }
 .apx-md { margin:0; white-space:pre-wrap; word-break:break-word; font-size:12.5px; line-height:1.55; border:1px solid rgba(128,128,128,.3); border-radius:8px; padding:12px; background:rgba(128,128,128,.06); max-height:70vh; overflow:auto; }
@@ -60,6 +60,40 @@ window.__ModuleLoader__.load({
 .apx-chip:hover { border-color:rgba(128,128,128,.65); background:rgba(128,128,128,.14); }
 .apx-chip-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .apx-empty { margin:auto; text-align:center; opacity:.6; font-size:12.5px; line-height:1.7; padding:24px; }
+.apx-layout { display:flex; gap:12px; flex:1; min-height:0; }
+.apx-tree { flex:0 0 250px; min-width:200px; overflow:auto; border-right:1px solid rgba(128,128,128,.18); padding-right:8px; display:flex; flex-direction:column; gap:4px; }
+.apx-tree-group { display:flex; flex-direction:column; gap:2px; }
+.apx-group-head { display:flex; align-items:center; gap:6px; padding:4px 2px; cursor:pointer; user-select:none; font-size:12px; font-weight:600; opacity:.85; border-radius:5px; }
+.apx-group-head:hover { background:rgba(128,128,128,.08); }
+.apx-group-count { font-size:11px; opacity:.55; font-weight:400; margin-left:auto; }
+.apx-file { display:flex; flex-direction:column; gap:2px; padding:5px 6px 5px 18px; border-radius:5px; cursor:pointer; font-size:12px; color:inherit; text-align:left; font:inherit; border:none; background:transparent; width:100%; }
+.apx-file:hover { background:rgba(128,128,128,.1); }
+.apx-file-sel { background:rgba(126,198,153,.15); box-shadow:inset 0 0 0 1px rgba(126,198,153,.5); }
+.apx-file-title { font-weight:600; line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.apx-file-meta { display:flex; align-items:center; gap:6px; font-size:10.5px; opacity:.72; }
+.apx-file-kind { border:1px solid rgba(128,128,128,.35); border-radius:4px; padding:0 4px; font-size:9.5px; text-transform:uppercase; letter-spacing:.4px; }
+.apx-file-changed { color:#d19a66; }
+.apx-pane { display:flex; flex-direction:column; flex:1; min-width:0; min-height:0; overflow:auto; gap:8px; }
+.apx-actions { display:flex; gap:6px; margin-left:auto; flex-wrap:wrap; }
+.apx-pane-empty { margin:auto; text-align:center; opacity:.6; font-size:12.5px; line-height:1.7; padding:24px; }
+.apx-strip { position:fixed; bottom:16px; right:16px; z-index:2040; display:flex; flex-direction:column; align-items:flex-end; gap:6px; max-width:min(92vw, 400px); pointer-events:none; }
+.apx-strip-label { font-size:10px; text-transform:uppercase; letter-spacing:.6px; opacity:.6; white-space:nowrap; pointer-events:none; }
+.apx-strip-card { pointer-events:auto; display:inline-flex; align-items:center; gap:6px; color:inherit; font:inherit; border:1px solid rgba(126,198,153,.5); background:rgba(28,28,28,.94); border-radius:8px; padding:6px 10px; font-size:11.5px; cursor:pointer; max-width:100%; white-space:nowrap; box-shadow:0 4px 14px rgba(0,0,0,.4); }
+.apx-strip-card:hover { border-color:#7ec699; background:rgba(126,198,153,.22); }
+.apx-strip-name { overflow:hidden; text-overflow:ellipsis; }
+.apx-strip-tag { border-radius:4px; padding:0 5px; font-size:9.5px; text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; }
+.apx-strip-tag-new { border:1px solid rgba(126,198,153,.6); color:#7ec699; }
+.apx-strip-tag-updated { border:1px solid rgba(209,154,102,.6); color:#d19a66; }
+.apx-strip-card-enter { animation:apxStripIn .45s ease-out; }
+@keyframes apxStripIn { from { transform:translateX(42px); opacity:0; } to { transform:translateX(0); opacity:1; } }
+.apx-strip-card-leaving { opacity:0; transition:opacity .5s ease, transform .5s ease; transform:translateX(42px); }
+@media (prefers-reduced-motion: reduce) { .apx-strip-card-enter { animation:none; } .apx-strip-card-leaving { transition:none; opacity:0; } }
+.apx-strip-modal { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:2050; pointer-events:auto; }
+.apx-strip-dialog { width:min(92vw, 900px); max-height:88vh; display:flex; flex-direction:column; overflow:hidden; background:var(--editor-bg,#1e1e1e); border:1px solid rgba(128,128,128,.4); border-radius:10px; color:inherit; }
+.apx-strip-dialog-head { display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid rgba(128,128,128,.25); flex-wrap:wrap; }
+.apx-strip-dialog-title { font-weight:600; font-size:13px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.apx-strip-dialog-body { flex:1; min-height:0; overflow:auto; padding:12px; display:flex; flex-direction:column; }
+.apx-strip-dialog-body .apx-mdc { max-height:none; }
 .apx-mdc { font-size:12.5px; line-height:1.6; overflow-wrap:break-word; max-height:70vh; overflow:auto; border:1px solid rgba(128,128,128,.25); border-radius:8px; padding:12px 14px; background:rgba(128,128,128,.05); }
 .apx-mdc h1,.apx-mdc h2,.apx-mdc h3,.apx-mdc h4,.apx-mdc h5,.apx-mdc h6 { margin:.9em 0 .4em; line-height:1.3; }
 .apx-mdc h1 { font-size:1.35em; border-bottom:1px solid rgba(128,128,128,.25); padding-bottom:.25em; }
@@ -79,6 +113,14 @@ window.__ModuleLoader__.load({
 .apx-mdc hr { border:none; border-top:1px solid rgba(128,128,128,.3); margin:.8em 0; }
 .apx-mdc a { color:inherit; }
 .apx-mdc img { max-width:100%; border-radius:4px; }
+.apx-yaml { margin:0; white-space:pre-wrap; word-break:break-word; font-size:12px; line-height:1.5; border:1px solid rgba(128,128,128,.3); border-radius:8px; padding:12px; background:rgba(128,128,128,.06); font-family:ui-monospace,Consolas,monospace; max-height:70vh; overflow:auto; }
+.apx-dec-list { display:flex; flex-direction:column; gap:8px; }
+.apx-dec { border:1px solid rgba(126,198,153,.4); border-left:3px solid #7ec699; border-radius:8px; padding:10px 12px; background:rgba(126,198,153,.04); display:flex; flex-direction:column; gap:5px; }
+.apx-dec-meta { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.apx-dec-title { font-size:13px; font-weight:600; line-height:1.35; }
+.apx-dec-body { font-size:12px; opacity:.85; line-height:1.5; }
+.apx-dec-rationale { opacity:.7; }
+.apx-dec-refs { font-size:11px; opacity:.6; font-family:ui-monospace,Consolas,monospace; line-height:1.4; }
 `;
 
 		const STYLE_TAG_ID = "pts-artifact-panel-css";
@@ -89,8 +131,8 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 
-		const PREVIEW_EXTS = [".md", ".markdown", ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".html", ".htm"];
-		const KIND_LABEL = { pdf: "PDF", image: "Bild", html: "HTML", markdown: "Markdown", file: "Datei" };
+		const PREVIEW_EXTS = [".md", ".markdown", ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".html", ".htm", ".yml", ".yaml"];
+		const KIND_LABEL = { pdf: "PDF", image: "Bild", html: "HTML", markdown: "Markdown", yaml: "Decision", file: "Datei" };
 
 		function normPath(p) {
 			return String(p).replace(/\\/g, "/");
@@ -103,10 +145,108 @@ window.__ModuleLoader__.load({
 			if (ext === ".pdf") return "pdf";
 			if ([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"].indexOf(ext) >= 0) return "image";
 			if (ext === ".html" || ext === ".htm") return "html";
+			if (ext === ".yml" || ext === ".yaml") return "yaml";
 			return "markdown";
 		}
 		function basename(p) {
 			return p.slice(p.lastIndexOf("/") + 1);
+		}
+
+		// Browser notification for newly-created / updated artifacts (except
+		// learning-design.md, which churns every turn). Gated by the user toggle.
+		let artifactNotifyEnabled = false;
+		try { artifactNotifyEnabled = localStorage.getItem("pts-artifact-notify") === "1"; } catch (e) {}
+		function artifactNotify(kind, artifact) {
+			if (!artifactNotifyEnabled || artifact === null || artifact === undefined) return;
+			if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+			if (/^learning-design\.(md|markdown)$/i.test(basename(artifact.path))) return;
+			try {
+				const base = basename(artifact.path);
+				const title = kind === "updated" ? "Aktualisiert: " + base : "Neu erstellt: " + base;
+				const n = new Notification(title, { body: artifact.path, tag: "pts-artifact-" + artifact.path });
+				n.onclick = function() { try { window.focus(); } catch (e) {} };
+			} catch (e) { /* best effort */ }
+		}
+
+		// ------------------------------------------------------------------
+		// Subagent-produced artifacts (pts_material / pts_edit / pts_document /
+		// pts_renderer). DSH's own deliverables accumulator only registers files
+		// from direct write/edit tool cards (diff/edit locations), so files a
+		// worker SUBAGENT creates never become produced chips or clickable inline
+		// mentions. We register a parallel conversation accumulator that scans
+		// tool-result text for PTS artifact paths and merges them into the chips.
+		// ------------------------------------------------------------------
+		const PTS_PRODUCED_KEY = "pts-produced";
+		// Matches PTS artifact paths under the known dirs AND bare artifact file
+		// names (e.g. background jobs dropping files in the Denkraum root).
+		const PTS_ARTIFACT_LOCATION_RE = /(?:(?:materials|drafts|knowledge-proposals|rendered)[\\/][^\s`()\[\]<>,;]+|[^\s`()/\\\[\]<>,;]+)\.(?:md|markdown|pdf|png|jpg|jpeg|gif|webp|svg|html|htm)\b/gi;
+		// Common repo/control documents that are NOT produced PTS artifacts.
+		const NON_ARTIFACT_RE = /^(readme|license|changelog|contributing|agents|manifest|systemic_stance|critical_friend|learning_design|orchestration|getting_started|tests?)\b/i;
+		function extractArtifactPaths(text) {
+			const out = [];
+			const seen = new Set();
+			const re = new RegExp(PTS_ARTIFACT_LOCATION_RE.source, "gi");
+			let m;
+			while ((m = re.exec(String(text))) !== null) {
+				const raw = normPath(m[0].replace(/[.,;:!?)\]]+$/, ""));
+				const base = raw.slice(raw.lastIndexOf("/") + 1);
+				if (NON_ARTIFACT_RE.test(base)) continue;
+				if (seen.has(raw)) continue;
+				seen.add(raw);
+				out.push(raw);
+			}
+			return out;
+		}
+		const ptsProducedDefinition = {
+			kind: "pts-produced",
+			match: (event) => {
+				if (event.type === "turn/start") return { id: String(event.data.turn), role: "start" };
+				if (event.type === "tool/result" && runtimeClient.isAppendSurfaceEvent(event)) {
+					return { id: String(event.data.turn), role: "update" };
+				}
+				return null;
+			},
+			start: (_context, match) => ({ turn: match.event.data.turn, produced: [] }),
+			update: (context, match) => {
+				if (match.event.type !== "tool/result") return context.state;
+				const content = Array.isArray(match.event.data.message.content) ? match.event.data.message.content : [];
+				if (content[0] !== null && content[0] !== undefined && content[0].isError === true) return context.state;
+				const text = content
+					.filter((b) => b !== null && typeof b === "object" && (b.kind === "text" || b.type === "text") && typeof b.text === "string")
+					.map((b) => b.text)
+					.join("\n");
+				const additions = extractArtifactPaths(text).map((path) => ({
+					seq: match.event.seq,
+					path,
+				}));
+				return additions.length === 0 ? context.state : {
+					...context.state,
+					produced: [...context.state.produced, ...additions],
+				};
+			},
+			buildLocationData: (context, scope) => (scope !== "turn" || context.state === undefined)
+				? null
+				: { kind: "turn", turn: context.state.turn, key: PTS_PRODUCED_KEY, value: { produced: context.state.produced } },
+		};
+
+		// Deterministic fallback: the closing assistant message of this turn
+		// names the produced artifact (e.g. "materials/arbeitsblatt-….md").
+		// Background subagent results can settle outside the turn/seq window the
+		// event accumulators track, so we also read the closing text directly.
+		function turnClosingText(owner) {
+			try {
+				const tt = owner.turn.data.get("turn-tail");
+				const closing = tt !== null && tt !== undefined ? tt.closing : null;
+				const blocks = Array.isArray(closing !== null && closing !== undefined ? closing.blocks : null)
+					? closing.blocks
+					: [];
+				return blocks
+					.filter((b) => b !== null && typeof b === "object" && (b.kind === "text" || b.type === "text") && typeof b.text === "string")
+					.map((b) => b.text)
+					.join("\n");
+			} catch (e) {
+				return "";
+			}
 		}
 		function fileUrl(p, cwd) {
 			let u = "/artifacts/v2/file?p=" + encodeURIComponent(normPath(p));
@@ -314,6 +454,17 @@ window.__ModuleLoader__.load({
 			return function() { bridgeSubs.delete(fn); };
 		}
 
+		// Opens the artifact's location in the OS file explorer via the host
+		// route /artifacts/v2/reveal.
+		function revealInExplorer(path, cwd, onError) {
+			let url = "/artifacts/v2/reveal?p=" + encodeURIComponent(normPath(path));
+			if (typeof cwd === "string" && cwd !== "") url += "&cwd=" + encodeURIComponent(normPath(cwd));
+			fetchJson(url).then(function() {}).catch(function(e) {
+				console.error("[pts-artifact-panel] reveal failed:", e);
+				if (typeof onError === "function") onError(e);
+			});
+		}
+
 		// Downloads the artifact through the host route and saves it under its
 		// basename via a temporary object-URL anchor (works for all MIME kinds).
 		function triggerDownload(path, cwd, onError) {
@@ -339,13 +490,37 @@ window.__ModuleLoader__.load({
 		// ------------------------------------------------------------------
 		// Shared preview component
 		// ------------------------------------------------------------------
+		// Teacher-readable decision view (decisions.yml), fed by the structured
+		// `/artifacts/v2/text` payload so it stays in sync with the Denkstand.
+		function DecisionPreview(props) {
+			const decisions = Array.isArray(props.decisions) ? props.decisions : [];
+			if (decisions.length === 0) return React.createElement("div", { className: "apx-note" }, "Keine Entscheidungen festgehalten (decisions.yml).");
+			return React.createElement("div", { className: "apx-dec-list" },
+				decisions.map(function(d, i) {
+					const kids = [
+						React.createElement("div", { key: "m", className: "apx-dec-meta" },
+							React.createElement("span", { className: "apx-badge" }, "Entscheidung"),
+							d.id ? React.createElement("span", { className: "apx-badge" }, d.id) : null,
+							d.status ? React.createElement("span", { className: "apx-badge" }, d.status) : null),
+						React.createElement("div", { key: "t", className: "apx-dec-title" }, d.title),
+					];
+					if (d.detail) kids.push(React.createElement("div", { key: "d", className: "apx-dec-body" }, d.detail));
+					if (d.rationale) kids.push(React.createElement("div", { key: "r", className: "apx-dec-body apx-dec-rationale" }, "Begründung: " + d.rationale));
+					if (d.references && d.references.length) kids.push(React.createElement("div", { key: "refs", className: "apx-dec-refs" }, d.references.join(" · ")));
+					return React.createElement("div", { key: d.id || i, className: "apx-dec" }, kids);
+				}));
+		}
+
 		function ArtifactPreview(props) {
 			const artifact = props.artifact;
 			const cwd = typeof props.cwd === "string" ? props.cwd : null;
-			const isText = artifact.kind === "markdown";
+			const isText = artifact.kind === "markdown" || artifact.kind === "yaml";
 			const textState = React.useState(null);
 			const text = textState[0];
 			const setText = textState[1];
+			const decState = React.useState(null);
+			const decisions = decState[0];
+			const setDecisions = decState[1];
 			const errState = React.useState(null);
 			const err = errState[0];
 			const setErr = errState[1];
@@ -354,10 +529,14 @@ window.__ModuleLoader__.load({
 				let alive = true;
 				setText(null);
 				setErr(null);
+				setDecisions(null);
 				const url = "/artifacts/v2/text?p=" + encodeURIComponent(normPath(artifact.path)) +
 					(cwd !== null ? "&cwd=" + encodeURIComponent(normPath(cwd)) : "");
 				fetchJson(url).then(function(r) {
-					if (alive) setText(r !== null && typeof r === "object" && typeof r.text === "string" ? r.text : "");
+					if (!alive) return;
+					const rr = (r !== null && typeof r === "object") ? r : {};
+					setText(typeof rr.text === "string" ? rr.text : "");
+					if (Array.isArray(rr.decisions)) setDecisions(rr.decisions);
 				}).catch(function(e) {
 					if (alive) setErr(String(e && e.message ? e.message : e));
 				});
@@ -373,6 +552,10 @@ window.__ModuleLoader__.load({
 			}
 			if (err !== null) return React.createElement("div", { className: "apx-note apx-errmsg" }, "Lesefehler: " + err);
 			if (text === null) return React.createElement("div", { className: "apx-note" }, "Lade\u2026");
+			if (artifact.kind === "yaml") {
+				if (decisions !== null) return React.createElement(DecisionPreview, { decisions: decisions });
+				return React.createElement("pre", { className: "apx-yaml" }, text);
+			}
 			return React.createElement("div", {
 				className: "apx-mdc",
 				dangerouslySetInnerHTML: { __html: mdToHtml(text) },
@@ -527,15 +710,27 @@ window.__ModuleLoader__.load({
 		// update). We poll that key to observe tool-card selections without
 		// touching their private store instance.
 		// ------------------------------------------------------------------
+		// The persisted snapshot can grow to several MB. Firefox serves
+		// localStorage synchronously on the main thread, so JSON.parse over the
+		// whole blob on every poll tick is a visible freeze cost — especially
+		// while a stream rewrites the key continuously. Parse only when the
+		// raw string actually changed; return the cached result otherwise.
+		let selectionCache = { key: null, raw: null, result: null };
 		function readPersistedSelection(sessionId) {
 			if (typeof localStorage === "undefined" || sessionId === null || sessionId === undefined || sessionId === "") return null;
+			const key = "dsh.conversation.chat." + String(sessionId);
 			try {
-				const raw = localStorage.getItem("dsh.conversation.chat." + String(sessionId));
+				const raw = localStorage.getItem(key);
 				if (raw === null || typeof raw !== "string" || raw === "") return null;
-				const parsed = JSON.parse(raw);
-				if (parsed === null || typeof parsed !== "object" || parsed.selection === null || parsed.selection === undefined) return null;
+				if (selectionCache.key === key && selectionCache.raw === raw) return selectionCache.result;
+				let parsed = null;
+				try { parsed = JSON.parse(raw); } catch (e) { return null; } // broken blob: fail clean, cache nothing
+				if (parsed === null || typeof parsed !== "object") return null;
 				const sel = parsed.selection;
-				return sel !== null && typeof sel === "object" && sel.callId !== undefined && sel.callId !== null ? String(sel.callId) : null;
+				let result = null;
+				if (sel !== null && sel !== undefined && typeof sel === "object" && sel.callId !== undefined && sel.callId !== null) result = String(sel.callId);
+				selectionCache = { key: key, raw: raw, result: result };
+				return result;
 			} catch (e) {
 				return null;
 			}
@@ -574,7 +769,7 @@ window.__ModuleLoader__.load({
 						last = next;
 						setCallId(next);
 					}
-				}, 300);
+				}, 1000);
 				return function() { clearInterval(timer); };
 			}, [sessionId]);
 
@@ -671,17 +866,39 @@ window.__ModuleLoader__.load({
 			} catch (e) {
 				data = null;
 			}
-			if (data === null || data === undefined) return null;
-			const produced = Array.isArray(data.produced) ? data.produced : [];
+			let pts = null;
+			try {
+				pts = owner.turn.data.get(PTS_PRODUCED_KEY);
+			} catch (e) {
+				pts = null;
+			}
+			const produced = [];
+			if (data !== null && data !== undefined && Array.isArray(data.produced)) produced.push(...data.produced);
+			if (pts !== null && pts !== undefined && Array.isArray(pts.produced)) produced.push(...pts.produced);
+			// Deterministic fallback: any artifact path the Companion named in the
+			// closing message becomes a chip too (seq 0 so it is never dropped by
+			// the late-settlement filter for background subagent results).
+			for (const p of extractArtifactPaths(turnClosingText(owner))) {
+				produced.push({ seq: 0, path: p });
+			}
 			const seq = owner.seq;
-			const paths = [];
-			const seen = new Set();
+			// Dedupe by BASENAME, keeping the most-qualified path. A bare filename
+			// and the same file's full subdir path would otherwise become two chips
+			// (the bare one 404s because it has no directory to resolve).
+			const byBase = {}; // basename -> most-qualified path
 			for (let i = 0; i < produced.length; i++) {
 				const entry = produced[i];
-				if (entry.seq > seq || seen.has(entry.path)) continue;
-				seen.add(entry.path);
-				paths.push(entry.path);
+				if (entry.seq > seq) continue;
+				const p = normPath(entry.path);
+				const base = p.slice(p.lastIndexOf("/") + 1);
+				if (base === "") continue;
+				const prev = byBase[base];
+				if (prev === undefined) { byBase[base] = p; continue; }
+				const prevSegs = prev.split("/").length;
+				const curSegs = p.split("/").length;
+				if (curSegs > prevSegs) byBase[base] = p;
 			}
+			const paths = Object.keys(byBase).map(function(base) { return byBase[base]; });
 			if (paths.length === 0) return null;
 			let previewable = 0;
 			for (let j = 0; j < paths.length; j++) {
@@ -719,8 +936,212 @@ window.__ModuleLoader__.load({
 		}
 
 		// ------------------------------------------------------------------
-		// Gallery tab (conversation.view list entry)
+		// "Neu erstellt" strip (shell.overlay): freshly produced documents slide
+		// in as mini cards at the top of the frame; clicking opens the same
+		// ArtifactPreview in a modal. Uses the sharing /artifacts/v2/list
+		// registry, which write-tool results update immediately.
 		// ------------------------------------------------------------------
+		function pickActiveSession(list) {
+			if (list === null || list === undefined) return null;
+			if (list.activeId !== null && list.activeId !== undefined) return String(list.activeId);
+			if (typeof list.active === "string" && list.active !== "") return list.active;
+			if (Array.isArray(list.order) && list.order.length > 0) return String(list.order[0]);
+			// Fallback: any listed session that resolves to a real workspace (cwd),
+			// so the "Neu erstellt" strip always has something to poll.
+			if (list.byId && typeof list.byId === "object") {
+				const keys = Object.keys(list.byId);
+				for (let i = 0; i < keys.length; i++) {
+					const e = list.byId[keys[i]];
+					if (e !== null && e !== undefined && typeof e.cwd === "string" && e.cwd !== "") return String(keys[i]);
+				}
+				if (keys.length > 0) return String(keys[0]);
+			}
+			return null;
+		}
+
+		function StripModal(props) {
+			const artifact = props.artifact;
+			const cwd = props.cwd;
+			const onClose = props.onClose;
+			return React.createElement("div", { className: "apx-strip-modal", onClick: onClose },
+				React.createElement("div", { className: "apx-strip-dialog", onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); } },
+					React.createElement("div", { className: "apx-strip-dialog-head" },
+						React.createElement("span", { className: "apx-strip-dialog-title" }, artifact.name),
+						React.createElement("span", { className: "apx-path", style: { flex: 1, minWidth: 0 } }, artifact.path),
+						React.createElement("button", { className: "apx-dpclose", "aria-label": "Schließen", title: "Schließen", onClick: onClose }, "\u00d7")),
+					React.createElement("div", { className: "apx-strip-dialog-body" },
+						React.createElement(ArtifactPreview, { artifact: artifact, cwd: cwd }))));
+		}
+
+		function ProductionsStrip(props) {
+			const useSessions = props.useSessions;
+			const sessionId = useSessions(pickActiveSession);
+			const cwd = useSessions(function(list) {
+				if (sessionId === null || sessionId === undefined) return null;
+				const e = list !== null && list !== undefined && list.byId ? list.byId[sessionId] : null;
+				return e !== null && e !== undefined && typeof e.cwd === "string" ? e.cwd : null;
+			});
+			const cardsState = React.useState([]);
+			const cards = cardsState[0];
+			const setCards = cardsState[1];
+			const modalState = React.useState(null);
+			const modal = modalState[0];
+			const setModal = modalState[1];
+			const seenRef = React.useRef(null); // path -> revision; null before first seed
+			const seededRef = React.useRef(false);
+			const lastNotifiedRef = React.useRef({}); // path -> last notify timestamp
+			const COOLDOWN_MS = 60000; // per-path cooldown (active files churn revision)
+			const MAX_CARDS = 4;
+
+			React.useEffect(function() {
+				if (sessionId === null || sessionId === undefined) return undefined;
+				let alive = true;
+				// New workspace/session: reseed the revision map so pre-existing
+				// files do not animate in, and clear stale cards.
+				seededRef.current = false;
+				seenRef.current = null;
+				lastNotifiedRef.current = {};
+				setCards([]);
+				function poll() {
+					const url = "/artifacts/v2/list?sessionId=" + encodeURIComponent(sessionId);
+					fetchJson(url).then(function(r) {
+						if (!alive) return;
+						const list = r !== null && typeof r === "object" && Array.isArray(r.items) ? r.items : [];
+						if (!seededRef.current) {
+							seededRef.current = true;
+							seenRef.current = {};
+							for (const a of list) seenRef.current[a.path] = typeof a.revision === "number" ? a.revision : 0;
+							return;
+						}
+						const now = Date.now();
+						const changed = [];
+						for (const a of list) {
+							const prevRev = seenRef.current[a.path];
+							const curRev = typeof a.revision === "number" ? a.revision : 0;
+							let kind = null;
+							if (prevRev === undefined) kind = "new";
+							else if (curRev > prevRev) kind = "updated";
+							seenRef.current[a.path] = curRev;
+							if (kind === null) continue;
+							// Cooldown: don't spam the same file while a job is writing it.
+							const last = lastNotifiedRef.current[a.path] || 0;
+							if (now - last < COOLDOWN_MS) continue;
+							lastNotifiedRef.current[a.path] = now;
+							changed.push({ kind: kind, artifact: a });
+						}
+						if (changed.length === 0) return;
+						for (const ch of changed) artifactNotify(ch.kind, ch.artifact);
+						setCards(function(prev) { return prev.concat(changed.map(function(ch) { return { artifact: ch.artifact, kind: ch.kind, leaving: false }; })).slice(-MAX_CARDS); });
+					}).catch(function() { /* best effort */ });
+				}
+				poll();
+				const timer = setInterval(poll, 4000);
+				return function() { alive = false; clearInterval(timer); };
+			}, [sessionId]);
+
+			// Auto-dismiss: mark a card as leaving after it has been visible.
+			React.useEffect(function() {
+				if (cards.length === 0) return undefined;
+				const timers = cards.map(function(c) {
+					if (c.leaving) return null;
+					return setTimeout(function() {
+						setCards(function(prev) { return prev.map(function(x) { return x.artifact.path === c.artifact.path && !x.leaving ? { artifact: x.artifact, kind: x.kind, leaving: true } : x; }); });
+					}, 12000);
+				});
+				return function() { for (const t of timers) if (t !== null) clearTimeout(t); };
+			}, [cards]);
+
+			// Remove fully-faded cards.
+			React.useEffect(function() {
+				const leaving = cards.filter(function(c) { return c.leaving; });
+				if (leaving.length === 0) return undefined;
+				const timers = leaving.map(function(c) {
+					return setTimeout(function() {
+						setCards(function(prev) { return prev.filter(function(x) { return x.artifact.path !== c.artifact.path; }); });
+					}, 550);
+				});
+				return function() { for (const t of timers) clearTimeout(t); };
+			}, [cards]);
+
+			if (cards.length === 0 && modal === null) return null;
+			const cardEls = cards.map(function(c) {
+				const isUpdated = c.kind === "updated";
+				return React.createElement("button", {
+					key: c.artifact.path,
+					className: "apx-strip-card" + (c.leaving ? " apx-strip-card-leaving" : " apx-strip-card-enter"),
+					title: c.artifact.path,
+					onClick: function() { setModal(c.artifact); },
+				},
+					React.createElement("span", { className: isUpdated ? "apx-strip-tag apx-strip-tag-updated" : "apx-strip-tag apx-strip-tag-new" }, isUpdated ? "Aktualisiert" : "Neu"),
+					React.createElement("span", { className: "apx-badge" }, KIND_LABEL[c.artifact.kind] || c.artifact.ext || "file"),
+					React.createElement("span", { className: "apx-strip-name" }, c.artifact.name));
+			});
+			const children = [React.createElement("span", { key: "label", className: "apx-strip-label" }, "Neu im Denkraum:")].concat(cardEls);
+			return React.createElement("div", { style: { pointerEvents: "none" } },
+				React.createElement("div", { className: "apx-strip" }, children),
+				modal !== null
+					? React.createElement(StripModal, { artifact: modal, cwd: cwd, onClose: function() { setModal(null); } })
+					: null);
+		}
+
+		// ------------------------------------------------------------------
+		// Gallery tab (conversation.view list entry) — folder tree + preview
+		// ------------------------------------------------------------------
+		function groupArtifacts(list) {
+			const groups = {};
+			for (const a of (Array.isArray(list) ? list : [])) {
+				const p = a.path || "";
+				const slash = p.indexOf("/");
+				const key = slash >= 0 ? p.slice(0, slash) : "(root)";
+				if (!groups[key]) groups[key] = [];
+				groups[key].push(a);
+			}
+			// Root first, then the known PTS dirs, then the rest alphabetically.
+			const order = ["(root)", "materials", "drafts", "rendered", "knowledge-proposals"];
+			const keys = Object.keys(groups).sort(function(x, y) {
+				const ix = order.indexOf(x);
+				const iy = order.indexOf(y);
+				const ax = ix < 0 ? 999 : ix;
+				const ay = iy < 0 ? 999 : iy;
+				if (ax !== ay) return ax - ay;
+				return x < y ? -1 : x > y ? 1 : 0;
+			});
+			return { groups: groups, keys: keys };
+		}
+
+		function FolderTree(props) {
+			const list = props.list;
+			const selectedPath = props.selectedPath;
+			const onSelect = props.onSelect;
+			const collapsedState = React.useState({});
+			const collapsed = collapsedState[0];
+			const setCollapsed = collapsedState[1];
+			const grouped = groupArtifacts(list);
+			const KIND_SHORT = { markdown: "MD", pdf: "PDF", image: "IMG", html: "HTML", yaml: "DEC", file: "FILE" };
+			const els = grouped.keys.map(function(key) {
+				const items = grouped.groups[key].slice().sort(function(a, b) { return a.path < b.path ? -1 : a.path > b.path ? 1 : 0; });
+				const isCollapsed = collapsed[key] === true;
+				const label = key === "(root)" ? "Denkraum" : key;
+				const childEls = items.map(function(a) {
+					const cls = "apx-file" + (selectedPath === a.path ? " apx-file-sel" : "");
+					const kindShort = KIND_SHORT[a.kind] || (a.ext ? String(a.ext).replace(".", "").toUpperCase() : "FILE");
+					return React.createElement("button", { key: a.path, className: cls, title: a.path, onClick: function() { onSelect(a.path); } },
+						React.createElement("span", { className: "apx-file-title" }, a.name),
+						React.createElement("span", { className: "apx-file-meta" },
+							React.createElement("span", { className: "apx-file-kind" }, kindShort),
+							React.createElement("span", null, fmtSize(a.size)),
+							a.revision > 0 ? React.createElement("span", { className: "apx-file-changed" }, "geändert") : null));
+				});
+				return React.createElement("div", { key: key, className: "apx-tree-group" },
+					React.createElement("div", { className: "apx-group-head", onClick: function() { setCollapsed(Object.assign({}, collapsed, (function() { const o = {}; o[key] = !isCollapsed; return o; })())); } },
+						React.createElement("span", null, isCollapsed ? "\u25b8" : "\u25be"),
+						React.createElement("span", null, label),
+						React.createElement("span", { className: "apx-group-count" }, items.length + " Datei(en)")),
+					isCollapsed ? null : childEls);
+			});
+			return React.createElement("div", { className: "apx-tree" }, els);
+		}
+
 		function ArtifactsView(props) {
 			const sessionId = props !== null && props !== undefined && typeof props.sessionId === "string" ? props.sessionId : null;
 			const itemsState = React.useState(null);
@@ -735,6 +1156,26 @@ window.__ModuleLoader__.load({
 			const errState = React.useState(null);
 			const error = errState[0];
 			const setError = errState[1];
+			const notifyState = React.useState(artifactNotifyEnabled);
+			const notifyOn = notifyState[0];
+			const setNotifyOn = notifyState[1];
+
+			function toggleNotify() {
+				if (typeof Notification === "undefined") { setError("Dieser Browser unterstützt keine Benachrichtigungen."); return; }
+				if (notifyOn) {
+					artifactNotifyEnabled = false;
+					setNotifyOn(false);
+					try { localStorage.setItem("pts-artifact-notify", "0"); } catch (e) {}
+				} else {
+					Notification.requestPermission().then(function(p) {
+						const ok = p === "granted";
+						artifactNotifyEnabled = ok;
+						setNotifyOn(ok);
+						try { localStorage.setItem("pts-artifact-notify", ok ? "1" : "0"); } catch (e) {}
+						if (!ok) setError("Benachrichtigungen wurden vom Browser nicht freigegeben.");
+					}, function() { setError("Benachrichtigungen konnten nicht aktiviert werden."); });
+				}
+			}
 
 			React.useEffect(function() {
 				let alive = true;
@@ -770,60 +1211,61 @@ window.__ModuleLoader__.load({
 			}
 
 			let body;
-			if (selected !== null) {
-				body = React.createElement("div", { className: "apx-previewwrap" },
-					React.createElement("div", { className: "apx-preview-head" },
-						React.createElement("button", { className: "apx-btn", onClick: function() { setSelectedPath(null); } }, "\u2190 Zur\u00fcck"),
-						React.createElement("span", { className: "apx-title" }, selected.name),
-						React.createElement("span", { className: "apx-badge" }, KIND_LABEL[selected.kind] || selected.ext),
-						React.createElement("span", { className: "apx-count" }, fmtSize(selected.size))),
-					React.createElement("div", { className: "apx-path" }, selected.path),
-					React.createElement(ArtifactPreview, { artifact: selected, cwd: activeRoot }));
-			} else if (list === null) {
+			if (list === null) {
 				body = React.createElement("div", { className: "apx-note" }, "Lade Artefakte\u2026");
 			} else if (list.length === 0) {
 				body = React.createElement("div", { className: "apx-note" },
 					"Noch keine Artefakte gefunden. Dateien mit den Endungen md, pdf, png/jpg/gif/webp/svg oder html erscheinen hier automatisch, sobald sie im Workspace entstehen (auch per Bash/Skript erzeugte).");
 			} else {
-				const cards = [];
-				for (let j = 0; j < list.length; j++) {
-					(function(a) {
-						cards.push(React.createElement("button", { key: a.path, className: "apx-card", onClick: function() { setSelectedPath(a.path); } },
-							React.createElement("span", { className: "apx-card-name" }, a.name),
-							React.createElement("span", { className: "apx-card-meta" },
-								React.createElement("span", { className: "apx-badge" }, KIND_LABEL[a.kind] || a.ext),
-								React.createElement("span", null, fmtSize(a.size)),
-								a.revision > 0 ? React.createElement("span", null, "ge\u00e4ndert") : null)));
-					})(list[j]);
-				}
-				body = React.createElement("div", { className: "apx-grid" }, cards);
+				const preview = selected !== null
+					? React.createElement("div", { className: "apx-pane" },
+						React.createElement("div", { className: "apx-preview-head" },
+							React.createElement("button", { className: "apx-btn", onClick: function() { setSelectedPath(null); } }, "\u2190 Zur\u00fcck"),
+							React.createElement("span", { className: "apx-title" }, selected.name),
+							React.createElement("span", { className: "apx-badge" }, KIND_LABEL[selected.kind] || selected.ext),
+							React.createElement("span", { className: "apx-count" }, fmtSize(selected.size)),
+							React.createElement("span", { className: "apx-actions" },
+								React.createElement("button", { className: "apx-btn", title: "Datei herunterladen", onClick: function() { triggerDownload(selected.path, activeRoot); } }, "\u2B07 Herunterladen"),
+								React.createElement("button", { className: "apx-btn", title: "Datei im Speicherort \u00f6ffnen", onClick: function() { revealInExplorer(selected.path, activeRoot); } }, "\uD83D\uDCC2 Speicherort"))),
+						React.createElement("div", { className: "apx-path" }, selected.path),
+						React.createElement(ArtifactPreview, { artifact: selected, cwd: activeRoot }))
+					: React.createElement("div", { className: "apx-pane apx-pane-empty" },
+						"W\u00e4hle links eine Datei, um sie im Vorschaufenster zu \u00f6ffnen.");
+				body = React.createElement("div", { className: "apx-layout" },
+					React.createElement(FolderTree, { list: list, selectedPath: selectedPath, onSelect: setSelectedPath }),
+					preview);
 			}
 
 			return React.createElement("div", { className: "apx-root" },
 				React.createElement("div", { className: "apx-toolbar" },
 					React.createElement("span", { className: "apx-title" }, "Artefakte"),
 					React.createElement("span", { className: "apx-count" }, list === null ? "" : String(list.length) + " Datei(en)"),
-					selected === null && list !== null ? React.createElement("button", {
+					React.createElement("button", {
 						className: "apx-btn",
-						onClick: function() {
-							setItems(null);
-							const url = "/artifacts/v2/list?sessionId=" + encodeURIComponent(sessionId === null ? "" : sessionId);
-							fetchJson(url).then(function(r) {
-								setItems(r !== null && typeof r === "object" && Array.isArray(r.items) ? r.items : []);
-							}).catch(function() {});
-						},
-					}, "Aktualisieren") : null),
+						style: { marginLeft: "auto" },
+						title: notifyOn ? "Browser-Benachrichtigungen ausschalten (neue/aktualisierte Artefakte)" : "Browser-Benachrichtigungen einschalten (neue/aktualisierte Artefakte)",
+						onClick: toggleNotify,
+					}, notifyOn ? "\uD83D\uDD14 Benachrichtigungen an" : "\uD83D\uDD15 Benachrichtigungen aus")),
 				body);
 		}
 
 		// ------------------------------------------------------------------
 		// Registration
 		// ------------------------------------------------------------------
-		const inject = ["slots"];
+		const inject = ["slots", "conversationEvents"];
 
 		function apply(ctx) {
 			layoutService = ctx.get("layout");
 			const layout = layoutService;
+
+			// Subagent-produced artifacts: register the parallel accumulator so
+			// files created by pts_material / pts_edit / pts_document /
+			// pts_renderer also become produced chips + clickable mentions.
+			try {
+				ctx.conversationEvents.register(ptsProducedDefinition);
+			} catch (e) {
+				console.error("[pts-artifact-panel] pts-produced accumulator nicht registrierbar:", e);
+			}
 
 			// Whole right details column (priority -1 shadows the shipped panel).
 			// No children table here: declarations are exclusive and the shipped
@@ -874,6 +1316,14 @@ window.__ModuleLoader__.load({
 				ctx.slots.register(
 					{ name: "conversation.view", id: "artifacts", order: 30, label: "Artefakte" },
 					function(props) { return React.createElement(ArtifactsView, props); },
+				);
+			});
+
+			// "Neu erstellt" strip: frame-wide top overlay, additive cell.
+			ctx.slots.inject("shell.overlay", function() {
+				ctx.slots.register(
+					{ name: "shell.overlay", id: "pts-produced-strip", order: 45 },
+					function(props) { return React.createElement(ProductionsStrip, props); },
 				);
 			});
 		}

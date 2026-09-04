@@ -97,8 +97,7 @@ workspace/<slug>/
 ├── planning-board.yml        # ptspace.planning-board/v1, items: []
 ├── decisions.yml             # decisions: []
 ├── materials/
-├── drafts/
-└── service-requests/
+└── drafts/
 ```
 
 Kein `AGENTS.md` im Workspace — der Boot läuft über die Root-`AGENTS.md`-Kette

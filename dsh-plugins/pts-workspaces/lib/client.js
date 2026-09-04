@@ -439,8 +439,9 @@ window.__ModuleLoader__.load({
 		// Empty-state seat: the hero workspace picker.
 		// ------------------------------------------------------------------
 		function PtsWorkspacePicker(props) {
-			const { open, anchorRef, selectedId, onPick, onClose, useWorkspaces, createDenkraum, loadConfig } = props;
+			const { open, anchorRef, selectedId, onPick, onClose, useWorkspaces, createDenkraum, startSession, loadConfig } = props;
 			const scope = usePtsScope(useWorkspaces, loadConfig);
+			const pickWorkspace = typeof startSession === "function" ? startSession : onPick;
 			const [rect, setRect] = React.useState(null);
 			const [dialogOpen, setDialogOpen] = React.useState(false);
 			const menuRef = React.useRef(null);
@@ -471,7 +472,7 @@ window.__ModuleLoader__.load({
 				setDialogOpen(true);
 			};
 			const onSubmit = (name) => Promise.resolve().then(() => createDenkraum(name)).then((ws) => {
-				if (ws && ws.workspaceId && typeof onPick === "function") onPick(ws.workspaceId);
+				if (ws && ws.workspaceId && typeof pickWorkspace === "function") pickWorkspace(ws.workspaceId);
 				return ws;
 			});
 
@@ -494,7 +495,7 @@ window.__ModuleLoader__.load({
 							key: ws.workspaceId,
 							className: "ptsw-mitem" + (selected ? " ptsw-mitem-selected" : ""),
 							title: ws.path,
-							onClick: () => onPick(ws.workspaceId),
+							onClick: () => pickWorkspace(ws.workspaceId),
 						},
 						React.createElement(FolderIcon, null),
 						React.createElement("span", null, ws.title),
@@ -561,6 +562,72 @@ window.__ModuleLoader__.load({
 				clearTimeout(timeout);
 			}
 			ctx.effect(() => () => stop(), "pts-workspaces: boot scope guard");
+		}
+
+		/**
+		 * Global "Neue Sitzung" guard. The shipped sidebar shell keeps its own
+		 * top-left New Session button that calls ctx.workspaces.startSession()
+		 * with no workspace id; that resolves to the current/most-recent
+		 * Workspace, which in this profile can be the repository root itself —
+		 * opening a session with the whole PTS as cwd instead of a Denkraum.
+		 *
+		 * We cannot re-declare the shipped "sidebar" seat (its child-slot
+		 * declarations are exclusive), so we wrap the shared workspaces service
+		 * method the button invokes. In-scope targets (a direct Denkraum under
+		 * <PTS>/workspace/) start a proper PTS session with the pts-companion
+		 * preset; anything out of scope (the repo root) never opens — it returns
+		 * to the PTS start view so the teacher picks or creates a Denkraum. The
+		 * wrap is idempotent and restored on dispose.
+		 */
+		function installGlobalNewSessionGuard(ctx, workspaces, sessions, loadConfig, startPtsSession) {
+			if (typeof workspaces.startSession !== "function" || workspaces.__ptsNewSessionGuarded === true) return;
+			const original = workspaces.startSession.bind(workspaces);
+			workspaces.__ptsNewSessionGuarded = true;
+			const guarded = function ptsGuardedStartSession(workspaceId) {
+				Promise.resolve().then(loadConfig).then((cfg) => {
+					if (!cfg || typeof cfg.root !== "string" || cfg.root === "") {
+						// PTS host not resolvable: keep the shipped behaviour.
+						original(workspaceId);
+						return;
+					}
+					const base = typeof cfg.workspaceDir === "string" && cfg.workspaceDir !== ""
+						? cfg.workspaceDir
+						: cfg.root.replace(/[\\/]+$/, "") + "/workspace";
+					const prefix = normPath(base) + "/";
+					const wsSnap = workspaces.list.getSnapshot();
+					const items = wsSnap && Array.isArray(wsSnap.items) ? wsSnap.items : [];
+					const sess = sessions.list.getSnapshot();
+					const current = sess ? sess.current : undefined;
+					let currentWorkspaceId;
+					if (current !== undefined) {
+						const row = items.find((it) => it && Array.isArray(it.sessionIds) && it.sessionIds.indexOf(current) >= 0);
+						currentWorkspaceId = row ? row.workspaceId : undefined;
+					}
+					const targetId = workspaceId !== undefined
+						? workspaceId
+						: (currentWorkspaceId !== undefined ? currentWorkspaceId : (wsSnap ? wsSnap.recentWorkspaceId : undefined));
+					const targetWs = targetId !== undefined ? items.find((it) => it && it.workspaceId === targetId) : undefined;
+					const p = targetWs ? normPath(targetWs.path) : "";
+					const rest = p !== "" && p.indexOf(prefix) === 0 ? p.slice(prefix.length) : null;
+					const inScope = rest !== null && rest !== "" && rest.indexOf("/") === -1 && rest.charAt(0) !== ".";
+					if (inScope) {
+						startPtsSession(targetId).catch((err) => console.warn("[pts-workspaces] new session in Denkraum failed:", err));
+					} else {
+						console.info("[pts-workspaces] global New Session outside PTS scope - returning to start view");
+						sessions.clear();
+					}
+				}).catch((err) => {
+					console.warn("[pts-workspaces] new session guard skipped:", err);
+					original(workspaceId);
+				});
+			};
+			workspaces.startSession = guarded;
+			ctx.effect(() => () => {
+				if (workspaces.__ptsNewSessionGuarded === true && workspaces.startSession === guarded) {
+					workspaces.startSession = original;
+				}
+				delete workspaces.__ptsNewSessionGuarded;
+			}, "pts-workspaces: global new-session guard");
 		}
 
 		/** Required services (cordis fiber inject). */
@@ -643,6 +710,16 @@ window.__ModuleLoader__.load({
 				}
 			}
 
+			/** Create a real PTS Session with the canonical Agent composition. */
+			async function startPtsSession(workspaceId) {
+				if (typeof workspaceId !== "string" || workspaceId === "") throw new Error("Ungültiger Denkraum.");
+				const sessionId = await sessions.create({ workspaceId, agentPreset: "pts-companion" });
+				sessions.open(sessionId);
+				return sessionId;
+			}
+
+			installGlobalNewSessionGuard(ctx, workspaces, sessions, loadConfig, startPtsSession);
+
 			ctx.slots.inject("sidebar.workspaces", () => ctx.slots.register({
 				name: "sidebar.workspaces",
 				priority: -1,
@@ -651,7 +728,7 @@ window.__ModuleLoader__.load({
 				inject: () => ({
 					createDenkraum,
 					removeDenkraum,
-					startSession: (id) => workspaces.startSession(id),
+					startSession: (id) => startPtsSession(id),
 					openSession: (id) => sessions.open(id),
 					clearSelection: () => sessions.clear(),
 					loadConfig,
@@ -663,6 +740,7 @@ window.__ModuleLoader__.load({
 				priority: -1,
 				inject: () => ({
 					createDenkraum,
+					startSession: (id) => startPtsSession(id),
 					loadConfig,
 				}),
 			}, (props) => React.createElement(PtsWorkspacePicker, props)));

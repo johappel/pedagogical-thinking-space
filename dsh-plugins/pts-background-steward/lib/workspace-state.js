@@ -9,8 +9,9 @@
 //   before spawning the background agent and re-checks them immediately
 //   before applying; a stale result is never applied.
 // - decisions.yml entries require an explicit, evidence-backed teacher
-//   decision (enforced in patch-validator.js); temporal-plan.yml is never a
-//   target. Both rules are mirrored here as defense in depth.
+//   decision (enforced in patch-validator.js); temporal-plan.yml is writable
+//   only as a proposal (windows/placements are forced to `status: proposed`).
+//   Both rules are mirrored here as defense in depth.
 
 import { createHash } from 'node:crypto';
 import { promises as fsp } from 'node:fs';
@@ -24,12 +25,13 @@ export const CANONICAL_FILES = Object.freeze([
 	'temporal-plan.yml',
 ]);
 
-/** Files the steward may actually modify (temporal-plan is read-only context). */
+/** Files the steward may actually modify (temporal-plan only as proposal). */
 export const WRITABLE_FILES = Object.freeze([
 	'learning-design.md',
 	'learning-landscape.md',
 	'decisions.yml',
 	'planning-board.yml',
+	'temporal-plan.yml',
 ]);
 
 /** Allowed learning-moment types per specs/LEARNING_LANDSCAPE_SCHEMA.md. */
@@ -42,6 +44,32 @@ export const MOMENT_TYPES = Object.freeze([
 export const BOARD_KINDS = Object.freeze([
 	'clarify', 'research', 'design', 'intervention', 'observe',
 	'produce', 'review', 'render', 'export',
+]);
+
+/** Allowed transition types per specs/LEARNING_LANDSCAPE_SCHEMA.md. */
+export const TRANSITION_TYPES = Object.freeze([
+	'required', 'choice', 'parallel', 'return', 'meeting_point', 'prerequisite',
+]);
+
+function slugify(s) {
+	return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'x';
+}
+
+/** Allowed teaching-window kinds per specs/TEMPORAL_PLAN_SCHEMA.md. */
+export const WINDOW_KINDS = Object.freeze([
+	'lesson', 'double_lesson', 'project_block', 'open_learning_time',
+]);
+
+/** Allowed dramaturgical roles per specs/TEMPORAL_PLAN_SCHEMA.md. */
+export const DRAMATURGICAL_ROLES = Object.freeze([
+	'opening', 'irritation', 'exploration', 'deepening', 'practice',
+	'decision', 'consolidation', 'reflection', 'closing', 'transition',
+	'buffer', 'other',
+]);
+
+/** Allowed placement modes per specs/TEMPORAL_PLAN_SCHEMA.md. */
+export const PLACEMENT_MODES = Object.freeze([
+	'common', 'choice', 'parallel', 'individual', 'group', 'open',
 ]);
 
 export function hashContent(content) {
@@ -178,6 +206,30 @@ function singleLine(text) {
 	return String(text ?? '').replace(/\s*\r?\n\s*/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+/** Keep visible metadata and the Learning Design change log in sync with writes. */
+export function recordLearningDesignUpdate(content, { dateIso, updatedAt, turnRef, applied = [] } = {}) {
+	if (typeof content !== 'string') return { ok: false, reason: 'file-missing-or-absent' };
+	const date = singleLine(dateIso);
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, reason: 'invalid-date' };
+	const timestamp = singleLine(updatedAt);
+	if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(timestamp)) return { ok: false, reason: 'invalid-timestamp' };
+	let next = content.replace(/^- Last updated:\s*.*$/m, `- Last updated: ${timestamp}`);
+	const heading = `### ${timestamp} · ${singleLine(turnRef) || 'Steward'}`;
+	if (!next.includes(heading)) {
+		const labels = applied.map((a) => {
+			if (a.kind === 'set-section' || a.kind === 'append-under-section') return `${a.section} aktualisiert`;
+			if (a.kind === 'add-design-accent') return `Leitidee „${singleLine(a.title)}“ ergänzt`;
+			if (a.kind === 'sync-design-accents') return `${Array.isArray(a.ids) ? a.ids.length : 0} Leitidee(n) synchronisiert`;
+			return a.kind;
+		}).filter(Boolean);
+		const block = `${heading}\n\nChanged: ${labels.join('; ') || 'Denkstand aktualisiert.'}\n\nReason: Reversible Denkstandspflege nach ${singleLine(turnRef) || 'abgeschlossenem Turn'}.\n\nBy: pts-background-steward`;
+		const r = mdAppendUnderSection(next, 'Change Log', block);
+		if (!r.ok) return r;
+		next = r.content;
+	}
+	return { ok: true, changed: next !== content, content: next };
+}
+
 /**
  * Append one schema-conformant learning moment as a reversible draft under
  * `## Lernmomente` (before `## Übergänge` when that section exists).
@@ -218,6 +270,113 @@ export function landscapeAppendMoment(content, moment) {
 		return { ok: true, content: joinLines([...lines, '', ...block, '']) };
 	}
 	return { ok: true, content: joinLines([...lines.slice(0, anchor), ...block, '', ...lines.slice(anchor)]) };
+}
+
+/** Update one existing non-stable learning moment without replacing its block. */
+export function landscapeUpdateDraftMoment(content, patch = {}) {
+	if (typeof content !== 'string') return { ok: false, reason: 'file-missing-or-absent' };
+	const id = singleLine(patch.moment_id);
+	if (id === '') return { ok: false, reason: 'missing-moment-id' };
+	const lines = toLines(content);
+	const headingRe = new RegExp(`^###\\s+${escapeRegExp(id)}\\s*$`);
+	const start = lines.findIndex((line) => headingRe.test(line.trim()));
+	if (start < 0) return { ok: false, reason: 'unknown-moment-id' };
+	let end = lines.length;
+	for (let i = start + 1; i < lines.length; i += 1) {
+		if (/^#{2,3}\s+/.test(lines[i].trim())) { end = i; break; }
+	}
+	const block = lines.slice(start, end);
+	const statusLine = block.find((line) => /^- Status:\s*/i.test(line.trim()));
+	const status = statusLine ? statusLine.trim().replace(/^- Status:\s*/i, '').toLowerCase() : '';
+	if (status === 'stable') return { ok: false, reason: 'stable-moment-is-read-only' };
+	if (status !== 'draft' && status !== 'needs_review') return { ok: false, reason: 'moment-status-not-editable' };
+
+	const scalarFields = [
+		['title', 'Titel'], ['moment_type', 'Typ'], ['moment_function', 'Funktion'],
+		['learning_activity', 'Lernaktivität'], ['expected_experience', 'Erwartete Lernerfahrung'],
+	];
+	let changed = false;
+	for (const [field, label] of scalarFields) {
+		if (patch[field] === undefined) continue;
+		const value = singleLine(patch[field]);
+		if (value === '') continue;
+		const idx = block.findIndex((line) => new RegExp(`^- ${escapeRegExp(label)}:\\s*`, 'i').test(line.trim()));
+		if (idx < 0) return { ok: false, reason: `moment-field-missing:${field}` };
+		const next = `- ${label}: ${value}`;
+		if (block[idx] !== next) { block[idx] = next; changed = true; }
+	}
+
+	for (const [field, label] of [['material_needs', 'Materialbedarfe'], ['open_questions', 'Offene Fragen']]) {
+		if (patch[field] === undefined) continue;
+		const value = singleLine(patch[field]);
+		if (value === '') continue;
+		const idx = block.findIndex((line) => new RegExp(`^- ${escapeRegExp(label)}:\\s*`, 'i').test(line.trim()));
+		if (idx < 0) return { ok: false, reason: `moment-field-missing:${field}` };
+		let listEnd = block.length;
+		for (let i = idx + 1; i < block.length; i += 1) {
+			if (/^- [A-ZÄÖÜ][^:]*:\s*/.test(block[i].trim())) { listEnd = i; break; }
+		}
+		const replacement = [`- ${label}:`, `  - ${value}`];
+		if (block.slice(idx, listEnd).join('\n') !== replacement.join('\n')) {
+			block.splice(idx, listEnd - idx, ...replacement);
+			changed = true;
+		}
+	}
+	if (!changed) return { ok: true, changed: false, content };
+	lines.splice(start, end - start, ...block);
+	return { ok: true, changed: true, content: joinLines(lines) };
+}
+
+/**
+ * Append one transition (`### tr-<from>-<to>` block) under `## Übergänge`
+ * (creating the section and removing the scaffold placeholder when needed).
+ * Requires referencing two distinct existing learning moments.
+ */
+export function landscapeAppendTransition(content, transition) {
+	if (typeof content !== 'string') return { ok: false, reason: 'file-missing-or-absent' };
+	const from = String(transition?.from_id ?? '').trim();
+	const to = String(transition?.to_id ?? '').trim();
+	const type = String(transition?.transition_type ?? '').trim();
+	const rationale = singleLine(transition?.value) || '(keine)';
+	if (from === '' || to === '' || from === to) return { ok: false, reason: 'invalid-transition' };
+	if (!TRANSITION_TYPES.includes(type)) return { ok: false, reason: 'invalid-transition-type' };
+	if (!new RegExp(`^###\\s*${escapeRegExp(from)}\\s*$`, 'm').test(content)) return { ok: false, reason: 'unknown-from-moment' };
+	if (!new RegExp(`^###\\s*${escapeRegExp(to)}\\s*$`, 'm').test(content)) return { ok: false, reason: 'unknown-to-moment' };
+	const lines = toLines(content);
+	const taken = new Set();
+	for (const l of lines) {
+		const m = l.trim().match(/^### (tr-[\w-]+)$/);
+		if (m) taken.add(m[1]);
+	}
+	let id = 'tr-' + slugify(from) + '-' + slugify(to);
+	let n = 2;
+	while (taken.has(id)) { id = 'tr-' + slugify(from) + '-' + slugify(to) + '-' + n; n += 1; }
+	const block = ['### ' + id, '', `- Von: ${from}`, `- Zu: ${to}`, `- Typ: ${type}`, `- Begründung: ${rationale}`];
+	let headIdx = -1;
+	for (let i = 0; i < lines.length; i += 1) {
+		if (/^##\s*Übergänge\s*$/.test(lines[i])) { headIdx = i; break; }
+	}
+	if (headIdx === -1) {
+		let out = joinLines(lines).trimEnd();
+		if (out !== '') out += '\n\n';
+		out += '## Übergänge\n\n' + block.join('\n') + '\n';
+		return { ok: true, content: out };
+	}
+	let endIdx = lines.length;
+	for (let i = headIdx + 1; i < lines.length; i += 1) {
+		if (/^##\s+/.test(lines[i])) { endIdx = i; break; }
+	}
+	const body = [];
+	for (let i = headIdx + 1; i < endIdx; i += 1) {
+		const l = lines[i];
+		if (l.trim() === 'Keine Übergänge festgelegt.') continue;
+		if (l.trim() === '') continue;
+		body.push(l);
+	}
+	const before = lines.slice(0, headIdx + 1);
+	const after = lines.slice(endIdx);
+	const out = [...before, '', ...block, ...(body.length > 0 ? ['', ...body] : []), '', ...after];
+	return { ok: true, content: joinLines(out) };
 }
 
 /**
@@ -299,6 +458,309 @@ export function boardAppendItem(content, item) {
 }
 
 /**
+ * Settle one open board Klärung as answered in the conversation: flips
+ * `status: proposed` to `resolved` and records WHERE the answer landed — as a
+ * single-line reference (`resolved_ref`, z. B. "learning-design.md#educational-intention"
+ * oder eine decisions.yml-ID). Der pädagogische Antworttext selbst gehört
+ * NIE ins Board: Das Planning Board ist eine Arbeitswarteschlange; Inhalte
+ * leben im Learning Design und in decisions.yml. Conservative layout
+ * contract: the id must match exactly one item; an already-resolved item is
+ * a no-op.
+ */
+export function boardSettleItem(content, { item_id, resolved_ref, dateIso } = {}) {
+	if (typeof content !== 'string') return { ok: false, reason: 'file-missing-or-absent' };
+	const id = singleLine(item_id);
+	const ref = singleLine(resolved_ref);
+	if (id === '') return { ok: false, reason: 'missing-field:item_id' };
+	if (ref === '') return { ok: false, reason: 'missing-field:resolved_ref' };
+	const lines = toLines(content);
+	const idRe = /^\s*-\s+id:\s*(\S+)\s*$/;
+	const matches = [];
+	for (let i = 0; i < lines.length; i += 1) {
+		const m = lines[i].match(idRe);
+		if (m !== null && m[1] === id) matches.push(i);
+	}
+	if (matches.length === 0) return { ok: false, reason: 'item-not-found' };
+	if (matches.length > 1) return { ok: false, reason: 'duplicate-item-id' };
+	const start = matches[0];
+	let end = lines.length;
+	for (let i = start + 1; i < lines.length; i += 1) {
+		if (idRe.test(lines[i])) { end = i; break; }
+	}
+	const block = lines.slice(start, end);
+	const statusRe = /^(\s*)status:\s*(.*?)\s*$/;
+	const statusIdx = block.findIndex((l) => statusRe.test(l));
+	if (statusIdx === -1) return { ok: false, reason: 'item-has-no-status' };
+	const sm = block[statusIdx].match(statusRe);
+	const status = sm[2].replace(/^["']|["']$/g, '');
+	if (status.startsWith('resolved')) return { ok: true, changed: false };
+	if (status !== 'proposed') return { ok: false, reason: 'item-not-open' };
+	block[statusIdx] = `${sm[1]}status: resolved`;
+	// Insert after the item's last content line; trailing separators (blank
+	// lines, `  #` comments of the NEXT item) stay where they are.
+	let insertAt = block.length;
+	const isSeparator = (l) => l.trim() === '' || /^\s*#/.test(l);
+	while (insertAt > 0 && isSeparator(block[insertAt - 1])) insertAt -= 1;
+	const tail = ['    resolved: true'];
+	const date = singleLine(dateIso);
+	if (date !== '') tail.push(`    resolved_at: "${date}"`);
+	tail.push(`    resolved_ref: ${ref}`);
+	block.splice(insertAt, 0, ...tail);
+	lines.splice(start, end - start, ...block);
+	return { ok: true, changed: true, content: joinLines(lines) };
+}
+
+/**
+ * Add one Leitideen accent under "## Educational Intention" in
+ * learning-design.md. Same accent contract as the pts-denkstand host-side
+ * upsertAccent (heart button): numbered single-line entries
+ * `N. **Titel** — Text`; placeholder lines ("Noch nicht entschieden.") are
+ * dropped when the first accent arrives; a duplicate title is an idempotent
+ * no-op. The section heading is never created — the design template always
+ * carries it.
+ */
+export function designUpsertAccent(content, { title, text } = {}) {
+	if (typeof content !== 'string') return { ok: false, reason: 'file-missing-or-absent' };
+	const t = singleLine(title).replace(/\*\*/g, '').trim();
+	const x = singleLine(text).replace(/\*\*/g, '').trim();
+	if (t === '' || x === '') return { ok: false, reason: 'missing-field:title-or-text' };
+	if (t.length > 200) return { ok: false, reason: 'title-too-long' };
+	if (x.length > 4000) return { ok: false, reason: 'text-too-long' };
+	const lines = toLines(content);
+	const headingRe = /^#{1,6}\s+Educational Intention\s*$/i;
+	const headingIdx = lines.findIndex((l) => headingRe.test(l.trim()));
+	if (headingIdx < 0) return { ok: false, reason: 'section-missing' };
+	let end = lines.length;
+	for (let k = headingIdx + 1; k < lines.length; k += 1) {
+		if (/^#{1,6}\s+/.test(lines[k])) { end = k; break; }
+	}
+	const body = lines.slice(headingIdx + 1, end);
+	const titleNorm = t.toLowerCase();
+	let n = 0;
+	for (const line of body) {
+		const m = line.trim().match(/^\d+[.)]\s+(\*\*[^*]+\*\*)?\s*(?:—|[-:])?\s*(.*)$/);
+		if (m !== null && m[1] !== undefined && m[1].replace(/\*\*/g, '').trim().toLowerCase() === titleNorm) {
+			return { ok: true, changed: false };
+		}
+		const num = line.trim().match(/^(\d+)[.)]\s+/);
+		if (num !== null) n = Math.max(n, parseInt(num[1], 10));
+	}
+	const isPlaceholder = (l) => {
+		const s = String(l || '').trim().toLowerCase();
+		return s !== '' && (s.startsWith('noch nicht') || s.startsWith('noch keine'));
+	};
+	const kept = body.filter((l) => !(n === 0 && isPlaceholder(l)));
+	while (kept.length > 0 && kept[kept.length - 1].trim() === '') kept.pop();
+	const entry = `${n + 1}. **${t}** — ${x}`;
+	const lead = kept.length === 0 ? [''] : [];
+	const out = lines.slice(0, headingIdx + 1).concat(lead, kept, [entry, ''], lines.slice(end));
+	return { ok: true, changed: true, content: joinLines(out) };
+}
+
+/**
+ * Minimal conservative parser for decisions.yml entries. Understands exactly
+ * the layout the steward and the Denkstand tooling write: a two-space
+ * `- id:` list under `decisions:`, plain or quoted `title:` scalars, and
+ * `decision:` as either an inline scalar or a folded/literal block (`>-`,
+ * `|`, …) whose continuation lines are more indented than the key.
+ * Everything else (implications, references, comments) is ignored. The
+ * parser never throws — an entry it cannot read simply comes back with
+ * empty title/decision and is skipped by callers.
+ */
+export function parseDecisionEntries(content) {
+	const entries = [];
+	if (typeof content !== 'string') return entries;
+	const unquote = (s) => {
+		const t = String(s ?? '').trim();
+		if (t.length >= 2 && ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'")))) {
+			return t.slice(1, -1).trim();
+		}
+		return t;
+	};
+	const startRe = /^[ ]{2}-[ ]id:[ ]*(.+?)[ ]*$/;
+	let cur = null;
+	let blockKey = null;
+	let blockIndent = 0;
+	const flush = () => {
+		if (cur !== null) entries.push(cur);
+		cur = null;
+		blockKey = null;
+	};
+	for (const raw of toLines(content)) {
+		const line = raw.replaceAll('\t', '  ');
+		const start = line.match(startRe);
+		if (start !== null) {
+			flush();
+			cur = { id: unquote(start[1]), title: '', decision: '' };
+			continue;
+		}
+		if (cur === null) continue;
+		const trimmed = line.trim();
+		const indent = line.length - line.trimStart().length;
+		if (trimmed === '') continue;
+		// A non-indented line ends the `decisions:` list entirely.
+		if (indent < 2) { flush(); continue; }
+		if (blockKey !== null) {
+			if (indent > blockIndent) {
+				cur[blockKey] = cur[blockKey] === '' ? trimmed : `${cur[blockKey]} ${trimmed}`;
+				continue;
+			}
+			blockKey = null;
+		}
+		const kv = trimmed.match(/^(title|decision):[ ]*(.*)$/);
+		if (kv === null) continue;
+		const val = kv[2].trim();
+		blockIndent = indent;
+		if (val === '' || /^(>-?>?|\|[-+]?|>)$/.test(val)) {
+			blockKey = kv[1];
+		} else {
+			cur[kv[1]] = unquote(val);
+		}
+	}
+	flush();
+	return entries;
+}
+
+/**
+ * Reflect already-recorded decisions.yml entries as numbered Leitideen
+ * accents under "## Educational Intention" in learning-design.md. This is a
+ * pure MIRROR: titles and texts are copied word-for-word from decisions.yml
+ * — the steward neither reformulates nor adds content. Missing/unreadable
+ * decisions are reported; at least one resolvable decision is required.
+ * Duplicate accents remain an idempotent no-op via designUpsertAccent.
+ */
+export function syncDesignAccents(content, decisionsContent, decisionIds) {
+	if (typeof content !== 'string') return { ok: false, reason: 'file-missing-or-absent' };
+	if (typeof decisionsContent !== 'string') return { ok: false, reason: 'decisions-missing' };
+	const ids = (Array.isArray(decisionIds) ? decisionIds : [])
+		.map((s) => String(s ?? '').trim())
+		.filter((s) => s !== '');
+	if (ids.length === 0) return { ok: false, reason: 'no-decision-ids' };
+	const byId = new Map(parseDecisionEntries(decisionsContent).map((e) => [e.id, e]));
+	let next = content;
+	const added = [];
+	const missing = [];
+	for (const id of ids) {
+		const e = byId.get(id);
+		if (!e || e.title.trim() === '' || e.decision.trim() === '') { missing.push(id); continue; }
+		const r = designUpsertAccent(next, { title: e.title, text: e.decision });
+		if (!r.ok) { missing.push(id); continue; }
+		if (r.changed) {
+			next = r.content;
+			added.push(id);
+		}
+	}
+	if (added.length === 0 && missing.length === ids.length) {
+		return { ok: false, reason: 'no-decision-resolved', missing };
+	}
+	return { ok: true, changed: added.length > 0, added, missing, content: next };
+}
+
+/**
+ * Bump a generated `-N` suffix until the id is unused in the target content.
+ * The per-run id counter restarts at 1 for every stewardship run, so two runs
+ * on the same day would otherwise emit colliding ids (observed as four
+ * identical `pb-steward-20260828-1` entries in one board).
+ */
+export function ensureUniqueId(content, id) {
+	if (typeof content !== 'string' || typeof id !== 'string' || id === '') return id;
+	const has = (v) => new RegExp(`^\\s*-\\s*id:\\s*${String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'm').test(content);
+	if (!has(id)) return id;
+	const m = id.match(/^(.*?)(-\d+)?$/);
+	const base = m[1];
+	let n = m[2] !== undefined ? parseInt(m[2].slice(1), 10) : 1;
+	let candidate = `${base}-${n + 1}`;
+	while (has(candidate)) {
+		n += 1;
+		candidate = `${base}-${n + 1}`;
+	}
+	return candidate;
+}
+
+/**
+ * Append one proposed teaching window to temporal-plan.yml. The entry is
+ * forced to `status: proposed` — the steward never creates binding windows.
+ * Same conservative YAML layout contract as decisions/board.
+ */
+export function temporalPlanAppendWindow(content, window) {
+	if (typeof content !== 'string') return { ok: false, reason: 'file-missing-or-absent' };
+	const w = window ?? {};
+	for (const field of ['id', 'title', 'kind', 'duration_minutes']) {
+		if (singleLine(w[field]) === '') return { ok: false, reason: `missing-field:${field}` };
+	}
+	if (!WINDOW_KINDS.includes(w.kind)) return { ok: false, reason: 'invalid-window-kind' };
+	const comment = singleLine(w.provenance) ? ['', `  # ${singleLine(w.provenance)}`] : [];
+	const entry = [
+		`  - id: ${singleLine(w.id)}`,
+		`    title: ${singleLine(w.title)}`,
+		`    kind: ${w.kind}`,
+		`    duration_minutes: ${w.duration_minutes}`,
+		`    note: ${singleLine(w.note) || ''}`,
+		'    status: proposed',
+	];
+	return yamlListAppend(content, 'windows', comment, entry);
+}
+
+/**
+ * Append one proposed placement to temporal-plan.yml (forced status
+ * `proposed`). Defense in depth: the referenced window must already exist in
+ * the temporal plan and the learning moment in the landscape content.
+ */
+export function temporalPlanAppendPlacement(content, placement, { landscapeContent } = {}) {
+	if (typeof content !== 'string') return { ok: false, reason: 'file-missing-or-absent' };
+	const p = placement ?? {};
+	for (const field of ['id', 'moment_id', 'window_id', 'start_minute', 'duration_minutes', 'dramaturgical_role', 'mode']) {
+		if (singleLine(p[field]) === '') return { ok: false, reason: `missing-field:${field}` };
+	}
+	if (!DRAMATURGICAL_ROLES.includes(p.dramaturgical_role)) return { ok: false, reason: 'invalid-role' };
+	if (!PLACEMENT_MODES.includes(p.mode)) return { ok: false, reason: 'invalid-mode' };
+	const windowExists = new RegExp(`^\\s*-\\s*id:\\s*${escapeRegExp(p.window_id)}\\s*$`, 'm').test(content);
+	if (!windowExists) return { ok: false, reason: 'unknown-window-id' };
+	const momentExists = typeof landscapeContent === 'string'
+		&& new RegExp(`^###\\s*${escapeRegExp(p.moment_id)}\\s*$`, 'm').test(landscapeContent);
+	if (!momentExists) return { ok: false, reason: 'unknown-moment-id' };
+	const comment = singleLine(p.provenance) ? ['', `  # ${singleLine(p.provenance)}`] : [];
+	const entry = [
+		`  - id: ${singleLine(p.id)}`,
+		`    moment_id: ${singleLine(p.moment_id)}`,
+		`    window_id: ${singleLine(p.window_id)}`,
+		`    start_minute: ${p.start_minute}`,
+		`    duration_minutes: ${p.duration_minutes}`,
+		`    dramaturgical_role: ${p.dramaturgical_role}`,
+		`    mode: ${p.mode}`,
+		`    note: ${singleLine(p.note) || ''}`,
+		'    status: proposed',
+	];
+	return yamlListAppend(content, 'placements', comment, entry);
+}
+
+/**
+ * Shared YAML list append: `key: []` is expanded, an existing
+ * two-space-indented list extending to the end of the file receives new
+ * entries; anything else is rejected rather than guessed at.
+ */
+function yamlListAppend(content, key, commentLines, entryLines) {
+	const emptyPattern = new RegExp(`^${key}:\\s*\\[\\]\\s*$`, 'm');
+	if (emptyPattern.test(content)) {
+		const replaced = content.replace(emptyPattern, [key, ...commentLines, ...entryLines].join('\n'));
+		return { ok: true, content: replaced.endsWith('\n') ? replaced : `${replaced}\n` };
+	}
+	const lines = toLines(content);
+	const headingPattern = new RegExp(`^${key}:\\s*$`);
+	let last = -1;
+	for (let i = 0; i < lines.length; i += 1) if (headingPattern.test(lines[i])) last = i;
+	if (last !== -1) {
+		const rest = lines.slice(last + 1);
+		const extendsToEndOfFile = rest.every((l) => l.trim() === '' || l.startsWith('  '));
+		if (extendsToEndOfFile) {
+			while (lines.length > 0 && lines[lines.length - 1].trim() === '') lines.pop();
+			return { ok: true, content: joinLines([...lines, ...commentLines, ...entryLines, '']) };
+		}
+	}
+	return { ok: false, reason: 'unsupported-yaml-layout' };
+}
+
+/**
  * Apply a validated operation batch against the current canonical contents.
  * @param {Map<string, string|null>} baseFiles - file name → current content (null = absent)
  * @param {Array<object>} ops - normalized, policy-checked operations
@@ -326,10 +788,6 @@ export function applyOperations(baseFiles, ops, ctx) {
 				rejected.push({ op, reason: 'non-canonical-target' });
 				continue;
 			}
-			if (name === 'temporal-plan.yml') {
-				rejected.push({ op, reason: 'temporal-plan-is-not-a-steward-target' });
-				continue;
-			}
 			const content = current(name);
 			switch (`${name}:${op.kind}`) {
 				// Defense in depth: free-form md sections are allowed only in
@@ -346,9 +804,29 @@ export function applyOperations(baseFiles, ops, ctx) {
 					stage(name, r.content, { target: name, kind: op.kind, section: op.section });
 					break;
 				}
+				case 'learning-design.md:add-design-accent': {
+					const r = designUpsertAccent(content, { title: op.title, text: op.value });
+					if (!r.ok) { rejected.push({ op, reason: r.reason }); break; }
+					// Duplicate accent title: idempotent no-op, not an error.
+					if (r.changed === false) break;
+					stage(name, r.content, { target: name, kind: op.kind, title: op.title });
+					break;
+				}
+				case 'learning-design.md:sync-design-accents': {
+					// Mirror already-recorded decisions.yml entries as Leitideen
+					// accents; source is the CURRENT working copy so a same-run
+					// add-decision can be synced in the same pass.
+					const r = syncDesignAccents(content, current('decisions.yml'), op.decision_ids);
+					if (!r.ok) { rejected.push({ op, reason: r.reason }); break; }
+					// Fully idempotent run: idempotent no-op, not an error.
+					if (r.changed === false) break;
+					stage(name, r.content, { target: name, kind: op.kind, ids: r.added });
+					break;
+				}
 				case 'learning-landscape.md:add-draft-moment': {
+					const id = ensureUniqueId(content, ctx.makeId('lm-steward'));
 					const r = landscapeAppendMoment(content, {
-						id: ctx.makeId('lm-steward'),
+						id,
 						title: op.title,
 						moment_type: op.moment_type,
 						moment_function: op.moment_function,
@@ -359,11 +837,29 @@ export function applyOperations(baseFiles, ops, ctx) {
 						provenance: `Hintergrund-Steward, Entwurf nach Turn ${ctx.turnRef}`,
 					});
 					if (!r.ok) { rejected.push({ op, reason: r.reason }); break; }
-					stage(name, r.content, { target: name, kind: op.kind, id: ctx.makeId.lastValue });
+					stage(name, r.content, { target: name, kind: op.kind, id });
+					break;
+				}
+				case 'learning-landscape.md:update-draft-moment': {
+					const r = landscapeUpdateDraftMoment(content, op);
+					if (!r.ok) { rejected.push({ op, reason: r.reason }); break; }
+					if (r.changed === false) break;
+					stage(name, r.content, { target: name, kind: op.kind, id: op.moment_id });
+					break;
+				}
+				case 'learning-landscape.md:add-draft-transition': {
+					const r = landscapeAppendTransition(content, {
+						from_id: op.from_id,
+						to_id: op.to_id,
+						transition_type: op.transition_type,
+						value: op.value,
+					});
+					if (!r.ok) { rejected.push({ op, reason: r.reason }); break; }
+					stage(name, r.content, { target: name, kind: op.kind });
 					break;
 				}
 				case 'decisions.yml:add-decision': {
-					const id = ctx.makeId('dec-steward');
+					const id = ensureUniqueId(content, ctx.makeId('dec-steward'));
 					const r = decisionsAppendEntry(content, {
 						id,
 						date: ctx.dateIso,
@@ -376,7 +872,7 @@ export function applyOperations(baseFiles, ops, ctx) {
 					break;
 				}
 				case 'planning-board.yml:propose-board-item': {
-					const id = ctx.makeId('pb-steward');
+					const id = ensureUniqueId(content, ctx.makeId('pb-steward'));
 					const r = boardAppendItem(content, {
 						id,
 						title: op.title,
@@ -388,12 +884,64 @@ export function applyOperations(baseFiles, ops, ctx) {
 					stage(name, r.content, { target: name, kind: op.kind, id });
 					break;
 				}
+				case 'planning-board.yml:settle-board-item': {
+					const r = boardSettleItem(content, { item_id: op.item_id, resolved_ref: op.value, dateIso: ctx.dateIso });
+					if (!r.ok) { rejected.push({ op, reason: r.reason }); break; }
+					// Already resolved: idempotent no-op, not an error.
+					if (r.changed === false) break;
+					stage(name, r.content, { target: name, kind: op.kind, id: op.item_id });
+					break;
+				}
+				case 'temporal-plan.yml:propose-window': {
+					const id = ensureUniqueId(content, ctx.makeId('tw-steward'));
+					const r = temporalPlanAppendWindow(content, {
+						id,
+						title: op.title,
+						kind: op.window_kind,
+						duration_minutes: op.duration_minutes,
+						note: op.value,
+						provenance: `Hintergrund-Steward-Vorschlag (${ctx.turnRef}), Beleg: ${op.evidence}`,
+					});
+					if (!r.ok) { rejected.push({ op, reason: r.reason }); break; }
+					stage(name, r.content, { target: name, kind: op.kind, id });
+					break;
+				}
+				case 'temporal-plan.yml:propose-placement': {
+					const id = ensureUniqueId(content, ctx.makeId('tp-steward'));
+					const r = temporalPlanAppendPlacement(content, {
+						id,
+						moment_id: op.moment_id,
+						window_id: op.window_id,
+						start_minute: op.start_minute,
+						duration_minutes: op.duration_minutes,
+						dramaturgical_role: op.dramaturgical_role,
+						mode: op.mode,
+						note: op.value,
+						provenance: `Hintergrund-Steward-Vorschlag (${ctx.turnRef}), Beleg: ${op.evidence}`,
+					}, { landscapeContent: current('learning-landscape.md') });
+					if (!r.ok) { rejected.push({ op, reason: r.reason }); break; }
+					stage(name, r.content, { target: name, kind: op.kind, id });
+					break;
+				}
 				default:
 					rejected.push({ op, reason: `kind-not-allowed-for-target:${op.kind}@${name}` });
 			}
 		} catch (error) {
 			rejected.push({ op, reason: `transform-error:${String(error && error.message || error)}` });
 		}
+	}
+	// A real Learning Design write must also be visible as a current document:
+	// update its metadata date and append one compact, idempotent change-log entry.
+	if (updates.has('learning-design.md')) {
+		const designOps = applied.filter((a) => a.target === 'learning-design.md');
+		const r = recordLearningDesignUpdate(updates.get('learning-design.md'), {
+			dateIso: ctx.dateIso,
+			updatedAt: ctx.updatedAt ?? `${ctx.dateIso}T00:00:00.000Z`,
+			turnRef: ctx.turnRef,
+			applied: designOps,
+		});
+		if (r.ok) updates.set('learning-design.md', r.content);
+		else rejected.push({ op: { target: 'learning-design.md', kind: 'record-update' }, reason: r.reason });
 	}
 	return { updates, applied, rejected };
 }
@@ -412,3 +960,4 @@ export function makeIdFactory(dateIso) {
 	factory.lastValue = undefined;
 	return factory;
 }
+

@@ -25,25 +25,19 @@ Teacher <-> Pedagogical Companion        (sichtbar, wartet nie)
   Denkstandspflege, darf aber keine Materialien produzieren, keine Recherche
   starten, keine pädagogische Richtung entscheiden, keinen Planning-Board-
   Eintrag freigeben und nicht in Memory oder kuratiertes Wissen schreiben.
-- Der dateibasierte Python-Dispatcher (`harness/dispatcher.py`) ist eine
-  Legacy-/Alternative-Runtime (Level 2 ohne DSH), nicht der produktive Pfad. In
-  einem DSH-Deployment werden ausführbare Capabilities über
-  `capabilities/registry.yml` aufgelöst und an native DSH-Subagenten übergeben;
-  das Plugin läuft ohnehin nicht über den Python-Dispatcher.
+- Der bestehende dateibasierte Dispatcher (`harness/dispatcher.py`) bleibt für
+  explizite Servicearbeit unangetastet; das Plugin läuft bewusst nicht über ihn.
 
 ## Aufbau
 
 ```text
 lib/
-├── index.js            Trigger-Observer, Denkraum-Auflösung, Verdrahtung, Status-Route
-├── config.js           Defaults + robuste Normalisierung (inkl. research-Route)
-├── scheduler.js        Debounce/Coalescing, max. 1 Lauf je Denkraum, Rerun-Puffer
-├── reflection-job.js   Steward-Persona, Prompt, Subagent-Start, Ergebnisverarbeitung
-├── patch-validator.js  JSON-Schema (dsh-tools-Teilmenge) + Politikprüfung (inkl. service_intents)
-├── service-coordinator.js  Dedup + Persistenz + Routing autorisierter Knowledge-Requests
-├── research-job.js     Quellengebundener Recherche-Subagent, owned Job, Draft + Follow-up
-├── settings-source.js  Liest/schreibt Steward- und Recherche-Modellroute aus den Settings
-└── workspace-state.js  Hashes, atomare Writes, reine Texttransformationen
+├── index.js           Trigger-Observer, Denkraum-Auflösung, Verdrahtung, Status-Route
+├── config.js          Defaults + robuste Normalisierung der Row-Konfiguration
+├── scheduler.js       Debounce/Coalescing, max. 1 Lauf je Denkraum, Rerun-Puffer
+├── reflection-job.js  Steward-Persona, Prompt, Subagent-Start, Ergebnisverarbeitung
+├── patch-validator.js JSON-Schema (dsh-tools-Teilmenge) + Politikprüfung
+└── workspace-state.js Hashes, atomare Writes, reine Texttransformationen
 ```
 
 Das Paket importiert absichtlich **keine** `@deepseek-ai/*`-Module: Es wird per
@@ -82,72 +76,57 @@ Konfiguration ohne Schema unverändert durch) und in `config.js` normalisiert.
 6. **Native Sichtbarkeit** — jeder Lauf wird zusätzlich als besitzloser Job
    (`kind: pts-steward`) in `ctx.jobs` registriert. Besitzlose Jobs erzeugen
    **keine** Completion-Notices in irgendein Gespräch (`owner === undefined`
-   bricht im shipped Reporter ab) und erscheinen nur in `job_list`.
+   bricht im shipped Reporter ab) und erscheinen nur in `job_list`. Damit ein
+   besitzloser Job überhaupt registrierbar ist, attachiert der Steward in
+   `apply()` einen Host-Level-Controller (`jobs.attachController('pts-steward')`,
+   Registry-only, ohne Tools/Notices): das pts-web-Profil hält Job-Controller
+   preset-scoped (Host-`tool-jobs` ist im web-Bundle deaktiviert), und ein
+   Job ohne Besitzer wird nur von einem Controller der globalen Layer bedient.
+   Schlägt das Attachieren fehl, bleibt der direkte Lauf der Fallback.
 7. **Validierung** — Struktur (Schema-Version, Session, Turn, Basis-Hashes,
    Evidence-Fenster) plus Politik:
    - `decisions.yml` nur bei eindeutiger, belegter Lehrkraftentscheidung
      (`teacher_decisions` mit `explicit: true` + passender Evidence);
    - Lernmomente nur als vollständige Entwürfe (`Status: draft`);
-   - `temporal-plan.yml` niemals Ziel; Board höchstens 1 Vorschlag/Lauf
+   - `temporal-plan.yml` nur als Vorschlag (Fenster/Platzierung, `status: proposed`); Board höchstens 1 Vorschlag/Lauf; Lernlandschaft-Übergänge höchstens 2 Vorschläge/Lauf
      (erzwungen `status: proposed`, `requires_teacher_approval: true`);
+   - Leitideen: `add-design-accent` trägt Lehrkraft-bekräftigte tragende
+     Aussagen als nummerierte Akzente unter „Educational Intention“ im
+     Learning Design ein (höchstens 3/Lauf, Evidence-Pflicht) — nicht als
+     Kopie unter „Design Decisions“, verbindliche Entscheidungen bleiben in
+     decisions.yml;
+   - Leitideen-Synchronisation: `sync-design-accents` spiegelt bereits in
+     decisions.yml vorhandene Entscheidungen wortgleich als nummerierte
+     Akzente unter „Educational Intention“ (höchstens 1 Operation/Lauf,
+     höchstens 3 IDs, Evidence-Pflicht für die Lehrkraftbestätigung,
+     idempotent, keine Umformulierung);
+   - Board-Klärungen abschließen: `settle-board-item` höchstens 1/Lauf, nur
+     wenn die Lehrkraft eine offene Klärung im Gespräch eindeutig beantwortet
+     hat (Beleg-Pflicht). Das Board erhält **nur einen Verweis**
+     (`resolved_ref`) auf den kanonischen Dokumentationsort; der Antworttext
+     muss im selben Lauf dokumentiert werden (Anti-Blur-Guard im Validator).
+     Spalten, Freigaben und `kind: approve`-Einträge bleiben unangetastet;
+   - generierte IDs werden gegen bestehende Einträge kollisionsgeprüft
+     (`ensureUniqueId`) — der Lauf-Zähler startet pro Lauf neu.
    - `set-section`/`append-under-section` nur an `learning-design.md`;
    - Wertlängengrenzen.
-8. **Revisionsschutz** — unmittelbar vor dem Anwenden werden die Hashes neu
+8. **Teilfortschreibung statt Stillstand** — `update-draft-moment` darf vorhandene
+   Lernmomente mit Status `draft`/`needs_review` feldweise weiterentwickeln;
+   `stable` bleibt schreibgeschützt. Eine Operation mit einer veralteten
+   Evidence-ID verwirft nur diese Operation, nicht mehr den gesamten gültigen
+   Rest des Laufs. Jeder echte Write am Learning Design aktualisiert außerdem
+   `Last updated` als UTC-ISO-Zeitstempel (z. B. `2026-09-01T08:12:29.123Z`) und ergänzt einen kompakten, idempotenten Change-Log-Eintrag.
+9. **Revisionsschutz** — unmittelbar vor dem Anwenden werden die Hashes neu
    gebildet. Jede Abweichung verwirft das Gesamtergebnis (`stale`): Ein
    langsamer Hintergrundlauf kann nie einen neueren Gesprächsstand
    überschreiben. Ein frischer Trigger liefert ohnehin einen neuen Lauf.
-9. **Anwendung** — überlebende Operationen werden als reine Text-
+10. **Anwendung** — überlebende Operationen werden als reine Text-
    transformationen berechnet und je Datei **atomar** geschrieben
    (Temp-Datei im Denkraum + Rename).
 
 Fehler betreffen ausschließlich den Hintergrundjob: Sie werden geloggt und
 als Job-Ergebnis (`failed`) registriert, berühren die Companion-Session aber
 nicht. Erfolgreiche Pflege wird nicht im Chat erwähnt.
-
-## Begrenzter Knowledge-Request (Recherche-Seam)
-
-Der Steward recherchiert nie selbst. Erkennt er nach einem Turn, dass geprüftes
-externes Wissen fehlt (z. B. eine Lehrplan-Zuordnung), schlägt er **genau einen**
-validierten `service_intents`-Eintrag vor (`specs/STEWARDSHIP_RESULT_SCHEMA.md`).
-Der Validator (`patch-validator.js`) verlangt:
-
-- `task: verify_curriculum_alignment` (Allowlist, nur quellengebundenes Wissen);
-- `authorization.type: implied_bounded_request` mit einer Evidence, die auf eine
-  **Nachricht der Lehrkraft** zeigt (`"context"` genügt nicht);
-- einen eng begrenzten, ausschließlich öffentlichen `scope`
-  (`jurisdiction`, `subject`, `phase`, `grade`, `topic`, optional `denomination`);
-  fremde/personenbezogene Felder werden abgelehnt;
-- `return_to: critical_friend`; höchstens ein Intent pro Lauf.
-
-Ein validierter, autorisierter Intent geht an den `service-coordinator.js`:
-
-1. **Dedup** — identische Scopes (auch bei doppelten Turns oder nach Neustart
-   über den On-Disk-Marker) starten keinen zweiten Auftrag.
-2. **Persistenz** — der autorisierte Request wird als
-   `drafts/curriculum-alignment-<scope-hash>.request.yaml` abgelegt.
-3. **Delegation** — `research-job.js` startet den getrennten, web-fähigen
-   Recherche-Subagenten (eigene Modellroute, `research.allowedTools`,
-   Recherche-Persona, strukturierter `curriculum_alignment_brief`). Bei
-   unbekannter Konfession werden evangelisch **und** katholisch geprüft; die
-   fehlende Konfession blockiert die Prüfung nicht.
-4. **Rückkanal** — das validierte Ergebnis wird als Draft
-   (`drafts/curriculum-alignment-<scope-hash>.md`, mit Quellen und
-   Unsicherheiten) gespeichert. Der **owned Job** löst ein Companion-Follow-up
-   aus; dieses trägt eine interne Notiz plus kompakte Quellenlage, nie die
-   Rohantwort. Der Companion formuliert daraus einen kurzen, quellenbasierten
-   Anschlussbeitrag.
-
-Zielablauf:
-
-```text
-Companion antwortet
-→ Turn endet
-→ Steward erkennt Knowledge-Lücke
-→ validierter Service Request (implied_bounded_request)
-→ separater DSH-Recherche-Subagent (Websuche)
-→ Ergebnis (offizielle Quellen) zurück zum Companion
-→ kurzer quellenbasierter Anschlussbeitrag
-```
 
 ## Installation (pts-web-Profil)
 
@@ -201,10 +180,6 @@ Companion antwortet
 | `maxFileChars` | `24000` | Kappung je Datei im Prompt (ehrlich markiert). |
 | `minPromptChars` | `0` | Überspringt reine Begrüßungen (kürzester Nutzerbeitrag ohne `?`); `0` = aus. |
 | `allowedTools` | `[read, glob, grep]` | Werkzeug-Allowlist des Kindes; `write`/`edit` werden immer entfernt. |
-| `research.enabled` | `true` | Schalter für die begrenzte Wissens-Recherche. `false` = validierte Intents werden nur protokolliert/dedupliziert, ohne Anlauf. |
-| `research.provider` / `research.model` | `''` (leer) | Eigene Modellroute des Recherche-Subagenten; leer erbt das Steward-Modell. |
-| `research.maxTokens` | `8192` | Output-Limit des Recherche-Kindes. |
-| `research.allowedTools` | `[read, glob, grep, web]` | Werkzeuge des Recherche-Kindes; darf `web` enthalten, `write`/`edit` werden immer entfernt. |
 | `reasoningEffort` | `''` | **Geführt, aber derzeit nicht durchgereicht.** DSH 0.1.1-rc.2 kennt kein `reasoningEffort` für One-Shot-Subagent-Children (`agentOptions` trägt nur `provider`/`model`/`maxTokens`); das Kind läuft mit dem Provider-Default. Der Wert erscheint im Status als `reasoningEffortApplied: false`. |
 
 ## Modellsteuerung über die Settings (empfohlen)
@@ -224,10 +199,6 @@ pts-background-steward:
   model: ornith-1.5-9b-mtp
   maxTokens: 8192
   reasoningEffort: low   # derzeit NICHT an das One-Shot-Child durchgereicht
-  research:              # optionale, getrennte Route für den Recherche-Subagenten
-    provider: openrouter
-    model: perplexity/sonar
-    maxTokens: 8192
 ```
 
 Vorrang: **Settings-Block > Patch-Row > Default**. Der Wert wird pro Lauf und
@@ -247,11 +218,8 @@ extrahiert deshalb die eigene, kontrollierte Sektion aus dem Settings-Dokument
 Das Plugin registriert einen `conversation.view`-Tab **„Steward"** (rechte
 Spalte neben „Artefakte") mit einem Modell-Picker: Provider-Dropdown (aus dem
 Settings-Provider-Katalog `llm-pi-ai.providers`), Modell-Dropdown,
-`maxTokens`-Feld und Speichern-Button. Darunter steht ein **zweiter Picker für
-das Recherche-Modell** (Provider/Modell/`maxTokens` des quellengebundenen
-Recherche-Subagenten; leer = wie Steward-Modell). Die Auswahl wird über
+`maxTokens`-Feld und Speichern-Button. Die Auswahl wird über
 `POST /api/pts-background-steward/config` in die Settings-Sektion geschrieben
-(Steward-Route flach, Recherche-Route als verschachtelter `research:`-Block)
 und gilt ab dem nächsten Steward-Lauf. `reasoningEffort` wird nur als
 Hinweis angezeigt („nicht an das One-Shot-Child durchgereicht"), nicht editiert.
 Ein Doppelklick/Browser-Hart-Refresh (Strg+Umschalt+R) nach dem Neustart
@@ -269,21 +237,14 @@ gibt es **keine** Chat-Darstellung einzelner Hintergrundaktivitäten;
 einzigen dezenten Hinweis („Denkstand wird im Hintergrund gepflegt") allein
 auf dieser echten Job-Basis anzeigen.
 
-## Warum kein owned Job für die Denkstandpflege — aber einer für die Recherche?
+## Warum kein owned Job und keine Client-Hälfte?
 
 Ein Job mit dem Companion als Besitzer würde über den shipped `tool-jobs`-
 Reporter eine Completion-Nachricht **in die sichtbare Unterhaltung** einspeisen
-(`owner.followup(...)` bzw. `owner.inject(...)`). Für die stille Denkstandpflege
-ist genau das unerwünscht — deshalb läuft die Reflexion als **besitzloser** Job
-(nur Beobachtung) oder als direkter Lauf.
-
-Die **begrenzte Wissens-Recherche** nutzt bewusst das Gegenteil: einen
-**owned Job** (Besitzer = Companion-Agent). Nach Abschluss löst der Reporter ein
-Companion-Follow-up aus, aus dem der Companion einen kurzen, quellenbasierten
-Anschlussbeitrag formuliert. Die Rohantwort des Recherche-Kindes erscheint nie
-wörtlich im Chat: Das Follow-up transportiert eine **interne Notiz** plus
-kompakte Quellenlage; der vollständige Befund liegt als Draft unter
-`drafts/curriculum-alignment-<scope-hash>.md`.
+(`owner.followup(...)` bzw. `owner.inject(...)`) — genau das, was die
+Hintergrundarchitektur ausschließt. Deshalb: besitzloser Job (nur Beobachtung)
+oder direkter Lauf, wenn keine Registry dient. Eine Client-Hälfte braucht das
+Plugin nicht; alles Sichtbare bleibt bei den bestehenden UI-Plugins.
 
 ## Preset-Frage (pts-steward)
 
@@ -309,3 +270,4 @@ Modell nachweislich verwendet") werden gegen eine live pts-web-Instanz
 geprüft; die Schaltkreise dafür sind oben beschrieben
 (Observer-Filter, `agentOptions`, Child-Session-Provenienz in
 `assistant/message`-Events).
+

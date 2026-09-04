@@ -1,0 +1,151 @@
+- generic [ref=f2e4]:
+  - generic [ref=f2e7]:
+    - generic [ref=f2e8]:
+      - button "New session" [ref=f2e9] [cursor=pointer]:
+        - generic [ref=f2e10]:
+          - generic [ref=f2e11]: P
+          - generic [ref=f2e14]: Pedagogical Thinking Space
+      - button "Collapse sidebar" [ref=f2e17] [cursor=pointer]
+    - button "New session" [ref=f2e20] [cursor=pointer]:
+      - generic [ref=f2e23]: Neue Sitzung
+    - generic [ref=f2e26]:
+      - generic [ref=f2e27]:
+        - generic [ref=f2e28]: Arbeitsräume
+        - button "Neuen Denkraum anlegen" [ref=f2e29] [cursor=pointer]: +
+      - tree "Arbeitsräume" [ref=f2e30]:
+        - treeitem "KI und Gott 1" [expanded] [ref=f2e167] [cursor=pointer]:
+          - generic [ref=f2e103]: ▶
+          - generic [ref=f2e107]: KI und Gott
+          - generic [ref=f2e108]: "1"
+        - generic "Ist KI so etwas wie Gott?" [ref=f2e163] [cursor=pointer]: gerade eben
+    - button "Settings" [ref=f2e35] [cursor=pointer]
+  - generic [ref=f2e168]:
+    - banner [ref=f2e170]:
+      - generic [ref=f2e171]:
+        - generic [ref=f2e172]:
+          - navigation "Session hierarchy" [ref=f2e173]:
+            - generic [ref=f2e174]:
+              - button "Ist KI so etwas wie Gott?" [disabled] [ref=f2e175]
+              - generic [ref=f2e177]:
+                - generic [ref=f2e178]: /
+                - button "1 subagent running" [ref=f2e179] [cursor=pointer]:
+                  - generic [ref=f2e190]: 9 subagents
+          - generic "Pädagogischer Gesprächsagent mit nativen DSH-Workern für Recherche, Material, Review und Rendering." [ref=f2e195]: PTS Companion
+        - button "Session log" [ref=f2e203] [cursor=pointer]
+      - tablist [ref=f2e207]:
+        - tab "Chat" [ref=f2e208] [cursor=pointer]
+        - tab "Trajectory" [ref=f2e209] [cursor=pointer]
+        - tab "Skills" [selected] [ref=f2e210] [cursor=pointer]
+        - tab "Artefakte" [ref=f2e211] [cursor=pointer]
+        - tab "Steward" [ref=f2e212] [cursor=pointer]
+    - generic [ref=f2e213]:
+      - generic [ref=f2e217]:
+        - generic [ref=f2e218]:
+          - generic [ref=f2e219]: Skills
+          - button "Aktualisieren" [ref=f2e220] [cursor=pointer]
+        - generic [ref=f2e221]:
+          - generic [ref=f2e222]: Import
+          - button "Choose File" [ref=f2e224]
+          - generic [ref=f2e225]:
+            - textbox "Oder Repo-Pfad, z. B. workspace/<slug>/drafts/skill.md" [ref=f2e226]
+            - button "Importieren" [disabled] [ref=f2e227] [cursor=pointer]
+        - generic [ref=f2e228]:
+          - generic [ref=f2e229]: Zuordnung (Rolle ↔ Skill)
+          - table [ref=f2e230]:
+            - rowgroup [ref=f2e231]:
+              - row [ref=f2e232]:
+                - columnheader "Skill" [ref=f2e233]
+                - columnheader "Research" [ref=f2e234]
+                - columnheader "Material" [ref=f2e235]
+                - columnheader "Review" [ref=f2e236]
+                - columnheader "Renderer" [ref=f2e237]
+            - rowgroup [ref=f2e238]:
+              - row [ref=f2e239]:
+                - cell "google-search" [ref=f2e240]
+                - cell [ref=f2e241]:
+                  - checkbox [checked] [ref=f2e242]
+                - cell [ref=f2e243]:
+                  - checkbox [ref=f2e244]
+                - cell [ref=f2e245]:
+                  - checkbox [ref=f2e246]
+                - cell [ref=f2e247]:
+                  - checkbox [ref=f2e248]
+              - row [ref=f2e249]:
+                - cell "ppt-builder" [ref=f2e250]
+                - cell [ref=f2e251]:
+                  - checkbox [ref=f2e252]
+                - cell [ref=f2e253]:
+                  - checkbox [ref=f2e254]
+                - cell [ref=f2e255]:
+                  - checkbox [ref=f2e256]
+                - cell [ref=f2e257]:
+                  - checkbox [checked] [ref=f2e258]
+          - button "Matrix speichern" [ref=f2e259] [cursor=pointer]
+        - generic [ref=f2e260]:
+          - generic [ref=f2e261]: Bibliothek (2)
+          - generic [ref=f2e262]:
+            - generic [ref=f2e263]:
+              - generic [ref=f2e264]: google-search
+              - generic [ref=f2e265]: Google-Suche über Chrome-DevTools-Protokoll (CDP) statt nativer web_search; liefert echte Ergebnis-Snippets inklusive Google-KI-Übersicht.
+              - generic [ref=f2e266]:
+                - generic [ref=f2e267]: eigene
+                - generic [ref=f2e268]: Research
+              - button "Löschen" [ref=f2e270] [cursor=pointer]
+            - generic [ref=f2e271]:
+              - generic [ref=f2e272]: ppt-builder
+              - generic [ref=f2e273]: Baut aus einem markdown-basierten Folien-Entwurf eine PPTX-kompatible Struktur (Titel-/Inhaltsfolien, Sprechernotizen), ohne das Lernziel zu verändern.
+              - generic [ref=f2e274]:
+                - generic [ref=f2e275]: Entwurf
+                - generic [ref=f2e276]: Material
+                - generic [ref=f2e277]: Renderer
+              - button "Löschen" [ref=f2e279] [cursor=pointer]
+        - generic [ref=f2e280]:
+          - generic [ref=f2e281]: Wirkung
+          - button "Denkraum neu laden" [ref=f2e282] [cursor=pointer]
+          - generic [ref=f2e283]: Skills und Zuweisungen wirken ab der nächsten Session (Komposition wird beim Session-Start fixiert). Ein laufendes Gespräch bleibt unverändert.
+      - generic [ref=f2e289]:
+        - generic [ref=f2e290]:
+          - textbox "Nachricht schreiben" [active] [ref=f2e293]
+          - generic [ref=f2e294]:
+            - generic [ref=f2e295]:
+              - button "Commands" [ref=f2e296] [cursor=pointer]
+              - 'button "Access mode, current: Schreiben im Denkraum" [ref=f2e301] [cursor=pointer]':
+                - generic [ref=f2e309]: Schreiben im Denkraum
+            - generic [ref=f2e313]:
+              - button "Select model, current granite4.2:3b" [ref=f2e316] [cursor=pointer]:
+                - generic [ref=f2e317]: granite4.2:3b
+              - button "11% of context used" [ref=f2e321] [cursor=pointer]
+              - button "Send message" [disabled] [ref=f2e325]
+        - generic [ref=f2e328]: 18 turns · 22 steps| LLM 4m22s · Tool call 45.9s| TTFT avg 4.7s · 72 tok/s| Cache hit 53%| Input 408K tok · Output 11.7K tok
+  - generic:
+    - generic:
+      - generic:
+        - generic [ref=f2e330]:
+          - generic "Details"
+          - button "Panel schließen" [ref=f2e331] [cursor=pointer]: ×
+        - generic [ref=f2e332]: Kein Aufruf ausgewählt.Klicke einen Tool-Call im Chat oder eine produzierte Datei, um sie hier zu sehen.
+  - status "Updates and compatibility" [ref=f2e75]:
+    - generic [ref=f2e76]:
+      - strong [ref=f2e77]: "New version available: 0.1.0-alpha.4.21"
+      - button "Later" [ref=f2e78] [cursor=pointer]
+    - generic [ref=f2e79]:
+      - strong [ref=f2e80]: 🟢 Current combination verified
+      - paragraph [ref=f2e81]: "DSH: 0.1.1-rc.2 · Up to date"
+      - paragraph [ref=f2e82]: "Codex Connect: Current 0.1.0-alpha.4.19 · Latest 0.1.0-alpha.4.21"
+      - paragraph [ref=f2e83]: This installed DSH and Codex Connect combination has been verified.
+    - paragraph [ref=f2e84]: 2 published release(s) behind your current version.
+    - generic [ref=f2e85]:
+      - strong [ref=f2e86]: What matters for you
+      - paragraph [ref=f2e88]: Added optional GPT Image generation in the Codex Connect settings and a preview card in the conversation.
+    - generic [ref=f2e89]:
+      - strong [ref=f2e90]: How to upgrade
+      - paragraph [ref=f2e91]: Copy this short request to your Agent. It can inspect the project instructions and choose the appropriate install or update method.
+      - generic [ref=f2e92]:
+        - code [ref=f2e93]: "Please open this project, check its latest version, and install or update the corresponding plugin in the current DSH Web profile: https://github.com/franksong2702/dsh-codex-connect"
+        - button "Copy for Agent" [ref=f2e94] [cursor=pointer]
+      - paragraph [ref=f2e95]: After the Agent reports completion, return here and check the installed version again.
+      - button "Done — check again" [ref=f2e97] [cursor=pointer]
+    - generic [ref=f2e98]:
+      - link "Open release page" [ref=f2e99] [cursor=pointer]:
+        - /url: https://github.com/franksong2702/dsh-codex-connect/releases/tag/v0.1.0-alpha.4.21
+      - button "View technical details" [ref=f2e100] [cursor=pointer]

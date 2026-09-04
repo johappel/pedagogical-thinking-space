@@ -9,59 +9,50 @@ ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_FILES = [
     "README.md",
     "AGENTS.md",
-    "CRITICAL_FRIEND.md",
-    "LEARNING_DESIGN.md",
+    "ARCHITECTURE.md",
     "ORCHESTRATION.md",
-    "GET_STARTED.md",
     "services/MEMORY.md",
     "services/KNOWLEDGE.md",
     "services/WORKER.md",
     "services/RENDERER.md",
+    "services/STEWARDSHIP.md",
     "specs/LEARNING_DESIGN_SCHEMA.md",
-    "specs/SERVICE_CONTRACTS.md",
-    "specs/SERVICE_REQUEST_SCHEMA.md",
-    "specs/EXECUTION_PROFILES.md",
-    "specs/RENDERING_SPEC_TEMPLATE.md",
-    "capabilities/README.md",
-    "capabilities/workers/README.md",
-    "capabilities/workers/IMAGE_GENERATION.md",
-    "capabilities/workers/DIAGRAM.md",
-    "capabilities/workers/METRICS.md",
-    "knowledge/README.md",
-    "knowledge/index.md",
+    "dsh-presets/pts-companion/agent.cordis.yml",
+    "dsh-presets/pts-companion/preset.yml",
+    "dsh-presets/pts-companion/companion-tool-boundary.mjs",
+    "dsh-plugins/pts-background-steward/lib/index.js",
+]
+
+FORBIDDEN_PATHS = [
+    "AGENTS_MINIMAL.md",
+    ".hermes.md",
+    "harness",
+    "hermes-profiles",
+    "capabilities/registry.yml",
+    "dsh-plugins/pts-background-steward/lib/capability-builder.js",
+    "dsh-plugins/pts-background-steward/lib/capability-lifecycle.js",
+    "dsh-plugins/pts-background-steward/lib/registry.js",
+    "dsh-plugins/pts-background-steward/lib/research-job.js",
+    "dsh-plugins/pts-background-steward/lib/service-coordinator.js",
+    "dsh-plugins/pts-background-steward/lib/service-request.js",
 ]
 
 MUST_CONTAIN = {
-    "AGENTS.md": [
-        "Service Request Discipline",
-        "Knowledge Capture Gate",
-        "Worker Capabilities",
-        "Import Export Discipline",
+    "AGENTS.md": ["Native DSH delegation", "pts_research", "pts_material", "Architecture guard"],
+    "ARCHITECTURE.md": ["PTS is a pedagogical metaharness", "DSH owns", "Deliberately absent"],
+    "dsh-presets/pts-companion/agent.cordis.yml": [
+        "toolName: pts_research",
+        "toolName: pts_material",
+        "toolName: pts_review",
+        "toolName: pts_renderer",
+        "pts-companion-tool-boundary",
+        "pts-worker-skill-scope",
     ],
-    "services/KNOWLEDGE.md": [
-        "OKF Compatibility",
-        "Knowledge Proposals",
-    ],
-    "specs/SERVICE_REQUEST_SCHEMA.md": [
-        "knowledge_output",
-        "capability",
-    ],
-    "capabilities/README.md": [
-        "Service Requests may reference a Capability.",
-    ],
-    "README.md": [
-        "Import and Sharing",
-        "services/MEMORY.md",
-        "GET_STARTED.md",
-    ],
-    "knowledge/README.md": [
-        "knowledge/_incoming/",
+    "dsh-plugins/pts-workspaces/lib/client.js": [
+        'agentPreset: "pts-companion"',
     ],
 }
 
-CODE_REF_PATTERN = re.compile(
-    r"`((?:services|specs|capabilities|knowledge|workspace|chat-only|hermes-profiles|implementation-examples)/[^`]+)`"
-)
 LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 
@@ -69,20 +60,8 @@ def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="ignore")
 
 
-def is_local_doc_target(target: str) -> bool:
-    if "://" in target:
-        return False
-    if target.startswith(("#", "mailto:", "data:")):
-        return False
-    return not target.startswith("/")
-
-
-def normalize_target(target: str) -> str:
-    return target.split("#", 1)[0].strip()
-
-
-def is_template_or_glob(target: str) -> bool:
-    return ("<" in target and ">" in target) or ("*" in target)
+def local_target(target: str) -> bool:
+    return "://" not in target and not target.startswith(("#", "mailto:", "data:", "/"))
 
 
 def main() -> int:
@@ -92,38 +71,24 @@ def main() -> int:
         if not (ROOT / rel).exists():
             errors.append(f"Missing required file: {rel}")
 
+    for rel in FORBIDDEN_PATHS:
+        if (ROOT / rel).exists():
+            errors.append(f"Forbidden competing runtime path: {rel}")
+
+    agents = ROOT / "AGENTS.md"
+    if agents.exists() and agents.stat().st_size > 8192:
+        errors.append(f"AGENTS.md exceeds 8192-byte prototype budget: {agents.stat().st_size}")
+
     markdown_files = sorted(path for path in ROOT.rglob("*.md") if "node_modules" not in path.parts)
     for path in markdown_files:
         rel = path.relative_to(ROOT).as_posix()
-        text = read_text(path)
-
-        # Match an old top-level `core/` PATH reference, but NOT `core/` inside a
-        # URL (e.g. .../api/core/bitstreams/...): a repo path is preceded by a
-        # boundary that is neither a word char nor a slash.
-        if re.search(r"(?<![\w/])core/", text):
+        content = read_text(path)
+        if re.search(r"(?<![\w/])core/", content):
             errors.append(f"{rel}: contains old reference 'core/'")
-        if "workspace//" in text:
-            errors.append(f"{rel}: contains broken path 'workspace//'")
-        if "rendered//" in text:
-            errors.append(f"{rel}: contains broken path 'rendered//'")
-        if "Get starded" in text:
-            errors.append(f"{rel}: contains typo 'Get starded'")
-
-        for match in CODE_REF_PATTERN.finditer(text):
-            target = normalize_target(match.group(1))
-            if is_template_or_glob(target):
+        for match in LINK_PATTERN.finditer(content):
+            target = match.group(1).split("#", 1)[0].strip()
+            if not target or not local_target(target) or "<" in target or "*" in target or target.endswith("/"):
                 continue
-            if target.endswith((".md", ".yml", ".yaml")) and not (ROOT / target).exists():
-                errors.append(f"{rel}: references missing path `{target}`")
-
-        for match in LINK_PATTERN.finditer(text):
-            target = normalize_target(match.group(1))
-            if not target or not is_local_doc_target(target):
-                continue
-            if is_template_or_glob(target) or target.endswith("/"):
-                continue
-            # Relative links resolve against the SOURCE FILE's directory, not the
-            # repo root; URLs were already excluded by is_local_doc_target.
             resolved = (path.parent / target).resolve()
             if target.endswith((".md", ".yml", ".yaml")) and not resolved.exists():
                 errors.append(f"{rel}: links to missing path {target}")
@@ -132,9 +97,9 @@ def main() -> int:
         path = ROOT / rel
         if not path.exists():
             continue
-        text = read_text(path)
+        content = read_text(path)
         for phrase in phrases:
-            if phrase not in text:
+            if phrase not in content:
                 errors.append(f"{rel}: missing required phrase '{phrase}'")
 
     if errors:

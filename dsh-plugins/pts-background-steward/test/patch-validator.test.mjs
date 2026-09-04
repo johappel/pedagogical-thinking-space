@@ -36,7 +36,6 @@ function validResult(overrides = {}) {
 		],
 		teacher_decisions: [],
 		next_turn_hint: { kind: 'open_question', content: 'Was erzählt der Jugendliche seinen Eltern?' },
-		service_intents: [],
 		forbidden_effects: [],
 		...overrides,
 	};
@@ -55,10 +54,11 @@ function assertSubset(node, at) {
 	if (node.type !== undefined) {
 		assert.ok(ALLOWED_TYPES.has(node.type), `${at}: Typ "${node.type}" ist kein Einzeltyp der Teilmenge`);
 	}
-	// Die erzwungene Teilmenge verlangt: enum/const nur zusammen mit type (oder oneOf).
-	// Ohne type lehnt dsh-tools das Schema beim Lauf ab (JsonSchemaError).
-	if ((node.enum !== undefined || node.const !== undefined) && node.type === undefined && node.oneOf === undefined) {
-		assert.fail(`${at}: enum/const brauchen ein type (oder oneOf) in der erzwungenen Teilmenge`);
+	if (node.enum !== undefined || node.const !== undefined) {
+		assert.ok(
+			node.type !== undefined || node.oneOf !== undefined,
+			`${at}: enum/const braucht type oder oneOf (dsh-tools Laufzeitvertrag)`,
+		);
 	}
 	if (node.oneOf !== undefined) {
 		assert.ok(Array.isArray(node.oneOf) && node.oneOf.length >= 2, `${at}: oneOf braucht mindestens zwei Zweige`);
@@ -128,13 +128,33 @@ test('Verfälschte oder unvollständige base-Hashes werden abgelehnt', () => {
 	assert.equal(r.ok, false);
 });
 
-test('Evidence außerhalb des Gesprächsfensters wird abgelehnt', () => {
+test('Beobachtungen mit ungültiger Evidence werden einzeln verworfen, nicht das Ergebnis', () => {
 	const result = validResult({
-		observations: [{ type: 'open_question', evidence: 'm99', content: 'x' }],
+		observations: [
+			{ type: 'open_question', evidence: 'm99', content: 'falscher Beleg' },
+			{ type: 'teacher_statement', evidence: 'm3', content: 'gültig bleibt' },
+			{ type: 'unbekannt', evidence: 'm3', content: 'unbekannter Typ' },
+			{ type: 'teacher_statement', evidence: 'm3', content: '' },
+		],
 	});
 	const r = validateResult(result, expectation());
+	assert.equal(r.ok, true);
+	assert.deepEqual(r.result.observations.map((o) => o.content), ['gültig bleibt']);
+	assert.equal(r.dropped.observations, 3);
+});
+
+test('teacher_decisions mit ungültiger Evidence werden einzeln verworfen (keine Autorisierung)', () => {
+	const result = validResult({
+		observations: [],
+		operations: [{ target: 'decisions.yml', kind: 'add-decision', value: 'X.', evidence: 'm3' }],
+		teacher_decisions: [{ evidence: 'm99', explicit: true }, { evidence: 'm3', explicit: false }],
+	});
+	const r = validateResult(result, expectation());
+	// Der add-decision wird separat abgelehnt (kein expliziter, belegter
+	// Entscheid überlebt), aber das ERGEBNIS selbst ist gültig.
 	assert.equal(r.ok, false);
-	assert.ok(r.errors.some((e) => e.includes('evidence')));
+	assert.ok(r.errors.some((e) => e.includes('decisions.yml')));
+	assert.equal(r.dropped.teacher_decisions, 1);
 });
 
 // ——— Politik: Entscheidungen, Board, Landschaft, Temporal ———
@@ -156,13 +176,84 @@ test('decisions.yml ohne explizite belegte Lehrkraftentscheidung wird abgelehnt'
 	assert.equal(r.ok, true);
 });
 
-test('temporal-plan.yml ist als Ziel tabu', () => {
-	const result = validResult({
+test('temporal-plan.yml wird nur als Vorschlag beschrieben', () => {
+	// Freie Section-Operation auf temporal-plan bleibt abgelehnt.
+	const free = validResult({
 		operations: [{ target: 'temporal-plan.yml', kind: 'set-section', section: 'Windows', value: 'x' }],
 	});
-	const r = validateResult(result, expectation());
+	let r = validateResult(free, expectation());
 	assert.equal(r.ok, false);
-	assert.ok(r.errors.some((e) => e.includes('temporal-plan')));
+
+	// Gültiger Fenster-Vorschlag mit Beleg besteht.
+	const window = validResult({
+		operations: [{
+			target: 'temporal-plan.yml', kind: 'propose-window',
+			title: 'Stunde 1 – Irritation', window_kind: 'lesson',
+			duration_minutes: 45, evidence: 'm3', value: 'Fenster aus dem Gespräch.',
+		}],
+	});
+	r = validateResult(window, expectation());
+	assert.equal(r.ok, true);
+});
+
+test('propose-window: ungültige Art, fehlender Beleg oder Dopplung wird abgelehnt', () => {
+	const badKind = validResult({
+		operations: [{
+			target: 'temporal-plan.yml', kind: 'propose-window',
+			title: 'X', window_kind: 'block', duration_minutes: 45, evidence: 'm3', value: 'Begründung.',
+		}],
+	});
+	let r = validateResult(badKind, expectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('window_kind')));
+
+	const noEvidence = validResult({
+		operations: [{
+			target: 'temporal-plan.yml', kind: 'propose-window',
+			title: 'X', window_kind: 'lesson', duration_minutes: 45, value: 'Begründung.',
+		}],
+	});
+	r = validateResult(noEvidence, expectation());
+	assert.equal(r.ok, true);
+	assert.deepEqual(r.result.operations, []);
+	assert.equal(r.dropped.operations, 1);
+
+	const two = validResult({
+		operations: [
+			{ target: 'temporal-plan.yml', kind: 'propose-window', title: 'A', window_kind: 'lesson', duration_minutes: 45, evidence: 'm3', value: 'x' },
+			{ target: 'temporal-plan.yml', kind: 'propose-window', title: 'B', window_kind: 'lesson', duration_minutes: 45, evidence: 'm3', value: 'x' },
+		],
+	});
+	r = validateResult(two, expectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('höchstens ein Fenster-Vorschlag')));
+});
+
+test('propose-placement: gültig mit Beleg; fehlende Pflichtfelder abgelehnt', () => {
+	const placement = validResult({
+		operations: [{
+			target: 'temporal-plan.yml', kind: 'propose-placement',
+			moment_id: 'lm-impuls', window_id: 'tw-01',
+			start_minute: 0, duration_minutes: 8,
+			dramaturgical_role: 'opening', mode: 'common',
+			evidence: 'm3', value: 'Platzierung aus dem Gespräch.',
+		}],
+	});
+	let r = validateResult(placement, expectation());
+	assert.equal(r.ok, true);
+
+	const missing = validResult({
+		operations: [{
+			target: 'temporal-plan.yml', kind: 'propose-placement',
+			moment_id: 'lm-impuls', window_id: 'tw-01',
+			start_minute: 0, duration_minutes: 8,
+			dramaturgical_role: 'opening',
+			evidence: 'm3', value: 'Platzierung.',
+		}],
+	});
+	r = validateResult(missing, expectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('mode')));
 });
 
 test('set-section gilt nur für learning-design.md', () => {
@@ -197,6 +288,74 @@ test('unvollständiger Lernmoment-Entwurf wird abgelehnt; vollständiger besteht
 	assert.equal(r.ok, true);
 });
 
+test('update-draft-moment erlaubt belegte Teilfortschreibung vorhandener Entwürfe', () => {
+	const good = validResult({ operations: [{
+		target: 'learning-landscape.md', kind: 'update-draft-moment', moment_id: 'lm-a',
+		moment_function: 'Vom Reflektieren ins Handeln führen.', value: 'Funktion konkretisiert.', evidence: 'm3',
+	}] });
+	let r = validateResult(good, expectation());
+	assert.equal(r.ok, true);
+	const emptyPatch = validResult({ operations: [{
+		target: 'learning-landscape.md', kind: 'update-draft-moment', moment_id: 'lm-a',
+		value: 'ohne Feld', evidence: 'm3',
+	}] });
+	r = validateResult(emptyPatch, expectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('mindestens ein Moment-Feld')));
+});
+
+test('fremde Evidence verwirft nur die betroffene Operation, nicht den gültigen Rest', () => {
+	const mixed = validResult({ operations: [
+		{ target: 'learning-design.md', kind: 'set-section', section: 'Current Status', value: 'Gültiger Stand.' },
+		{ target: 'learning-landscape.md', kind: 'update-draft-moment', moment_id: 'lm-a', moment_function: 'x', value: 'x', evidence: 'm99' },
+	] });
+	const r = validateResult(mixed, expectation());
+	assert.equal(r.ok, true);
+	assert.equal(r.result.operations.length, 1);
+	assert.equal(r.result.operations[0].kind, 'set-section');
+	assert.equal(r.dropped.operations, 1);
+});
+
+test('add-draft-transition: gültig bei vorhandenen Momenten; fehlende Felder abgelehnt', () => {
+	const valid = validResult({
+		operations: [{
+			target: 'learning-landscape.md', kind: 'add-draft-transition',
+			from_id: 'lm-a', to_id: 'lm-b', transition_type: 'required',
+			value: 'Erst die Irritation, dann die Position.', evidence: 'm3',
+		}],
+	});
+	let r = validateResult(valid, expectation());
+	assert.equal(r.ok, true);
+
+	const noTo = validResult({
+		operations: [{
+			target: 'learning-landscape.md', kind: 'add-draft-transition',
+			from_id: 'lm-a', transition_type: 'required', value: 'x', evidence: 'm3',
+		}],
+	});
+	r = validateResult(noTo, expectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('to_id')));
+
+	const badType = validResult({
+		operations: [{
+			target: 'learning-landscape.md', kind: 'add-draft-transition',
+			from_id: 'lm-a', to_id: 'lm-b', transition_type: 'chaos', value: 'x', evidence: 'm3',
+		}],
+	});
+	r = validateResult(badType, expectation());
+	assert.equal(r.ok, false);
+
+	const self = validResult({
+		operations: [{
+			target: 'learning-landscape.md', kind: 'add-draft-transition',
+			from_id: 'lm-a', to_id: 'lm-a', transition_type: 'required', value: 'x', evidence: 'm3',
+		}],
+	});
+	r = validateResult(self, expectation());
+	assert.equal(r.ok, false);
+});
+
 test('höchstens ein Planning-Board-Vorschlag pro Lauf', () => {
 	const two = validResult({
 		operations: [
@@ -209,6 +368,65 @@ test('höchstens ein Planning-Board-Vorschlag pro Lauf', () => {
 	assert.ok(r.errors.some((e) => e.includes('höchstens ein Planning-Board-Vorschlag')));
 });
 
+test('settle-board-item braucht im selben Lauf eine dokumentierende Operation (Anti-Blur)', () => {
+	const settleOnly = validResult({
+		operations: [
+			{ target: 'planning-board.yml', kind: 'settle-board-item', item_id: 'pb-1', value: 'decisions.yml#irgendwas', evidence: 'm3' },
+		],
+	});
+	let r = validateResult(settleOnly, expectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('settle-board-item braucht im selben Lauf')));
+
+	// Mit dokumentierender Op (add-design-accent) im selben Lauf: gültig.
+	const withDoc = validResult({
+		operations: [
+			{ target: 'learning-design.md', kind: 'add-design-accent', title: 'Hoffnung als Grund statt Projektion', value: 'Christliche Hoffnung gründet im Kreuz.', evidence: 'm3' },
+			{ target: 'planning-board.yml', kind: 'settle-board-item', item_id: 'pb-1', value: 'learning-design.md#educational-intention', evidence: 'm3' },
+		],
+	});
+	r = validateResult(withDoc, expectation());
+	assert.equal(r.ok, true);
+});
+
+test('add-design-accent: Evidence-Pflicht, Ziel-Datei, höchstens drei pro Lauf', () => {
+	const good = validResult({
+		operations: [
+			{ target: 'learning-design.md', kind: 'add-design-accent', title: 'Leitfrage als roter Faden', value: 'Wovon hoffst du, wenn die Fakten dagegen sprechen?', evidence: 'm3' },
+		],
+	});
+	let r = validateResult(good, expectation());
+	assert.equal(r.ok, true);
+
+	const noEvidence = validResult({
+		operations: [
+			{ target: 'learning-design.md', kind: 'add-design-accent', title: 't', value: 'x', evidence: 'm99' },
+		],
+	});
+	r = validateResult(noEvidence, expectation());
+	assert.equal(r.ok, true);
+	assert.deepEqual(r.result.operations, []);
+	assert.equal(r.dropped.operations, 1);
+
+	const wrongTarget = validResult({
+		operations: [
+			{ target: 'planning-board.yml', kind: 'add-design-accent', title: 't', value: 'x', evidence: 'm3' },
+		],
+	});
+	r = validateResult(wrongTarget, expectation());
+	assert.equal(r.ok, false);
+
+	const four = validResult({
+		operations: [1, 2, 3, 4].map((i) => ({
+			target: 'learning-design.md', kind: 'add-design-accent',
+			title: 'Leitidee ' + i, value: 'Text ' + i, evidence: 'm3',
+		})),
+	});
+	r = validateResult(four, expectation());
+	assert.equal(r.ok, false);
+	assert.ok(r.errors.some((e) => e.includes('höchstens drei Leitideen-Akzente')));
+});
+
 test('Wertlängengrenzen werden durchgesetzt', () => {
 	const long = 'x'.repeat(4001);
 	const result = validResult({
@@ -218,124 +436,3 @@ test('Wertlängengrenzen werden durchgesetzt', () => {
 	assert.equal(r.ok, false);
 	assert.ok(r.errors.some((e) => e.includes('4000')));
 });
-
-// ——— Politik: Service-Intents (begrenzter Knowledge-Request) ———
-
-function validIntent(overrides = {}) {
-	return {
-		task: 'verify_curriculum_alignment',
-		reason: 'Die Lehrkraft fragt, ob das Thema in die 11. Klasse in NRW passt.',
-		authorization: { type: 'implied_bounded_request', evidence: 'm2' },
-		scope: {
-			jurisdiction: 'NRW', subject: 'Religionslehre', phase: 'gymnasiale Oberstufe',
-			grade: '11', topic: 'Utopie und Hoffnung', denomination: 'unknown',
-		},
-		return_to: 'critical_friend',
-		...overrides,
-	};
-}
-
-function intentExpectation(overrides = {}) {
-	return {
-		sessionId: 'session-123', turn: 42, hashes: HASHES,
-		messageIds: new Set(['m1', 'm2', 'm3']),
-		userMessageIds: new Set(['m2']),
-		allowedTasks: new Set(['verify_curriculum_alignment']),
-		...overrides,
-	};
-}
-
-test('ein autorisierter, belegter Knowledge-Request besteht', () => {
-	const r = validateResult(validResult({ service_intents: [validIntent()] }), intentExpectation());
-	assert.equal(r.ok, true);
-	assert.equal(r.result.service_intents.length, 1);
-});
-
-test('mehr als ein Service-Intent pro Lauf wird abgelehnt', () => {
-	const r = validateResult(validResult({ service_intents: [validIntent(), validIntent()] }), intentExpectation());
-	assert.equal(r.ok, false);
-	assert.ok(r.errors.some((e) => e.includes('höchstens ein')));
-});
-
-test('Evidence "context" genügt für einen Service-Intent nicht', () => {
-	const intent = validIntent({ authorization: { type: 'implied_bounded_request', evidence: 'context' } });
-	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
-	assert.equal(r.ok, false);
-	assert.ok(r.errors.some((e) => e.includes('belegte Nachricht der Lehrkraft')));
-});
-
-test('Evidence einer Assistenten-Nachricht (nicht Lehrkraft) wird abgelehnt', () => {
-	const intent = validIntent({ authorization: { type: 'implied_bounded_request', evidence: 'm3' } });
-	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation({ userMessageIds: new Set(['m2']) }));
-	assert.equal(r.ok, false);
-	assert.ok(r.errors.some((e) => e.includes('belegte Nachricht der Lehrkraft')));
-});
-
-test('offener Scope (fehlendes Pflichtfeld) wird abgelehnt', () => {
-	const intent = validIntent();
-	delete intent.scope.grade;
-	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
-	assert.equal(r.ok, false);
-	assert.ok(r.errors.some((e) => e.includes('scope.grade')));
-});
-
-test('personenbezogenes/fremdes Scope-Feld wird abgelehnt', () => {
-	const intent = validIntent();
-	intent.scope.student_name = 'Max Mustermann';
-	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
-	assert.equal(r.ok, false);
-	assert.ok(r.errors.some((e) => e.includes('student_name')));
-});
-
-test('unerlaubte Task wird abgelehnt', () => {
-	const intent = validIntent({ task: 'compare_pedagogical_approaches' });
-	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
-	assert.equal(r.ok, false);
-});
-
-test('unbekannte Konfession blockiert den Intent nicht', () => {
-	const intent = validIntent({ scope: { ...validIntent().scope, denomination: 'unknown' } });
-	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
-	assert.equal(r.ok, true);
-});
-
-// ——— Politik: expected_output (Speicherziel) ———
-
-test('Intent ohne expected_output ist gültig (Default Draft)', () => {
-	const intent = validIntent();
-	assert.equal(intent.expected_output, undefined);
-	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
-	assert.equal(r.ok, true);
-});
-
-test('expected_output knowledge_proposal mit knowledge-proposals/-Ort besteht', () => {
-	const intent = validIntent({
-		expected_output: { type: 'knowledge_proposal', location: 'workspace/testraum/knowledge-proposals/' },
-	});
-	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
-	assert.equal(r.ok, true);
-	assert.equal(r.result.service_intents[0].expected_output.type, 'knowledge_proposal');
-});
-
-test('expected_output knowledge_proposal ohne location wird abgelehnt', () => {
-	const intent = validIntent({ expected_output: { type: 'knowledge_proposal' } });
-	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
-	assert.equal(r.ok, false);
-	assert.ok(r.errors.some((e) => e.includes('location')));
-});
-
-test('expected_output knowledge_proposal darf nicht in kuratiertes knowledge/ schreiben', () => {
-	const intent = validIntent({ expected_output: { type: 'knowledge_proposal', location: 'knowledge/curricula/x.md' } });
-	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
-	assert.equal(r.ok, false);
-	assert.ok(r.errors.some((e) => e.includes('knowledge-proposals/')));
-});
-
-test('unzulässiger expected_output.type wird abgelehnt', () => {
-	const intent = validIntent({ expected_output: { type: 'curated_knowledge', location: 'knowledge-proposals/' } });
-	const r = validateResult(validResult({ service_intents: [intent] }), intentExpectation());
-	assert.equal(r.ok, false);
-	assert.ok(r.errors.some((e) => e.includes('expected_output.type')));
-});
-
-
