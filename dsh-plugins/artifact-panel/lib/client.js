@@ -198,9 +198,11 @@ window.__ModuleLoader__.load({
 		// tool-result text for PTS artifact paths and merges them into the chips.
 		// ------------------------------------------------------------------
 		const PTS_PRODUCED_KEY = "pts-produced";
-		// Matches PTS artifact paths under the known dirs AND bare artifact file
-		// names (e.g. background jobs dropping files in the Denkraum root).
-		const PTS_ARTIFACT_LOCATION_RE = /(?:(?:materials|drafts|knowledge-proposals|rendered)[\\/][^\s`()\[\]<>,;]+|[^\s`()/\\\[\]<>,;]+)\.(?:md|markdown|pdf|png|jpg|jpeg|gif|webp|svg|html|htm)\b/gi;
+		// Only accept workspace-relative artifact locations.  Tool result text can
+		// also contain attachment metadata from other apps (for example a local
+		// WhatsApp contact picture); a generic "*.png" match must never turn such
+		// metadata into a PTS artifact chip or preview.
+		const PTS_ARTIFACT_LOCATION_RE = /(?:^|[^A-Za-z0-9_-])((?:materials|drafts|knowledge-proposals|rendered)[\\/][^\s`()\[\]<>,;]+\.(?:md|markdown|pdf|png|jpg|jpeg|gif|webp|svg|html|htm))\b/gi;
 		// Common repo/control documents that are NOT produced PTS artifacts.
 		const NON_ARTIFACT_RE = /^(readme|license|changelog|contributing|agents|manifest|systemic_stance|critical_friend|learning_design|orchestration|getting_started|tests?)\b/i;
 		function extractArtifactPaths(text) {
@@ -209,7 +211,7 @@ window.__ModuleLoader__.load({
 			const re = new RegExp(PTS_ARTIFACT_LOCATION_RE.source, "gi");
 			let m;
 			while ((m = re.exec(String(text))) !== null) {
-				const raw = normPath(m[0].replace(/[.,;:!?)\]]+$/, ""));
+				const raw = normPath(m[1].replace(/[.,;:!?)\]]+$/, ""));
 				const base = raw.slice(raw.lastIndexOf("/") + 1);
 				if (NON_ARTIFACT_RE.test(base)) continue;
 				if (seen.has(raw)) continue;
@@ -217,6 +219,10 @@ window.__ModuleLoader__.load({
 				out.push(raw);
 			}
 			return out;
+		}
+		function isPtsArtifactPath(rawPath) {
+			const path = normPath(rawPath).replace(/^\.\//, "");
+			return /^(?:materials|drafts|knowledge-proposals|rendered)\//i.test(path) && PREVIEW_EXTS.indexOf(extOf(path)) >= 0;
 		}
 		const ptsProducedDefinition = {
 			kind: "pts-produced",
@@ -894,8 +900,14 @@ window.__ModuleLoader__.load({
 				pts = null;
 			}
 			const produced = [];
-			if (data !== null && data !== undefined && Array.isArray(data.produced)) produced.push(...data.produced);
-			if (pts !== null && pts !== undefined && Array.isArray(pts.produced)) produced.push(...pts.produced);
+			// DSH's generic deliverables can name editor and remote-tool attachments.
+			// Accept them only when they are PTS workspace output paths.
+			if (data !== null && data !== undefined && Array.isArray(data.produced)) {
+				produced.push(...data.produced.filter(function(entry) { return entry !== null && isPtsArtifactPath(entry.path); }));
+			}
+			if (pts !== null && pts !== undefined && Array.isArray(pts.produced)) {
+				produced.push(...pts.produced.filter(function(entry) { return entry !== null && isPtsArtifactPath(entry.path); }));
+			}
 			// Deterministic fallback: any artifact path the Companion named in the
 			// closing message becomes a chip too (seq 0 so it is never dropped by
 			// the late-settlement filter for background subagent results).
