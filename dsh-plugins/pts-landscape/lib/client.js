@@ -115,6 +115,23 @@ window.__ModuleLoader__.load({
 .pls-form-stack .pls-input, .pls-form-stack .pls-select { width:100%; box-sizing:border-box; }
 .pls-input-multiline { width:100%; min-height:72px; resize:vertical; font-family:inherit; font-size:12.5px; line-height:1.5; background:transparent; color:inherit; border:1px solid rgba(128,128,128,.3); border-radius:6px; padding:6px 8px; box-sizing:border-box; }
 .pls-overlay.pls-overlay-top { z-index:1260; }
+.pls-companion-toggle { margin-left:auto; }
+.pls-companion-dock { position:fixed; right:22px; bottom:22px; z-index:1250; width:min(44vw, 580px); min-width:330px; min-height:260px; height:52vh; overflow:hidden; display:flex; flex-direction:column; background:var(--editor-bg,#1e1e1e); border:1px solid rgba(128,128,128,.5); border-radius:12px; box-shadow:0 14px 38px rgba(0,0,0,.42); }
+.pls-companion-resize { position:absolute; left:0; top:0; width:18px; height:18px; cursor:nwse-resize; z-index:2; touch-action:none; }
+.pls-companion-resize::before { content:""; position:absolute; left:4px; top:4px; width:8px; height:8px; border-left:2px solid rgba(128,128,128,.72); border-top:2px solid rgba(128,128,128,.72); }
+.pls-companion-resize:hover::before { border-color:#61afef; }
+.pls-companion-head { display:flex; align-items:center; gap:8px; padding:9px 11px; border-bottom:1px solid rgba(128,128,128,.25); flex:0 0 auto; }
+.pls-companion-title { font-weight:650; font-size:12.5px; flex:1; }
+.pls-companion-hint { font-size:11px; opacity:.62; }
+.pls-companion-stream { flex:1; min-height:0; overflow:auto; padding:10px 11px; display:flex; flex-direction:column; gap:8px; }
+.pls-companion-row { max-width:94%; border:1px solid rgba(128,128,128,.25); border-radius:8px; padding:7px 9px; font-size:12.5px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere; }
+.pls-companion-row-user { align-self:flex-end; border-color:rgba(97,175,239,.55); background:rgba(97,175,239,.08); }
+.pls-companion-row-assistant { align-self:flex-start; background:rgba(128,128,128,.07); }
+.pls-companion-role { display:block; font-size:10.5px; opacity:.62; margin-bottom:2px; }
+.pls-companion-empty { margin:auto; max-width:320px; text-align:center; font-size:12.5px; line-height:1.55; opacity:.65; }
+.pls-companion-compose { border-top:1px solid rgba(128,128,128,.25); padding:8px; display:flex; gap:7px; align-items:flex-end; flex:0 0 auto; }
+.pls-companion-compose textarea { flex:1; min-height:48px; max-height:150px; resize:vertical; }
+@media (max-width:720px) { .pls-companion-dock { left:10px; right:10px; bottom:10px; width:auto; min-width:0; height:48vh; } }
 `;
 
 		const STYLE_TAG_ID = "pts-landscape-css";
@@ -171,6 +188,77 @@ window.__ModuleLoader__.load({
 		}
 
 		const TRANSITION_TYPE_OPTIONS = [["required", "Reihenfolge (nacheinander)"], ["prerequisite", "Voraussetzung (baut auf)"], ["choice", "Wahl (alternative Wege)"], ["parallel", "Parallel (gleichzeitig, Gruppen)"], ["meeting_point", "Treffpunkt (läuft zusammen)"], ["return", "Zurück (Schleife)"]];
+
+		// This is a second presentation of the existing DSH chat, not a second
+		// conversation or message store. Only human and Companion text belongs in
+		// the contextual dock; tool/process detail remains in the full chat view.
+		function chatNodeText(node) {
+			if (node === null || node === undefined || node.data === undefined) return null;
+			if (node.kind === "user" || node.kind === "steering") {
+				const content = Array.isArray(node.data.content) ? node.data.content : [];
+				const text = content.filter(function(block) { return block && block.type === "text" && typeof block.text === "string"; }).map(function(block) { return block.text; }).join("\n").trim();
+				return text === "" ? null : { role: "Du", kind: "user", text: text };
+			}
+			if (node.kind === "assistant-step") {
+				const blocks = Array.isArray(node.data.blocks) ? node.data.blocks : [];
+				const text = blocks.filter(function(block) { return block && block.kind === "text" && typeof block.text === "string"; }).map(function(block) { return block.text; }).join("\n").trim();
+				return text === "" ? null : { role: "PTS Companion", kind: "assistant", text: text };
+			}
+			return null;
+		}
+
+		function CompanionDock(props) {
+			const source = props.chatSource;
+			const snapshot = React.useSyncExternalStore(source.subscribe, source.getSnapshot, source.getSnapshot);
+			const draftState = React.useState(props.initialDraft || "");
+			const draft = draftState[0];
+			const setDraft = draftState[1];
+			const streamRef = React.useRef(null);
+			const dockRef = React.useRef(null);
+			React.useEffect(function() { setDraft(props.initialDraft || ""); }, [props.initialDraft, props.requestId]);
+			const order = snapshot && Array.isArray(snapshot.order) ? snapshot.order : [];
+			const nodes = snapshot && snapshot.nodes;
+			const rows = order.map(function(key) { return nodes && typeof nodes.get === "function" ? chatNodeText(nodes.get(key)) : null; }).filter(function(row) { return row !== null; }).slice(-24);
+			React.useEffect(function() { if (streamRef.current !== null) streamRef.current.scrollTop = streamRef.current.scrollHeight; }, [rows.length, rows.length > 0 ? rows[rows.length - 1].text : ""]);
+			function submit() {
+				const text = draft.trim();
+				const actions = props.inputActions;
+				if (text === "" || actions === undefined || typeof actions.setDraft !== "function" || typeof actions.submit !== "function") return;
+				actions.setDraft(text);
+				actions.submit();
+				setDraft("");
+			}
+			function startResize(event) {
+				if (event.button !== 0 || dockRef.current === null) return;
+				event.preventDefault();
+				const dock = dockRef.current;
+				const rect = dock.getBoundingClientRect();
+				const startX = event.clientX;
+				const startY = event.clientY;
+				function move(next) {
+					const width = Math.max(330, Math.min(window.innerWidth - 32, rect.width + startX - next.clientX));
+					const height = Math.max(260, Math.min(window.innerHeight - 32, rect.height + startY - next.clientY));
+					dock.style.width = Math.round(width) + "px";
+					dock.style.height = Math.round(height) + "px";
+				}
+				function stop() { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", stop); }
+				window.addEventListener("pointermove", move);
+				window.addEventListener("pointerup", stop, { once: true });
+			}
+			return React.createElement("section", { className: "pls-companion-dock", ref: dockRef, "aria-label": "Gespräch mit dem PTS Companion" },
+				React.createElement("span", { className: "pls-companion-resize", title: "Fenstergröße ändern", onPointerDown: startResize }),
+				React.createElement("div", { className: "pls-companion-head" },
+					React.createElement("span", { className: "pls-companion-title" }, "PTS Companion"),
+					React.createElement("span", { className: "pls-companion-hint" }, "Größe an der Ecke anpassen"),
+					React.createElement("button", { className: "pls-btn", onClick: props.onOpenChat, title: "Gespräch im vollständigen Chat öffnen" }, "Chat groß öffnen"),
+					React.createElement("button", { className: "pls-btn", onClick: props.onClose, title: "Companion-Fenster schließen" }, "✕")),
+				React.createElement("div", { className: "pls-companion-stream", ref: streamRef, "aria-live": "polite" },
+					rows.length === 0 ? React.createElement("div", { className: "pls-companion-empty" }, "Hier erscheint derselbe Gesprächsverlauf wie im Chat. Du kannst den Lernmoment dabei geöffnet lassen.")
+						: rows.map(function(row, i) { return React.createElement("div", { key: i, className: "pls-companion-row pls-companion-row-" + row.kind }, React.createElement("span", { className: "pls-companion-role" }, row.role), row.text); })),
+				React.createElement("div", { className: "pls-companion-compose" },
+					React.createElement("textarea", { className: "pls-input-multiline", value: draft, placeholder: "Zum geöffneten Lernmoment schreiben …", onChange: function(e) { setDraft(e.target.value); }, onKeyDown: function(e) { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); submit(); } } }),
+					React.createElement("button", { className: "pls-btn pls-btn-edit", disabled: draft.trim() === "", onClick: submit, title: "Nachricht abschicken" }, "Senden")));
+		}
 
 		function momentEditorLabel(matIndex, path) {
 			const entry = Array.isArray(matIndex) ? matIndex.find(function(x) { return x.path === path; }) : undefined;
@@ -604,6 +692,28 @@ window.__ModuleLoader__.load({
 			const matIndexState = React.useState([]);
 			const matIndex = matIndexState[0];
 			const setMatIndex = matIndexState[1];
+			const companionState = React.useState({ open: false, draft: "", request: 0 });
+			const companion = companionState[0];
+			const setCompanion = companionState[1];
+			// The resident bottom composer can also submit while this view is open.
+			// As soon as that canonical chat changes, reveal its stream here instead
+			// of making the teacher discover the Chat tab after the fact.
+			React.useEffect(function() {
+				const source = props.chatSource;
+				if (source === undefined || typeof source.getSnapshot !== "function" || typeof source.subscribe !== "function") return undefined;
+				let previous = "";
+				function signature() {
+					const snapshot = source.getSnapshot();
+					return snapshot && Array.isArray(snapshot.order) ? snapshot.order.join("|") : "";
+				}
+				previous = signature();
+				return source.subscribe(function() {
+					const next = signature();
+					if (next === previous) return;
+					previous = next;
+					setCompanion(function(current) { return current.open ? current : { open: true, draft: current.draft, request: current.request }; });
+				});
+			}, [props.chatSource]);
 
 			function ensureMatIndex() {
 				fetch("/api/pts-landscape/materials?sessionId=" + encodeURIComponent(sessionId === null ? "" : sessionId))
@@ -991,6 +1101,7 @@ window.__ModuleLoader__.load({
 				const inputActions = props !== null && props !== undefined ? props.inputActions : undefined;
 				if (inputActions !== undefined && typeof inputActions.setDraft === "function") {
 					inputActions.setDraft(text);
+					setCompanion({ open: true, draft: text, request: companion.request + 1 });
 					setFeedback(msg);
 				} else {
 					copyText(text);
@@ -1028,6 +1139,7 @@ window.__ModuleLoader__.load({
 				const inputActions = props !== null && props !== undefined ? props.inputActions : undefined;
 				if (inputActions !== undefined && typeof inputActions.setDraft === "function") {
 					inputActions.setDraft(text);
+					setCompanion({ open: true, draft: text, request: companion.request + 1 });
 					setFeedback("Prompt für „" + window.title + "“ ins Chat-Input übernommen — dort abschicken, der Companion beauftragt den Material-Worker.");
 				} else {
 					copyText(text);
@@ -1201,6 +1313,7 @@ window.__ModuleLoader__.load({
 						React.createElement("span", null, moments.length + " Lernmomente"),
 						React.createElement("span", null, windows.length + " Stundenfenster"),
 						React.createElement("span", null, decisionCount + " Entscheidungen")),
+					React.createElement("button", { className: "pls-btn pls-companion-toggle", onClick: function() { setCompanion({ open: true, draft: companion.draft, request: companion.request }); } }, "PTS Companion"),
 					React.createElement("button", { className: "pls-btn", onClick: load }, "Aktualisieren")),
 				React.createElement("div", { className: "pls-path" }, data.root || ""),
 				errEls.length > 0 ? errEls : null,
@@ -1226,6 +1339,17 @@ window.__ModuleLoader__.load({
 						winEls.length === 0
 							? React.createElement("div", { className: "pls-empty" }, "Noch keine Stundenfenster. Lege ein Fenster an (+ Stundenfenster) und ziehe Lernmomente hierher.")
 							: React.createElement("div", { className: "pls-wins" }, winEls))),
+
+				companion.open
+					? React.createElement(CompanionDock, {
+						chatSource: props.chatSource,
+						inputActions: props.inputActions,
+						initialDraft: companion.draft,
+						requestId: companion.request,
+						onClose: function() { setCompanion({ open: false, draft: companion.draft, request: companion.request }); },
+						onOpenChat: function() { if (typeof props.openView === "function") props.openView("chat"); },
+					})
+					: null,
 
 				// ——— Editor overlay ———
 				editor !== null
@@ -1505,12 +1629,27 @@ window.__ModuleLoader__.load({
 		}
 
 		return {
-			inject: ["slots"],
+			inject: ["slots", "sessions", "uiConversation"],
 			apply(ctx) {
+				const emptySnapshot = { order: [], nodes: { get: function() { return undefined; } } };
+				const emptySource = { getSnapshot: function() { return emptySnapshot; }, subscribe: function() { return function() {}; } };
+				const chatSources = new Map();
+				function chatSource(sessionId) {
+					if (typeof sessionId !== "string") return emptySource;
+					if (chatSources.has(sessionId)) return chatSources.get(sessionId);
+					try {
+						const binding = ctx.sessions.binding(sessionId);
+						if (binding === undefined) return emptySource;
+						const target = ctx.uiConversation.binding(binding).target("chat");
+						const source = { getSnapshot: function() { return target.getSnapshot() || emptySnapshot; }, subscribe: function(listener) { return target.subscribe(listener); } };
+						chatSources.set(sessionId, source);
+						return source;
+					} catch (e) { return emptySource; }
+				}
 				ctx.slots.inject("conversation.view", function() {
 					ctx.slots.register(
 						{ name: "conversation.view", id: "landscape", order: 30, label: "Lernlandschaft" },
-						function(props) { return React.createElement(LandscapeView, props); },
+						function(props) { return React.createElement(LandscapeView, Object.assign({}, props, { chatSource: chatSource(props.sessionId) })); },
 					);
 				});
 			},
