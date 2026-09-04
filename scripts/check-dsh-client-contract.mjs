@@ -15,6 +15,7 @@ import vm from 'node:vm';
 const root = resolve(import.meta.dirname, '..');
 const pluginsDir = resolve(root, 'dsh-plugins');
 const PLATFORM_SEEDS = new Set(['react']);
+const REMOVED_CLIENT_SERVICES = new Set(['conversationEvents']);
 const failures = [];
 let checked = 0;
 
@@ -77,6 +78,13 @@ for (const name of readdirSync(pluginsDir).sort()) {
   const registeredId = source.match(/\bid\s*:\s*["']([^"']+)["']/)?.[1];
   if (registeredId !== manifest.name) {
     fail(`${subject}: factory id ${JSON.stringify(registeredId)} must equal package name`);
+  }
+
+  for (const removed of REMOVED_CLIENT_SERVICES) {
+    const injection = new RegExp(`(?:const|let|var)\\s+inject\\s*=\\s*\\[[^\\]]*["']${removed}["']`, 's');
+    if (injection.test(source)) {
+      fail(`${subject}: ${removed} was removed in DSH 0.1.2; use uiConversation.events instead`);
+    }
   }
 
   const externals = new Set(client.external ?? []);

@@ -1273,7 +1273,10 @@ window.__ModuleLoader__.load({
 		// ------------------------------------------------------------------
 		// Registration
 		// ------------------------------------------------------------------
-		const inject = ["slots", "conversationEvents"];
+		// DSH 0.1.2 exposes the event registry below the aggregate
+		// `uiConversation` service. `conversationEvents` was the pre-0.1.2
+		// standalone service name, so listing it here leaves the entry pending.
+		const inject = ["slots", "uiConversation"];
 
 		function apply(ctx) {
 			layoutService = ctx.get("layout");
@@ -1283,7 +1286,7 @@ window.__ModuleLoader__.load({
 			// files created by pts_material / pts_edit / pts_document /
 			// pts_renderer also become produced chips + clickable mentions.
 			try {
-				ctx.conversationEvents.register(ptsProducedDefinition);
+				ctx.uiConversation.events.register(ptsProducedDefinition);
 			} catch (e) {
 				console.error("[pts-artifact-panel] pts-produced accumulator nicht registrierbar:", e);
 			}

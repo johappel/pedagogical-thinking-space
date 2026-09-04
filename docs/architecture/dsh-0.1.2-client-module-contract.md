@@ -54,6 +54,12 @@ Factories are materialized lazily. `require()` can resolve only, in this order:
 Anything else produces the deliberately loud `missed the module table` error.
 It is not a general browser module resolver.
 
+Client services also follow the target package's public aggregate names. For
+conversation accumulators, DSH 0.1.2 provides `uiConversation`; register through
+`ctx.uiConversation.events.register(...)`. The pre-0.1.2 standalone
+`conversationEvents` injection remains permanently pending and must not appear
+in a client factory's `inject` array.
+
 ## Dependencies and bundling
 
 `dsh.client.external` declares client-module package requests that must be
