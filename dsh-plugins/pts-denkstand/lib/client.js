@@ -1077,7 +1077,7 @@ window.__ModuleLoader__.load({
 			const setDraftFn = function(text) {
 				if (inputActions !== undefined && typeof inputActions.setDraft === "function") {
 					inputActions.setDraft(text);
-					switchToChat();
+					window.dispatchEvent(new CustomEvent("pts:open-companion"));
 					setFeedback("Prompt ins Chat-Input übernommen — dort kannst du ihn senden.");
 				} else {
 					copyText(text);

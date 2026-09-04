@@ -61,7 +61,17 @@ window.__ModuleLoader__.load({
 			);
 		}
 
-		const inject = ["slots"];
+		const inject = ["slots", "sessions", "uiConversation"];
+
+		function chatText(node) {
+			if (!node || !node.data) return null;
+			if (node.kind === "user") { const a = Array.isArray(node.data.content) ? node.data.content : []; const t = a.filter((b) => b && b.type === "text").map((b) => b.text || "").join("\n").trim(); return t ? { who: "Du", text: t } : null; }
+			if (node.kind === "assistant-step") { const a = Array.isArray(node.data.blocks) ? node.data.blocks : []; const t = a.filter((b) => b && b.kind === "text").map((b) => b.text || "").join("\n").trim(); return t ? { who: "PTS Companion", text: t } : null; }
+			return null;
+		}
+		function markdownHtml(text) {
+			return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/^### (.+)$/gm, "<h4>$1</h4>").replace(/^## (.+)$/gm, "<h3>$1</h3>").replace(/^# (.+)$/gm, "<h2>$1</h2>").replace(/^[-*] (.+)$/gm, "• $1").replace(/\n/g, "<br>");
+		}
 
 		// ------------------------------------------------------------------
 		// PTS language assertion (start state / composer copy).
@@ -162,6 +172,36 @@ window.__ModuleLoader__.load({
 		}
 
 		function apply(ctx) {
+			const empty = { getSnapshot: () => ({ order: [], nodes: { get: () => undefined } }), subscribe: () => () => {} };
+			function CompanionPopover() {
+				const session = React.useSyncExternalStore(ctx.sessions.list.subscribe, ctx.sessions.list.getSnapshot, ctx.sessions.list.getSnapshot);
+				const sessionId = session.current;
+				let source = empty;
+				try { const binding = ctx.sessions.binding(sessionId); if (binding) { const target = ctx.uiConversation.binding(binding).target("chat"); source = { getSnapshot: () => target.getSnapshot() || empty.getSnapshot(), subscribe: (fn) => target.subscribe(fn) }; } } catch (e) {}
+				const chat = React.useSyncExternalStore(source.subscribe, source.getSnapshot, source.getSnapshot);
+				const [open, setOpen] = React.useState(false);
+				const [bottom, setBottom] = React.useState(132);
+				const [position, setPosition] = React.useState({ right: 22, bottom: null });
+				const [inChat, setInChat] = React.useState(false);
+				const streamRef = React.useRef(null);
+				const last = React.useRef((chat.order || []).join("|"));
+				React.useEffect(() => { const next = (chat.order || []).join("|"); if (next !== last.current) { last.current = next; setOpen(true); } }, [chat]);
+				React.useEffect(() => { const openIt = () => setOpen(true); window.addEventListener("pts:open-companion", openIt); return () => window.removeEventListener("pts:open-companion", openIt); }, []);
+				React.useLayoutEffect(() => { const place = () => { const composer = document.querySelector("[data-composer-input]"); if (composer) setBottom(Math.max(12, Math.round(window.innerHeight - composer.getBoundingClientRect().top + 10))); }; place(); window.addEventListener("resize", place); const timer = setInterval(place, 500); return () => { window.removeEventListener("resize", place); clearInterval(timer); }; }, []);
+				React.useEffect(() => { const check = () => { const tab = document.querySelector('button[role="tab"][aria-selected="true"]'); setInChat(Boolean(tab && tab.textContent && tab.textContent.trim() === "Chat")); }; check(); const timer = setInterval(check, 250); return () => clearInterval(timer); }, []);
+				React.useEffect(() => { if (streamRef.current) streamRef.current.scrollTop = streamRef.current.scrollHeight; }, [chat]);
+				function drag(event) {
+					if (event.button !== 0 || event.target.tagName === "BUTTON") return;
+					event.preventDefault(); const startX = event.clientX; const startY = event.clientY; const right = position.right; const baseBottom = position.bottom === null ? bottom : position.bottom;
+					const move = (next) => setPosition({ right: Math.max(8, right - (next.clientX - startX)), bottom: Math.max(8, baseBottom - (next.clientY - startY)) });
+					const stop = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", stop); };
+					window.addEventListener("pointermove", move); window.addEventListener("pointerup", stop, { once: true });
+				}
+				if (!open || inChat) return null;
+				const rows = (chat.order || []).map((key) => chatText(chat.nodes.get(key))).filter(Boolean).slice(-24);
+				return React.createElement("section", { style: { position: "fixed", right: position.right, bottom: position.bottom === null ? bottom : position.bottom, zIndex: 1250, width: 330, minWidth: 330, height: "52vh", minHeight: 260, overflow: "hidden", display: "flex", flexDirection: "column", background: "var(--editor-bg,#1e1e1e)", border: "1px solid rgba(128,128,128,.5)", borderRadius: 12, boxShadow: "0 14px 38px rgba(0,0,0,.42)", boxSizing: "border-box" } }, React.createElement("div", { onPointerDown: drag, title: "Fenster verschieben", style: { display: "flex", gap: 8, padding: 10, borderBottom: "1px solid rgba(128,128,128,.25)", flex: "0 0 auto", fontWeight: 700, cursor: "move" } }, "PTS Companion", React.createElement("button", { style: { marginLeft: "auto" }, onClick: () => setOpen(false) }, "×")), React.createElement("div", { ref: streamRef, style: { flex: "1 1 auto", minHeight: 0, overflow: "auto", padding: 10 } }, rows.map((row, i) => React.createElement("div", { key: i, style: { padding: "7px 9px", marginBottom: 7, border: "1px solid rgba(128,128,128,.25)", borderRadius: 8, fontSize: 12.5, lineHeight: 1.5 } }, React.createElement("small", null, row.who), React.createElement("div", { dangerouslySetInnerHTML: { __html: markdownHtml(row.text) } }))), React.createElement("div", { style: { opacity: .65, fontSize: 11.5 } }, "Zum Schreiben den Composer unten verwenden.")));
+			}
+			ctx.slots.inject("shell.overlay", () => ctx.slots.register({ name: "shell.overlay", id: "pts-companion-popover", order: 46 }, CompanionPopover));
 			// Declare both slot names (nested, mirroring the shipped brand row),
 			// then register both occupants at priority -1 so they shadow the
 			// default-priority shipped ones without a tie boot error.

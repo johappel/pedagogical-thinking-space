@@ -266,8 +266,13 @@ window.__ModuleLoader__.load({
 		}
 
 		function describeKey(key, snap, cwd) {
-			const order = snap.chat.order;
-			const store = snap.chat.nodes;
+			// DSH 0.1.2 publishes the chat snapshot directly for this hook; older
+			// profiles wrapped it in `{ chat }`. Accept both shapes and decline while
+			// the stream has not been initialized yet.
+			const chat = snap !== null && snap !== undefined && snap.chat !== undefined ? snap.chat : snap;
+			if (chat === null || chat === undefined || !Array.isArray(chat.order) || chat.nodes === undefined || typeof chat.nodes.get !== "function") return { show: false };
+			const order = chat.order;
+			const store = chat.nodes;
 			let cur = null;
 			const ownerOf = new Map();
 			const metaOf = new Map(); // key -> classification extras (desc/isSpawn)

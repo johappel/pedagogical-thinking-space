@@ -1086,6 +1086,7 @@ window.__ModuleLoader__.load({
 				const inputActions = props !== null && props !== undefined ? props.inputActions : undefined;
 				if (inputActions !== undefined && typeof inputActions.setDraft === "function") {
 					inputActions.setDraft(text);
+					window.dispatchEvent(new CustomEvent("pts:open-companion"));
 					setCompanion(true);
 					setFeedback(msg);
 				} else {
@@ -1325,7 +1326,7 @@ window.__ModuleLoader__.load({
 							? React.createElement("div", { className: "pls-empty" }, "Noch keine Stundenfenster. Lege ein Fenster an (+ Stundenfenster) und ziehe Lernmomente hierher.")
 							: React.createElement("div", { className: "pls-wins" }, winEls))),
 
-				companion
+				false
 					? React.createElement(CompanionDock, {
 						chatSource: props.chatSource,
 						onClose: function() { setCompanion(false); },
