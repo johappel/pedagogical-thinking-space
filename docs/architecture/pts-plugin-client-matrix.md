@@ -25,19 +25,20 @@ a second registration.
 
 | DSH | Host | Client | PTS UI | Recommendation |
 | --- | --- | --- | --- | --- |
-| `0.1.1-rc.2` | previously verified | previously verified | previously verified | retained only as the known current installation; no new compatibility layer |
-| `0.1.2-rc.1` | static contract verified | static contract verified | runtime smoke still required on an installed target profile | switch only after the smoke test below passes |
+| `0.1.1-rc.2` | previously verified | previously verified | historical baseline | retain only as a rollback target; no new compatibility layer |
+| `0.1.2-rc.1` | verified against the active `pts-web` profile | static contract verified | browser acceptance remains a manual check | selected target version |
 
-The repository's globally selected CLI is currently `0.1.1-rc.2`; the target
-preview was inspected in an isolated local installation. This matrix does not
-claim a browser E2E pass for `0.1.2-rc.1` until that version is installed into a
-real `pts-web` profile.
+The globally selected CLI is `0.1.2-rc.1`, and the real `pts-web` profile is
+bound to its PTS plugin junctions. The static contract check covers all eight
+web plugins, including their literal factory imports and client-service
+injections. Browser UI acceptance remains deliberately separate from this
+structural evidence.
 
 ## Required runtime smoke
 
-After deliberately upgrading the PTS profile to `0.1.2-rc.1`, start it with
-`dsh --profile pts-web --no-open`. Verify HTTP 200 for the web root, the PTS
-API routes, and the browser console/banner for `failed to load plugins`,
+After restarting the active profile with `dsh --profile pts-web --no-open`,
+verify the authenticated web root, the PTS API routes, and the browser
+console/banner for `failed to load plugins`,
 `missed the module table`, `not a materialized module`, and `no registered
 package factory`. Then exercise workspace navigation plus the Artifact,
 Denkstand, Lernlandschaft, Activity Stream, and Skill Manager surfaces.
