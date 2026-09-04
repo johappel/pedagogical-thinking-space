@@ -16,7 +16,28 @@ window.__ModuleLoader__.load({
 	id: "pts-artifact-panel",
 	factory: (require) => {
 		const React = require("react");
-		const runtimeClient = require("@deepseek-ai/dsh-client-runtime/client");
+
+		// `@deepseek-ai/dsh-client-runtime/client` was a 0.1.1 client-runtime
+		// convenience module. It is deliberately not a 0.1.2 client-module row
+		// (and is therefore not resolvable by the strict module table). Keep the
+		// two tiny, stable predicates this panel needs local instead of declaring
+		// a phantom external dependency.
+		function isAppendSurfaceEvent(event) {
+			return event !== null && typeof event === "object"
+				&& event.surfaceOp === "append";
+		}
+
+		function shallowEqual(a, b) {
+			if (Object.is(a, b)) return true;
+			if (a === null || b === null || typeof a !== "object" || typeof b !== "object") return false;
+			const aKeys = Object.keys(a);
+			const bKeys = Object.keys(b);
+			if (aKeys.length !== bKeys.length) return false;
+			for (const key of aKeys) {
+				if (!Object.prototype.hasOwnProperty.call(b, key) || !Object.is(a[key], b[key])) return false;
+			}
+			return true;
+		}
 
 		const CSS = `
 .apx-root { display:flex; flex-direction:column; gap:12px; height:100%; min-height:0; overflow:auto; padding:12px; box-sizing:border-box; }
@@ -177,9 +198,11 @@ window.__ModuleLoader__.load({
 		// tool-result text for PTS artifact paths and merges them into the chips.
 		// ------------------------------------------------------------------
 		const PTS_PRODUCED_KEY = "pts-produced";
-		// Matches PTS artifact paths under the known dirs AND bare artifact file
-		// names (e.g. background jobs dropping files in the Denkraum root).
-		const PTS_ARTIFACT_LOCATION_RE = /(?:(?:materials|drafts|knowledge-proposals|rendered)[\\/][^\s`()\[\]<>,;]+|[^\s`()/\\\[\]<>,;]+)\.(?:md|markdown|pdf|png|jpg|jpeg|gif|webp|svg|html|htm)\b/gi;
+		// Only accept workspace-relative artifact locations.  Tool result text can
+		// also contain attachment metadata from other apps (for example a local
+		// WhatsApp contact picture); a generic "*.png" match must never turn such
+		// metadata into a PTS artifact chip or preview.
+		const PTS_ARTIFACT_LOCATION_RE = /(?:^|[^A-Za-z0-9_-])((?:materials|drafts|knowledge-proposals|rendered)[\\/][^\s`()\[\]<>,;]+\.(?:md|markdown|pdf|png|jpg|jpeg|gif|webp|svg|html|htm))\b/gi;
 		// Common repo/control documents that are NOT produced PTS artifacts.
 		const NON_ARTIFACT_RE = /^(readme|license|changelog|contributing|agents|manifest|systemic_stance|critical_friend|learning_design|orchestration|getting_started|tests?)\b/i;
 		function extractArtifactPaths(text) {
@@ -188,7 +211,7 @@ window.__ModuleLoader__.load({
 			const re = new RegExp(PTS_ARTIFACT_LOCATION_RE.source, "gi");
 			let m;
 			while ((m = re.exec(String(text))) !== null) {
-				const raw = normPath(m[0].replace(/[.,;:!?)\]]+$/, ""));
+				const raw = normPath(m[1].replace(/[.,;:!?)\]]+$/, ""));
 				const base = raw.slice(raw.lastIndexOf("/") + 1);
 				if (NON_ARTIFACT_RE.test(base)) continue;
 				if (seen.has(raw)) continue;
@@ -197,11 +220,15 @@ window.__ModuleLoader__.load({
 			}
 			return out;
 		}
+		function isPtsArtifactPath(rawPath) {
+			const path = normPath(rawPath).replace(/^\.\//, "");
+			return /^(?:materials|drafts|knowledge-proposals|rendered)\//i.test(path) && PREVIEW_EXTS.indexOf(extOf(path)) >= 0;
+		}
 		const ptsProducedDefinition = {
 			kind: "pts-produced",
 			match: (event) => {
 				if (event.type === "turn/start") return { id: String(event.data.turn), role: "start" };
-				if (event.type === "tool/result" && runtimeClient.isAppendSurfaceEvent(event)) {
+				if (event.type === "tool/result" && isAppendSurfaceEvent(event)) {
 					return { id: String(event.data.turn), role: "update" };
 				}
 				return null;
@@ -655,7 +682,7 @@ window.__ModuleLoader__.load({
 		// can feed the child slot exactly like the shipped panel did).
 		// ------------------------------------------------------------------
 		function shallowEq(a, b) {
-			return runtimeClient.shallowEqual(a, b);
+			return shallowEqual(a, b);
 		}
 		function toolNode(node) {
 			return node !== null && node !== undefined && node.kind === "tool-call" ? node : undefined;
@@ -873,8 +900,14 @@ window.__ModuleLoader__.load({
 				pts = null;
 			}
 			const produced = [];
-			if (data !== null && data !== undefined && Array.isArray(data.produced)) produced.push(...data.produced);
-			if (pts !== null && pts !== undefined && Array.isArray(pts.produced)) produced.push(...pts.produced);
+			// DSH's generic deliverables can name editor and remote-tool attachments.
+			// Accept them only when they are PTS workspace output paths.
+			if (data !== null && data !== undefined && Array.isArray(data.produced)) {
+				produced.push(...data.produced.filter(function(entry) { return entry !== null && isPtsArtifactPath(entry.path); }));
+			}
+			if (pts !== null && pts !== undefined && Array.isArray(pts.produced)) {
+				produced.push(...pts.produced.filter(function(entry) { return entry !== null && isPtsArtifactPath(entry.path); }));
+			}
 			// Deterministic fallback: any artifact path the Companion named in the
 			// closing message becomes a chip too (seq 0 so it is never dropped by
 			// the late-settlement filter for background subagent results).
@@ -1252,7 +1285,10 @@ window.__ModuleLoader__.load({
 		// ------------------------------------------------------------------
 		// Registration
 		// ------------------------------------------------------------------
-		const inject = ["slots", "conversationEvents"];
+		// DSH 0.1.2 exposes the event registry below the aggregate
+		// `uiConversation` service. `conversationEvents` was the pre-0.1.2
+		// standalone service name, so listing it here leaves the entry pending.
+		const inject = ["slots", "uiConversation"];
 
 		function apply(ctx) {
 			layoutService = ctx.get("layout");
@@ -1262,7 +1298,7 @@ window.__ModuleLoader__.load({
 			// files created by pts_material / pts_edit / pts_document /
 			// pts_renderer also become produced chips + clickable mentions.
 			try {
-				ctx.conversationEvents.register(ptsProducedDefinition);
+				ctx.uiConversation.events.register(ptsProducedDefinition);
 			} catch (e) {
 				console.error("[pts-artifact-panel] pts-produced accumulator nicht registrierbar:", e);
 			}

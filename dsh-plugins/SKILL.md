@@ -6,14 +6,14 @@ trigger: /dsh-web-ui-plugin
 
 # /dsh-web-ui-plugin
 
-Erfahrungsgeprüfte Anleitung für **statische DSH-Web-UI-Plugins** (Client-Slots + optionale Host-Routen). Alle Regeln hier wurden gegen den realen Code von `dsh-client-ui-slots`, `dsh-client-ui-renderer`, `dsh-client-runtime` und `dsh-client-ui-conversation` verifiziert – nicht geraten. Referenz-Implementierung: `F:\code\pedagogical-thinking-space\dsh-plugins\artifact-panel` („pts-artifact-panel“).
+Erfahrungsgeprüfte Anleitung für **statische DSH-Web-UI-Plugins** (Client-Slots + optionale Host-Routen). Alle Regeln hier wurden gegen den realen Code von `dsh-client-ui-slots`, `dsh-client-ui-renderer`, `dsh-client-modules` und `dsh-client-ui-conversation` verifiziert – nicht geraten. Der Client-Module-Teil ist für DSH `0.1.2-rc.1` aktualisiert. Referenz-Implementierung: `F:\code\pedagogical-thinking-space\dsh-plugins\artifact-panel` („pts-artifact-panel“).
 
 ## 1. Architektur: zwei Hälften, ein Paket
 
 | Hälfte | Ort             | Format                                                                                                                                                                                                                                    | Läuft in     |
 | ------ | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
 | Host   | `lib/index.js`  | ESM, **named export `apply`** (+ optional `export const inject = ['webServer']`)                                                                                                                                                          | Node-Prozess |
-| Client | `lib/client.js` | **Classic Script**, ruft `window.__ModuleLoader__.load({ id, factory })` auf; Factory `(require) => ({ inject:['slots'], apply(ctx){…} })`; React via `require("react")`, Runtime via `require("@deepseek-ai/dsh-client-runtime/client")` | Browser      |
+| Client | `lib/client.js` | **Classic Script**, ruft `window.__ModuleLoader__.load({ id, factory })` auf; Factory `(require) => ({ inject:['slots'], apply(ctx){…} })`; React via `require("react")`. Weitere Module nur als echte `dsh.client.external`-Abhängigkeit. | Browser      |
 
 `package.json`-Pflichtmerkmale:
 
@@ -30,7 +30,11 @@ Erfahrungsgeprüfte Anleitung für **statische DSH-Web-UI-Plugins** (Client-Slot
 
 Der Client-Roster-Scan liest ausschließlich diesen `dsh.client`-Marker plus den `./client`-Export. Reine UI-Plugins exportieren auf Host-Seite ein leeres `apply(ctx){}` – genau so machen es die shipped UI-Pakete; das reicht damit die Row im Loader existiert.
 
-**Verboten in beiden Hälften:** TypeScript, JSX, `import`/`require`-Statements im Client-Bundle (Classic Script!), Top-level-await. Client-React immer `React.createElement(...)`.
+`dsh.client.external` ist kein allgemeiner npm-Resolver: Es ordnet nur andere aktive DSH-Client-Pakete vor der Materialisierung an. Ein Factory-Import kann nur ein Plattform-Seed, eine bereits materialisierte Factory oder ein über diesen Graphen angekommenes Client-Paket sein. Andernfalls meldet der Loader korrekt `missed the module table`.
+
+Für Conversation-Akkumulatoren gilt unter DSH 0.1.2: `inject: ["uiConversation"]` und Registrierung über `ctx.uiConversation.events.register(definition)`. Der frühere Service `conversationEvents` ist entfernt; eine Client-Factory, die ihn injiziert, bleibt mit `waiting for service: conversationEvents` pending.
+
+**Verboten in beiden Hälften:** TypeScript, JSX, `import`-Statements im Client-Bundle (Classic Script!), Top-level-await. `require("react")` ist ein Plattform-Seed; jeder weitere `require(...)` muss als DSH-Client-Modul in `dsh.client.external` deklariert sein. `@deepseek-ai/dsh-client-runtime/client` existiert unter 0.1.2 nicht mehr als Client-Modul. Client-React immer `React.createElement(...)`.
 
 ## 2. Installation & Verdrahtung (einmalig pro Rechner)
 

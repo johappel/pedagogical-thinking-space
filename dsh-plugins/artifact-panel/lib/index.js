@@ -17,6 +17,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 
 const ARTIFACT_EXTS = ['.md', '.markdown', '.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.html', '.htm'];
+const ARTIFACT_DIRS = new Set(['materials', 'drafts', 'knowledge-proposals', 'rendered']);
 const TEXT_EXTS = ['.md', '.markdown', '.html', '.htm', '.svg', '.txt', '.yml', '.yaml'];
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'out', '.next', 'coverage', '.venv', 'venv', '__pycache__', '.opencode']);
 // Only the teacher-decision control file is a readable artifact; the other
@@ -87,6 +88,18 @@ export function apply(ctx) {
     return ARTIFACT_EXTS.includes(ext);
   };
 
+  /**
+   * The gallery is deliberately not a generic workspace file browser.  Apart
+   * from the teacher decision record, only files in PTS output directories are
+   * artifacts.  This keeps editor/remote-tool attachments out of the UI.
+   */
+  const isListableArtifact = (relStr) => {
+    const rel = toPosix(relStr).replace(/^\.\//, '');
+    if (DECISION_FILE_RE.test(rel)) return true;
+    const slash = rel.indexOf('/');
+    return slash > 0 && ARTIFACT_DIRS.has(rel.slice(0, slash).toLowerCase()) && isArtifactExt(rel);
+  };
+
   async function realKey(p) {
     const abs = path.resolve(p);
     try {
@@ -126,9 +139,9 @@ export function apply(ctx) {
   }
 
   function record(absPosix, size, origin) {
-    const ext = extOf(absPosix);
-    if (!isArtifactExt(absPosix)) return;
     const rel = relOf(absPosix);
+    if (!isListableArtifact(rel)) return;
+    const ext = extOf(rel);
     const prev = artifacts.get(rel);
     if (prev !== undefined) {
       if (prev.size !== size) {
@@ -177,7 +190,18 @@ export function apply(ctx) {
     if (activeRootAbs === null) return;
     const mySeq = ++scanSeq;
     try {
-      await walk(activeRootAbs, 0, mySeq);
+      const entries = await fsp.readdir(activeRootAbs, { withFileTypes: true });
+      for (const entry of entries) {
+        if (mySeq !== scanSeq) return;
+        const child = path.join(activeRootAbs, entry.name);
+        if (entry.isDirectory() && ARTIFACT_DIRS.has(entry.name.toLowerCase())) {
+          await walk(child, 1, mySeq);
+        } else if (entry.isFile() && DECISION_FILE_RE.test(entry.name)) {
+          let size = null;
+          try { size = (await fsp.stat(child)).size; } catch {}
+          record(toPosix(child), size, 'scan');
+        }
+      }
       lastScanAt = Date.now();
     } catch (error) {
       console.error('[pts-artifact-panel] scan failed', error);
@@ -262,7 +286,7 @@ export function apply(ctx) {
 
     const direct = path.resolve(base, candidate);
     let key = await realKey(direct);
-    if (key !== null && containedUnder(baseKey, key)) return { target: key, key };
+    if (key !== null && containedUnder(baseKey, key) && isListableArtifact(toPosix(path.relative(baseKey, key)))) return { target: key, key };
 
     // Absolute candidates naming the base as prefix: strip and retry relative.
     const looksAbsolute = /^[A-Za-z]:\//.test(candidate) || candidate.startsWith('/');
@@ -270,7 +294,7 @@ export function apply(ctx) {
     if (looksAbsolute && candidate.toLowerCase().startsWith(baseNorm.toLowerCase() + '/')) {
       const stripped = candidate.slice(baseNorm.length + 1);
       key = await realKey(path.resolve(base, stripped));
-      if (key !== null && containedUnder(baseKey, key)) return { target: key, key };
+      if (key !== null && containedUnder(baseKey, key) && isListableArtifact(toPosix(path.relative(baseKey, key)))) return { target: key, key };
     }
 
     // A bare filename (no subdir) may be an artifact the scan found under a

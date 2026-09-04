@@ -7,6 +7,12 @@
 > ist für unterschiedliche Sessions sauber, für dieselbe Session aber nur mit
 > Disziplinregeln sicher (§7/§8) — daher PARTIAL statt PASS.
 
+> **Versionsgrenze:** Dieser Installationsspike beschreibt DSH `0.1.1-rc.2`.
+> Seine Client-Beispiele dürfen nicht als Browser-Plugin-Vertrag für DSH
+> `0.1.2-rc.1` übernommen werden. Dafür gelten
+> [`../architecture/dsh-0.1.2-client-module-contract.md`](../architecture/dsh-0.1.2-client-module-contract.md)
+> und die [PTS-Plugin-Matrix](../architecture/pts-plugin-client-matrix.md).
+
 ---
 
 ## 1. Verwendete Versionen
