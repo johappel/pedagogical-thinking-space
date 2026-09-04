@@ -1,0 +1,8 @@
+{
+  "name": "pedagogical-thinking-space",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check:dsh-client-contract": "node scripts/check-dsh-client-contract.mjs"
+  }
+}

@@ -1293,6 +1293,4 @@ export function apply(ctx) {
 	ctx.effect(() => disposeSave, 'pts-landscape: route /api/pts-artifact/save');
 
 	console.log('[pts-landscape] host half active; routes: /api/pts-landscape (+layout, +materials, +moment-estimate, +moment, +transitions[/remove], +temporal), /api/pts-artifact/raw|save');
-
-	console.log('[pts-landscape] host half active; routes: /api/pts-landscape (+layout, +materials, +temporal), /api/pts-artifact/raw|save');
 }

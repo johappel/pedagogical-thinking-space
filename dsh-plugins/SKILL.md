@@ -13,7 +13,7 @@ Erfahrungsgeprüfte Anleitung für **statische DSH-Web-UI-Plugins** (Client-Slot
 | Hälfte | Ort             | Format                                                                                                                                                                                                                                    | Läuft in     |
 | ------ | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
 | Host   | `lib/index.js`  | ESM, **named export `apply`** (+ optional `export const inject = ['webServer']`)                                                                                                                                                          | Node-Prozess |
-| Client | `lib/client.js` | **Classic Script**, ruft `window.__ModuleLoader__.load({ id, factory })` auf; Factory `(require) => ({ inject:['slots'], apply(ctx){…} })`; React via `require("react")`, Runtime via `require("@deepseek-ai/dsh-client-runtime/client")` | Browser      |
+| Client | `lib/client.js` | **Classic Script**, ruft `window.__ModuleLoader__.load({ id, factory })` auf; Factory `(require) => ({ inject:['slots'], apply(ctx){…} })`; React via `require("react")`. Weitere Module nur als echte `dsh.client.external`-Abhängigkeit. | Browser      |
 
 `package.json`-Pflichtmerkmale:
 
@@ -30,7 +30,7 @@ Erfahrungsgeprüfte Anleitung für **statische DSH-Web-UI-Plugins** (Client-Slot
 
 Der Client-Roster-Scan liest ausschließlich diesen `dsh.client`-Marker plus den `./client`-Export. Reine UI-Plugins exportieren auf Host-Seite ein leeres `apply(ctx){}` – genau so machen es die shipped UI-Pakete; das reicht damit die Row im Loader existiert.
 
-**Verboten in beiden Hälften:** TypeScript, JSX, `import`/`require`-Statements im Client-Bundle (Classic Script!), Top-level-await. Client-React immer `React.createElement(...)`.
+**Verboten in beiden Hälften:** TypeScript, JSX, `import`-Statements im Client-Bundle (Classic Script!), Top-level-await. `require("react")` ist ein Plattform-Seed; jeder weitere `require(...)` muss als DSH-Client-Modul in `dsh.client.external` deklariert sein. `@deepseek-ai/dsh-client-runtime/client` existiert unter 0.1.2 nicht mehr als Client-Modul. Client-React immer `React.createElement(...)`.
 
 ## 2. Installation & Verdrahtung (einmalig pro Rechner)
 

@@ -26,3 +26,6 @@ config/models.yml
 .kilo/
 *.log
 tmp/
+.dsh-contract-cache/
+.dsh-vision-toolkit
+.playwright-mcp/

@@ -16,7 +16,28 @@ window.__ModuleLoader__.load({
 	id: "pts-artifact-panel",
 	factory: (require) => {
 		const React = require("react");
-		const runtimeClient = require("@deepseek-ai/dsh-client-runtime/client");
+
+		// `@deepseek-ai/dsh-client-runtime/client` was a 0.1.1 client-runtime
+		// convenience module. It is deliberately not a 0.1.2 client-module row
+		// (and is therefore not resolvable by the strict module table). Keep the
+		// two tiny, stable predicates this panel needs local instead of declaring
+		// a phantom external dependency.
+		function isAppendSurfaceEvent(event) {
+			return event !== null && typeof event === "object"
+				&& event.surfaceOp === "append";
+		}
+
+		function shallowEqual(a, b) {
+			if (Object.is(a, b)) return true;
+			if (a === null || b === null || typeof a !== "object" || typeof b !== "object") return false;
+			const aKeys = Object.keys(a);
+			const bKeys = Object.keys(b);
+			if (aKeys.length !== bKeys.length) return false;
+			for (const key of aKeys) {
+				if (!Object.prototype.hasOwnProperty.call(b, key) || !Object.is(a[key], b[key])) return false;
+			}
+			return true;
+		}
 
 		const CSS = `
 .apx-root { display:flex; flex-direction:column; gap:12px; height:100%; min-height:0; overflow:auto; padding:12px; box-sizing:border-box; }
@@ -201,7 +222,7 @@ window.__ModuleLoader__.load({
 			kind: "pts-produced",
 			match: (event) => {
 				if (event.type === "turn/start") return { id: String(event.data.turn), role: "start" };
-				if (event.type === "tool/result" && runtimeClient.isAppendSurfaceEvent(event)) {
+				if (event.type === "tool/result" && isAppendSurfaceEvent(event)) {
 					return { id: String(event.data.turn), role: "update" };
 				}
 				return null;
@@ -655,7 +676,7 @@ window.__ModuleLoader__.load({
 		// can feed the child slot exactly like the shipped panel did).
 		// ------------------------------------------------------------------
 		function shallowEq(a, b) {
-			return runtimeClient.shallowEqual(a, b);
+			return shallowEqual(a, b);
 		}
 		function toolNode(node) {
 			return node !== null && node !== undefined && node.kind === "tool-call" ? node : undefined;
