@@ -1,3 +1,40 @@
+# Granite-4.2-3B-Einzeltest 2026-09-05
+
+Der native Headless-Einzeltest wurde mit dem lokal erreichbaren Ollama-Modell
+`granite4.2:3b` wiederholt. Das isolierte Profil enthalt nur die temporaere
+Testkonfiguration; die Produktivkonfiguration blieb unveraendert. Reasoning-
+Effort-Vorgaben wurden entfernt, weil der Adapter sie fuer dieses Modell mit
+`UNSUPPORTED_REASONING_EFFORT` ablehnt.
+
+| TestErgebnis | Ergebnis | Evidenz |
+|---|---|---|
+| Parent echter Modelllauf | PASS | DSH lief mit Ollama/Granite und erzeugte eine Parent-Antwort |
+| Director Tool verfuegbar | PASS | Parent meldete den ausgefuehrten `subagent_role`-Call |
+| `ctx.subagents.start` erreicht | PASS | Child-Session `927e57e8-aa92-48f6-b35a-79d7efe8ecf8` wurde erzeugt |
+| Child erzeugt | PASS | Child-Session `mode: one-shot`, Label `Pedagogical Reviewer`, Laufzeit 30,6 s |
+| Child nutzt konfigurierte Persona | UNVERIFIED | Rollenlauf belegt, Persona-Inhalt nicht separat ausgegeben |
+| Child nutzt konfigurierte Modellroute | UNVERIFIED | Profilroute war `ollama/granite4.2:3b`; Artefakt enthaelt keine Route-Zeile |
+| Ergebnis beim Parent | PASS | Parent gab das Child-Ergebnis zurueck; Child meldete eigenen Dateilesefehler |
+
+Der native Delegationspfad fuer **einen** Child ist damit empirisch erreicht.
+Der Child-Inhalt ist fachlich kein erfolgreicher Review, sondern ein
+kontrollierter Fehlerfall wegen des absichtlich knappen synthetischen Prompts.
+Persona-/Modellrouten bleiben bis zu einer expliziten DSH-Trace- oder
+Provideraufzeichnung offen. Fan-out, Background und Continuation wurden noch
+nicht gestartet.
+
+## Offene Nachweise: Ergebnis des Folgeversuchs
+
+Die vier Nachweise wurden in der geforderten Reihenfolge mit Granite 4.2 3B
+ausgefuehrt. Persona ist FAIL: Der eindeutige Marker wurde nach dem Lauf
+entfernt und erschien nicht im Child-Systemprompt bzw. Child-Ergebnis. Der
+Background-Versuch lieferte eine Completion und ein Ergebnis an den Parent;
+die von der Modellantwort genannten IDs `subagent-1` waren jedoch nicht als
+separate DSH-Child-/Job-IDs in den Sessionartefakten belastbar zuzuordnen.
+Der Continuation-Versuch wurde nicht nachweisbar mit `send_message` und
+Director-Close ausgefuehrt; die Modellantwort wechselte auf eigene Spekulationen
+und erzeugte keine belastbare Child-ID. Deshalb kein Drei-Rollen-Fan-out.
+
 # Spike: DSH Subagent Director gegen PTS
 
 Stand: 2026-09-05  
@@ -134,3 +171,60 @@ entscheidende reale Fan-out-/Background-Abnahme fehlt. Nächster sicherer
 Schritt wäre ein isolierter Live-Test mit einem ausdrücklich freigegebenen,
 laufenden Modelladapter; erst danach ein kleiner Migrationsplan für die
 nachweislich redundanten festen Subagent-Instanzen.
+
+## Live-Abnahme-Versuch 2026-09-05
+
+**BLOCKED** – Es wurden keine Modellaufrufe als erfolgreich gewertet.
+
+- Die drei temporären Rollen wurden im Profil aktiviert und danach aus der
+  gesicherten Settings-Datei vollständig wiederhergestellt.
+- DSH initialisierte `pts-activity-stream` und `pts-background-steward`; der
+  Server auf 3081 war lokal erreichbar.
+- Ein zweiter Start scheiterte mit `EADDRINUSE`, weil der erste Start einen
+  laufenden DSH-Prozess hinterlassen hatte. Dieser testgestartete Prozess wurde
+  anschließend beendet.
+- Der vorhandene Webserver antwortete ohne Browser-Session mit HTTP `401`.
+  Kein CDP-Endpunkt auf 9222 oder 9223 war verfügbar; deshalb konnten Parent-
+  Nachricht, drei echte Delegationen, Continuation und Session-Historie nicht
+  ausgeführt bzw. nachgewiesen werden.
+- Relevante reproduzierbare Befehle waren `dsh --profile pts-web --port 3081`,
+  `netstat -ano | Select-String ':3081'` und der lokale HTTP-Aufruf auf
+  `http://127.0.0.1:3081/`.
+
+### Abschlussentscheidung
+
+**B. Live-Nachweis reicht noch nicht aus; bestehende PTS-Struktur bleibt unverändert.**
+
+## Headless-Nachtrag 2026-09-05
+
+Der Browser/CDP-Pfad wurde ausdrücklich nicht verwendet. Ein isoliertes
+Headless-Profil mit `@deepseek-ai/dsh-base`, `@deepseek-ai/dsh-headless`,
+native jobs, `dsh-plugin-subagent-director` und der PTS-Testrollen-Konfiguration
+wurde erfolgreich komponiert. Die Web-Bridge wurde nur in diesem isolierten
+Profil deaktiviert.
+
+| TestErgebnis | Ergebnis |
+|---|---|
+| Parent echter Modelllauf | FAIL/BLOCKED: vor dem Parent-LLM-Aufruf `NO_ADAPTER` |
+| Director Tool verfügbar | PASS in der Komposition; Lauf konnte wegen Providerfehler nicht beginnen |
+| `ctx.subagents.start` erreicht | nicht erreicht |
+| Child erzeugt | nicht erzeugt |
+| Child nutzt konfigurierte Persona | nicht verifiziert |
+| Child nutzt konfigurierte Modellroute | nicht verifiziert |
+| Ergebnis beim Parent | nicht verifiziert |
+
+Reproduktion:
+
+```powershell
+$env:DSH_HOME = (Resolve-Path tmp/dsh-director-spike).Path
+dsh --profile pts-web "... kurzer isolierter Testprompt ..."
+```
+
+Beobachteter Fehler:
+`dsh: NO_ADAPTER: no adapter registered for provider "openrouter"`.
+Der lokale Credential-Store enthält keine eingerichtete Provider-Referenz;
+Ollama auf `127.0.0.1:11434` war ebenfalls nicht erreichbar. Es wurde kein
+Secret in den Workspace kopiert und kein PTS-Bestand verändert. Der kleinste
+nächste Fix ist ein separat bereitgestellter, funktionierender DSH-Provider im
+isolierten Profil (mit vom Betreiber freigegebener Authentifizierung), danach
+ist exakt derselbe Einzelrollen-Test erneut auszuführen.
