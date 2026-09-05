@@ -182,6 +182,7 @@ window.__ModuleLoader__.load({
 				const [open, setOpen] = React.useState(false);
 				const [bottom, setBottom] = React.useState(132);
 				const [position, setPosition] = React.useState({ right: 22, bottom: null });
+				const [size, setSize] = React.useState({ width: 330, height: null });
 				const [inChat, setInChat] = React.useState(false);
 				const streamRef = React.useRef(null);
 				const last = React.useRef((chat.order || []).join("|"));
@@ -197,9 +198,16 @@ window.__ModuleLoader__.load({
 					const stop = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", stop); };
 					window.addEventListener("pointermove", move); window.addEventListener("pointerup", stop, { once: true });
 				}
+				function resize(event) {
+					if (event.button !== 0) return;
+					event.preventDefault(); event.stopPropagation(); const startX = event.clientX; const startY = event.clientY; const width = size.width; const height = size.height === null ? window.innerHeight * .52 : size.height;
+					const move = (next) => setSize({ width: Math.max(330, Math.min(window.innerWidth - 16, width + startX - next.clientX)), height: Math.max(260, Math.min(window.innerHeight - 16, height + startY - next.clientY)) });
+					const stop = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", stop); };
+					window.addEventListener("pointermove", move); window.addEventListener("pointerup", stop, { once: true });
+				}
 				if (!open || inChat) return null;
 				const rows = (chat.order || []).map((key) => chatText(chat.nodes.get(key))).filter(Boolean).slice(-24);
-				return React.createElement("section", { style: { position: "fixed", right: position.right, bottom: position.bottom === null ? bottom : position.bottom, zIndex: 1250, width: 330, minWidth: 330, height: "52vh", minHeight: 260, overflow: "hidden", display: "flex", flexDirection: "column", background: "var(--editor-bg,#1e1e1e)", border: "1px solid rgba(128,128,128,.5)", borderRadius: 12, boxShadow: "0 14px 38px rgba(0,0,0,.42)", boxSizing: "border-box" } }, React.createElement("div", { onPointerDown: drag, title: "Fenster verschieben", style: { display: "flex", gap: 8, padding: 10, borderBottom: "1px solid rgba(128,128,128,.25)", flex: "0 0 auto", fontWeight: 700, cursor: "move" } }, "PTS Companion", React.createElement("button", { style: { marginLeft: "auto" }, onClick: () => setOpen(false) }, "×")), React.createElement("div", { ref: streamRef, style: { flex: "1 1 auto", minHeight: 0, overflow: "auto", padding: 10 } }, rows.map((row, i) => React.createElement("div", { key: i, style: { padding: "7px 9px", marginBottom: 7, border: "1px solid rgba(128,128,128,.25)", borderRadius: 8, fontSize: 12.5, lineHeight: 1.5 } }, React.createElement("small", null, row.who), React.createElement("div", { dangerouslySetInnerHTML: { __html: markdownHtml(row.text) } }))), React.createElement("div", { style: { opacity: .65, fontSize: 11.5 } }, "Zum Schreiben den Composer unten verwenden.")));
+				return React.createElement("section", { style: { position: "fixed", right: position.right, bottom: position.bottom === null ? bottom : position.bottom, zIndex: 1250, width: size.width, minWidth: 330, height: size.height === null ? "52vh" : size.height, minHeight: 260, overflow: "hidden", display: "flex", flexDirection: "column", background: "var(--editor-bg,#1e1e1e)", border: "1px solid rgba(128,128,128,.5)", borderRadius: 12, boxShadow: "0 14px 38px rgba(0,0,0,.42)", boxSizing: "border-box" } }, React.createElement("span", { onPointerDown: resize, title: "Fenstergröße ändern", style: { position: "absolute", left: 0, top: 0, width: 20, height: 20, cursor: "nwse-resize", zIndex: 2, borderLeft: "2px solid rgba(128,128,128,.7)", borderTop: "2px solid rgba(128,128,128,.7)" } }), React.createElement("div", { onPointerDown: drag, title: "Fenster verschieben", style: { display: "flex", gap: 8, padding: 10, borderBottom: "1px solid rgba(128,128,128,.25)", flex: "0 0 auto", fontWeight: 700, cursor: "move" } }, "PTS Companion", React.createElement("button", { style: { marginLeft: "auto" }, onClick: () => setOpen(false) }, "×")), React.createElement("div", { ref: streamRef, style: { flex: "1 1 auto", minHeight: 0, overflow: "auto", padding: 10 } }, rows.map((row, i) => React.createElement("div", { key: i, style: { padding: "7px 9px", marginBottom: 7, border: "1px solid rgba(128,128,128,.25)", borderRadius: 8, fontSize: 12.5, lineHeight: 1.5 } }, React.createElement("small", null, row.who), React.createElement("div", { dangerouslySetInnerHTML: { __html: markdownHtml(row.text) } }))), React.createElement("div", { style: { opacity: .65, fontSize: 11.5 } }, "Zum Schreiben den Composer unten verwenden.")));
 			}
 			ctx.slots.inject("shell.overlay", () => ctx.slots.register({ name: "shell.overlay", id: "pts-companion-popover", order: 46 }, CompanionPopover));
 			// Declare both slot names (nested, mirroring the shipped brand row),
