@@ -1,3 +1,26 @@
+# M2a Integrationsbefund: kein interner Transport-Seam
+
+Der Legacy-Pfad ist in `dsh-presets/pts-companion/agent.cordis.yml` als
+`@deepseek-ai/dsh-tool-subagent` mit `toolName: pts_review` registriert. Dieses
+Tool baut Prompt, Parent und Child-Optionen selbst und delegiert direkt an
+DSH. Eine separate PTS-Service-Request-Schicht vor dem Child-Start ist im
+Repository nicht vorhanden; Ergebnis und Job-Lifecycle kommen direkt aus DSH.
+
+`dsh-plugin-subagent-director` exportiert `createDelegationTool` und nutzt
+`ctx.subagents.start()` bzw. `ctx.subagents.startContinuable()`, registriert
+aber nur ein eigenes Tool (standardmäßig `subagent_role`). Es gibt keinen
+öffentlichen Adapter, Hook oder Transport-Override, mit dem der Director den
+internen Transport eines bereits registrierten `pts_review`-Tools ersetzen
+kann. Ein Einbau unterhalb von `pts_review` würde daher entweder einen Fork,
+einen neuen parallelen Wrapper oder eine Änderung der PTS-Service-/Toollogik
+erfordern. Das sind ausdrücklich ausgeschlossene Workarounds.
+
+**M2a BLOCKED – Architekturhindernis:** Der gewünschte Pfad
+`Companion -> pts_review -> Director -> pts-reviewer -> read/glob/grep` ist mit
+dem installierten Plugin ohne eine zusätzliche Integrationsschnittstelle
+nicht implementierbar. Der öffentliche Pfad bleibt unverändert; die feste
+Reviewer-Instanz bleibt aktiv.
+
 # Granite-4.2-3B-Einzeltest 2026-09-05
 
 Der native Headless-Einzeltest wurde mit dem lokal erreichbaren Ollama-Modell
