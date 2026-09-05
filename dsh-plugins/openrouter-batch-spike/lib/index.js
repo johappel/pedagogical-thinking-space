@@ -2,8 +2,6 @@ import { OpenRouterBatchProvider, PROVIDER_NAME, MODEL } from './provider.js';
 
 export const name = 'dsh-plugin-openrouter-batch-spike';
 export const inject = ['subagents', 'credentials'];
-export const Config = {};
-
 export function apply(ctx, config = {}) {
 	const provider = new OpenRouterBatchProvider({
 		credentials: ctx.credentials,

@@ -57,7 +57,8 @@ export class OpenRouterBatchProvider {
 	// DSH exposes no separate agentOptions capability flag: the option is part
 	// of every SubagentStartRequest and this provider consumes provider/model/
 	// maxTokens explicitly below.
-	capabilities = { persona: true, toolFilter: false, outputSchema: true, depthLimit: true };
+	capabilities = { persona: true, agentOptions: true, toolFilter: false, outputSchema: true, depthLimit: true };
+	agentRouteDefaults = { provider: 'openrouter', model: MODEL };
 	inheritsParentContext = false;
 
 	constructor({ credentials, fetchImpl = globalThis.fetch, logger = () => {}, pollMs = DEFAULT_POLL_MS, model = MODEL, credentialRef = 'OPENROUTER_API_KEY' }) {
@@ -80,7 +81,11 @@ export class OpenRouterBatchProvider {
 		const response = await this.fetch(url, { ...options, signal });
 		let body;
 		try { body = await response.json(); } catch { body = {}; }
-		if (!response.ok) throw new Error(`OpenRouter HTTP ${response.status}: ${diagnostic(body?.error || body)}`);
+		if (!response.ok) {
+			const error = new Error(`OpenRouter HTTP ${response.status}: ${diagnostic(body?.error || body)}`);
+			error.status = response.status;
+			throw error;
+		}
 		return body;
 	}
 
@@ -123,10 +128,25 @@ export class OpenRouterBatchProvider {
 
 	async poll({ runId, batchId, customId, model, headers, signal, schema, startedAt }) {
 		let lastStatus = 'validating';
+		let notFoundPolls = 0;
 		try {
+			// OpenRouter returns 202 while the batch is being persisted. Give the
+			// asynchronous resource a normal polling interval before the first GET.
+			await sleep(this.pollMs, signal);
 			while (true) {
-				const current = await this.request(`${API_ROOT}/${encodeURIComponent(batchId)}`, { method: 'GET', headers }, signal);
+				let current;
+				try {
+					current = await this.request(`${API_ROOT}/${encodeURIComponent(batchId)}`, { method: 'GET', headers }, signal);
+				} catch (error) {
+					if (error?.status === 404 && notFoundPolls < 10) {
+						notFoundPolls += 1;
+						await sleep(this.pollMs, signal);
+						continue;
+					}
+					throw error;
+				}
 				lastStatus = current.status;
+				this.logger({ runId, provider: PROVIDER_NAME, batchId, customId, model, status: lastStatus });
 				if (TERMINAL.has(lastStatus)) {
 					const completedAt = new Date().toISOString();
 					this.logger({ runId, provider: PROVIDER_NAME, batchId, customId, model, submittedAt: startedAt, completedAt, status: lastStatus });

@@ -59,5 +59,6 @@ test('provider is selected through the existing subagent provider key', async ()
 	const { apply } = await import('../lib/index.js');
 	apply(ctx);
 	assert.equal(registered.name, PROVIDER_NAME);
+	assert.equal(registered.capabilities.agentOptions, true);
 	assert.equal(registered.capabilities.toolFilter, false);
 });
