@@ -22,6 +22,9 @@ export const HIDDEN_FROM_COMPANION = Object.freeze([
 	'web_fetch',
 	'write',
 	'edit',
+	// Kept only as a rollback path while the structured direct pts_edit tool
+	// is validated; the visible Companion must not bypass that path.
+	'pts_edit_legacy',
 ]);
 
 export const FORBIDDEN_DIRECT_EXECUTION = Object.freeze(new Set([

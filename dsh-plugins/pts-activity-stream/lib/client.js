@@ -128,6 +128,16 @@ window.__ModuleLoader__.load({
 			pts_edit: "update",
 			pts_document: "draft",
 		};
+		const CONTINUABLE_WORKERS = {
+			pts_research: true, pts_material: true, pts_review: true,
+			pts_document: true, pts_renderer: true,
+		};
+
+		function textBlocks(content) {
+			if (!Array.isArray(content)) return "";
+			return content.filter(function (b) { return b && b.type === "text" && typeof b.text === "string"; })
+				.map(function (b) { return b.text; }).join("");
+		}
 
 		function classifyRoot(root) {
 			if (root === null || typeof root !== "object") return null;
@@ -140,6 +150,7 @@ window.__ModuleLoader__.load({
 				? (head !== null && head !== undefined && typeof head.argsRaw === "string" ? head.argsRaw : "")
 				: (typeof root.argsRaw === "string" ? root.argsRaw : "");
 			const args = parseArgsSafe(argsRaw);
+			const receipt = settled ? textBlocks(root.content) : "";
 			const pick = function () {
 				if (args === null || typeof args !== "object") return undefined;
 				for (let i = 0; i < arguments.length; i++) {
@@ -154,10 +165,13 @@ window.__ModuleLoader__.load({
 					type: PTS_WORKER_TOOLS[name],
 					isSpawn: true,
 					desc: pick("description", "prompt"),
+					continuableStart: CONTINUABLE_WORKERS[name] === true
+						&& args !== null && args.run_in_background !== false
+						&& /started subagent\s+\S+/i.test(receipt),
 				};
 			}
 			if (RESEARCH_TOOLS[name] === true) {
-				return { type: "research", isSpawn: name === "subagent", desc: name === "subagent" ? pick("description") : undefined };
+				return { type: name === "send_message" ? "continuation" : "research", isSpawn: name === "subagent", desc: name === "subagent" ? pick("description") : undefined };
 			}
 			if (name === "write" || name === "edit") {
 				const p = pick("file_path", "path");
@@ -288,7 +302,7 @@ window.__ModuleLoader__.load({
 				if (cls === null) {
 					// Honest fallback: its own tiny technical unit, never merged.
 					cur = null;
-					const u = { type: "technical", keys: [], subCount: 0, desc: null, lastPath: undefined };
+					const u = { type: "technical", keys: [], subCount: 0, desc: null, lastPath: undefined, continuableStart: false };
 					units_push(ownerOf, metaOf, u, k, cls);
 					continue;
 				}
@@ -307,7 +321,7 @@ window.__ModuleLoader__.load({
 					continue;
 				}
 				if (u === null || u.type !== cls.type || cls.type === "question") {
-					u = { type: cls.type, keys: [], subCount: 0, desc: null, lastPath: cls.path };
+					u = { type: cls.type, keys: [], subCount: 0, desc: null, lastPath: cls.path, continuableStart: false };
 					units_push(ownerOf, metaOf, u, k, cls);
 					cur = u;
 					continue;
@@ -343,6 +357,7 @@ window.__ModuleLoader__.load({
 				hasError,
 				count: u.keys.length,
 				spawns: u.subCount,
+				continuableStart: u.continuableStart,
 				desc,
 				items,
 				firstCallId,
@@ -356,6 +371,7 @@ window.__ModuleLoader__.load({
 			if (cls !== null && cls.isSpawn === true) u.subCount += 1;
 			if (cls !== null && typeof cls.desc === "string" && u.desc === null) u.desc = cls.desc;
 			if (cls !== null && typeof cls.path === "string") u.lastPath = cls.path;
+			if (cls !== null && cls.continuableStart === true) u.continuableStart = true;
 		}
 
 		function samePath(a, b) {
@@ -389,6 +405,8 @@ window.__ModuleLoader__.load({
 		function headlineFor(info) {
 			const tone = info.running ? "run" : (info.hasError ? "error" : "done");
 			if (tone === "error") return "Das hat leider nicht geklappt.";
+			if (info.continuableStart === true && !info.running) return "Hintergrundfaden läuft im Hintergrund";
+			if (info.type === "continuation") return "Arbeitsfaden fortgesetzt";
 			if (info.type === "research") return info.running ? researchRunLabel(info) : researchDoneLabel(info);
 			const c = COPY[info.type];
 			return tone === "run" ? c.run : c.done;
@@ -497,6 +515,9 @@ window.__ModuleLoader__.load({
 			const d = data !== null && typeof data === "object" ? data : {};
 			const prov = d.provenance !== null && typeof d.provenance === "object" ? d.provenance : {};
 			if (prov.role === "recall") return "Frühere Session herangezogen";
+			const body = oneLine(contextTextBlocks(d.content));
+			if (/background subagent .* finished/i.test(body)) return "Hintergrund-Worker abgeschlossen";
+			if (/background subagent .* stopped|will do no further work/i.test(body)) return "Hintergrund-Worker beendet";
 			switch (d.form) {
 				case "relay": return "Rückmeldung aus der Hintergrundarbeit eingegangen";
 				case "notice": {
@@ -571,7 +592,7 @@ window.__ModuleLoader__.load({
 
 		// Test hook (read-only; used by the plugin-local logic smoke test).
 		if (typeof window !== "undefined" && window !== null) {
-			window.__ptsActivityStream = { describeKey, classifyRoot, contextHeadline, contextMetaLine };
+			window.__ptsActivityStream = { describeKey, classifyRoot, contextHeadline, contextMetaLine, headlineFor };
 		}
 
 		return { inject: ["slots"], apply: apply };

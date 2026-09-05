@@ -163,6 +163,22 @@ const CWD = "F:/code/pedagogical-thinking-space";
 	check("C2: pts_review classified as review", describeKey("tool-call:" + review.callId, s, CWD).type === "review");
 }
 
+// --- Scenario C3: continuable start, follow-up and settlement notice -------
+{
+	const first = runningCall("pts_research", JSON.stringify({ description: "Quellen pruefen", prompt: "..." }));
+	const receipt = resultNode(first);
+	receipt.content = [{ type: "text", text: "started subagent child-research-1" }];
+	const started = describeKey("tool-call:" + first.callId, snap([toolNode(receipt)]), CWD);
+	const { headlineFor } = sandbox.window.__ptsActivityStream;
+	check("C3: continuable receipt stays visibly active", started.continuableStart === true && started.running === false);
+	check("C3: continuable copy names the background thread", headlineFor(started) === "Hintergrundfaden läuft im Hintergrund");
+	const follow = runningCall("send_message", JSON.stringify({ agent_id: "child-research-1", message: "Pruefe die zweite Quelle." }));
+	const continued = describeKey("tool-call:" + follow.callId, snap([toolNode(resultNode(follow))]), CWD);
+	check("C3: follow-up is a continuation unit", continued.type === "continuation");
+	const { contextHeadline } = sandbox.window.__ptsActivityStream;
+	check("C3: DSH settlement notice is shown as completed", contextHeadline({ form: "notice", content: [{ type: "text", text: "Background subagent child-research-1 finished and will do no further work unless you send it more." }] }) === "Hintergrund-Worker abgeschlossen");
+}
+
 // --- Scenario D: unknown tool => honest technical fallback -----------------
 {
 	const x = runningCall("workflow", JSON.stringify({ script: "..." }));

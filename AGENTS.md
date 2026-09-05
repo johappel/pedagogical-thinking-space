@@ -41,11 +41,16 @@ Delegate bounded work with the role-specific DSH tools supplied by the
 | Tool | Responsibility |
 | --- | --- |
 | `pts_research` | public, source-grounded research and verification |
-| `pts_edit` | exact, already-agreed edits to workspace documents |
+| `pts_edit` | direct, structured small Denkstand edits; no child-agent |
 | `pts_document` | factual documentation, protocols and decision records |
 | `pts_material` | reviewable teaching-material drafts |
 | `pts_review` | read-only pedagogical and factual review |
 | `pts_renderer` | conversion of an approved draft into a target format |
+
+The five specialist tools start real DSH subagents. `pts_edit` is the deliberate
+exception: it is a direct, structured PTS capability with fixed targets and no
+raw `write`/`edit` surface. The legacy `pts_edit_legacy` child remains as a
+rollback path for larger bounded edits.
 
 These tools start real DSH subagents. They are not capabilities resolved by PTS
 code. Use `run_in_background: true` unless the very next conversational action

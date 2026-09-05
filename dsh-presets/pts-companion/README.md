@@ -1,19 +1,24 @@
 # pts-companion preset
 
 This preset is the executable DSH boundary of the PTS prototype. It exposes
-six differently constrained instances of DSH's native subagent tool. Children
+five continuable, differently constrained instances of DSH's native subagent
+tool plus one retained one-shot edit fallback. Children
 inherit the parent composition in the current DSH architecture, so role
 separation is expressed through a fixed persona, tool filter and model route on
 each tool instance rather than through a PTS dispatcher.
 
-The Companion itself is instructed not to use web or mutation tools directly.
-Those tools remain in the composition because a spawned child can only be
-restricted from tools its parent composition already contains.
+The Companion itself is instructed not to use web or generic mutation tools
+directly. Its only direct mutation surface is the structured `pts_edit` tool:
+fixed PTS targets for a proposed open question or a teacher-confirmed
+decision. The raw write/edit tools remain in the composition because a spawned
+child can only be restricted from tools its parent composition already
+contains.
 
 `companion-tool-boundary.mjs` guards every direct execution of those tools
-(skill, web_search, web_fetch, write, edit, bash, pwsh, workflow, subagent)
+(skill, web_search, web_fetch, write, edit, pts_edit_legacy, bash, pwsh,
+workflow, subagent)
 with an actionable delegation directive naming the matching worker per task
-type, so the model starts `pts_research` / `pts_edit` / `pts_document` /
+type, so the model starts `pts_research` / `pts_edit_legacy` / `pts_document` /
 `pts_material` immediately instead of answering "not possible". Observed
 finding: in this DSH build the per-agent tool `restrict` may leave the tools
 visible in the schema while the guard still blocks execution — the persona and
@@ -28,8 +33,12 @@ via `pts_edit`, while the Background Steward maintains the reversible
 `learning-design.md` state after the turn. This enforces the production gate at
 the tool boundary, not only in the persona.
 
-Background calls are one-shot DSH jobs. Use `job_output`, `job_status` and
-`job_kill` from the shipped DSH job tools; do not add a PTS job layer.
+The five specialist calls are continuable background DSH children. DSH returns
+their durable child id; native `send_message` continues the same child and
+`interrupt_agent` stops its current turn. DSH has no public close/delete API
+for these durable children, so do not add a PTS job layer, scheduler or
+garbage collector. The old edit child is retained as `pts_edit_legacy` and
+stays one-shot as a rollback path until live direct-edit acceptance.
 
 ## Companion system-prompt injection ("headroom")
 

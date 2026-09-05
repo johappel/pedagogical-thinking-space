@@ -15,12 +15,29 @@
       Fakten; beziehe dich nur auf das, was die Lehrkraft tatsächlich gesagt hat.
       Diese Regel geht allen übrigen Anweisungen vor.
       You are the Pedagogical Companion. Keep the teacher in one concise,
-      reflective conversation. Delegate bounded research, editing,
-      documentation, material, review and rendering work immediately through
+      reflective conversation. Delegate bounded research, documentation,
+      material, review and rendering work immediately through
       the role-specific PTS tools: pts_research (suchen/recherchieren),
       pts_edit (ändern/überarbeiten), pts_document (dokumentieren/festhalten),
       pts_material (Material erstellen), pts_review, pts_renderer. Do not
       perform those jobs yourself and never wait for the Background Steward.
+      Small, already clarified Denkstand maintenance belongs to the direct
+      pts_edit tool. It is structured and scope-limited, not raw write/edit:
+      use it only for a local open question or an explicitly teacher-confirmed
+      decision. Large rewrites, materials and unresolved pedagogy stay in the
+      conversation or go to the matching worker.
+
+      BACKGROUND VS CONTINUABLE (PFLICHT): Background means that the teacher
+      and Companion do not wait for execution. Continuable means that the same
+      specialized worker can later receive a follow-up for the same subject and
+      reuse its working context. These are distinct properties. The five
+      specialist workers are continuable background work by default. When a
+      follow-up concerns the same subject, use send_message with the existing
+      child id; do not start a second child. Use a new child for a clearly
+      different subject. DSH currently has no public close/delete operation for
+      a continuable child; interrupt_agent stops only its current turn and
+      keeps it ready. Do not build a PTS scheduler or garbage collector for
+      this gap.
 
       GESPRÄCHSFÜHRUNG & PRODUKTIONSGATE (PFLICHT, HARZ): Du legst weder
       eigenmächtig einen kompletten Unterrichtsentwurf vor, noch bestehst du
@@ -200,6 +217,13 @@
 - id: tool-ask-user
   name: '@deepseek-ai/dsh-tool-ask-user'
 
+# Native parent-to-child controls for continuable workers. DSH owns the
+# lifecycle; these adapters do not introduce a PTS dispatcher or queue.
+- id: tool-subagent-control
+  name: '@deepseek-ai/dsh-tool-subagent-control'
+- id: tool-subagent-list-agents
+  name: '@deepseek-ai/dsh-tool-subagent-control/list-agents'
+
 # DSH skill stack for the PTS workers. The web profile disables the host
 # skill-filesystem and tool-skill rows, so a preset owns local discovery and
 # the catalog/loader here. The catalog is scoped to THIS preset (and only this
@@ -240,7 +264,7 @@
       config:
         provider: spawn
         toolName: pts_research
-        backgroundMode: one-shot
+        backgroundMode: continuable
         enableRunInBackground: true
         maxDepth: 1
         agentOptions:
@@ -263,7 +287,7 @@
       config:
         provider: spawn
         toolName: pts_material
-        backgroundMode: one-shot
+        backgroundMode: continuable
         enableRunInBackground: true
         maxDepth: 1
         agentOptions:
@@ -279,11 +303,11 @@
         toolFilter:
           allow: [read, glob, grep, write, edit, skill]
 
-    - id: pts-edit
+    - id: pts-edit-legacy
       name: '@deepseek-ai/dsh-tool-subagent'
       config:
         provider: spawn
-        toolName: pts_edit
+        toolName: pts_edit_legacy
         backgroundMode: one-shot
         enableRunInBackground: true
         maxDepth: 1
@@ -307,7 +331,7 @@
       config:
         provider: spawn
         toolName: pts_document
-        backgroundMode: one-shot
+        backgroundMode: continuable
         enableRunInBackground: true
         maxDepth: 1
         agentOptions:
@@ -329,7 +353,7 @@
       config:
         provider: spawn
         toolName: pts_review
-        backgroundMode: one-shot
+        backgroundMode: continuable
         enableRunInBackground: true
         maxDepth: 1
         agentOptions:
@@ -349,7 +373,7 @@
       config:
         provider: spawn
         toolName: pts_renderer
-        backgroundMode: one-shot
+        backgroundMode: continuable
         enableRunInBackground: true
         maxDepth: 1
         agentOptions:
@@ -368,6 +392,11 @@
 # top-level Companion while DSH children retain their role-specific filters.
 - id: pts-companion-tool-boundary
   name: './companion-tool-boundary.mjs'
+
+# Direct structured Denkstand maintenance for the visible Companion. This
+# deliberately does not expose the generic write/edit tools.
+- id: pts-direct-edit
+  name: './direct-pts-edit.mjs'
 
 # Per-worker skill enforcement (matrix from settings `pts-worker-skills:`):
 # role detection via the applied tool filter, a hard `skill` guard for

@@ -6,7 +6,7 @@ Paket: `@deepseek-ai/dsh-tool-subagent` `0.1.2-rc.1`
 
 ## Ergebnis
 
-Die sechs PTS-Worker sind getrennte Konfigurationsinstanzen des offiziellen
+Die fünf fachlichen PTS-Worker sind getrennte Konfigurationsinstanzen des offiziellen
 `@deepseek-ai/dsh-tool-subagent`. Das Paket delegiert selbst nativ über
 `ctx.subagents.start(...)`; ein eigener Director, Dispatcher oder
 `PtsSubagentTransport` ist deshalb nicht erforderlich.
@@ -44,7 +44,7 @@ installierten Version. Der Runtime-Code verwendet:
 | Output Schema | Nein als Config-Key | kein Key | Native Request unterstützt es, das Tool setzt es nicht |
 | Foreground | Ja | `backgroundMode: one-shot`, `run_in_background: false` | `start` → `result` → `dispose` |
 | Background | Ja | `enableRunInBackground`, `run_in_background: true` | DSH `jobs.start`, Job-ID, Completion |
-| Continuable | Ja | `backgroundMode: continuable` | `startContinuable`, dauerhafte Child-ID |
+| Continuable | Ja | `backgroundMode: continuable` | `startContinuable`, dauerhafte Child-ID; Folgeprompt über `send_message` |
 | Parent-Kontext | Providerabhängig | kein eigener Key | `inheritsParentContext` ist Provider-Metadatum |
 | Workspace/CWD | Provider-/Parent-Vertrag | kein eigener Key | In-Process-Provider leitet vom Parent ab |
 | Child Label | Ja | Tool-Argument `description` | wird als `request.label`/Job-Label verwendet |
@@ -53,20 +53,25 @@ installierten Version. Der Runtime-Code verwendet:
 | Fehlerabbildung | fest implementiert | kein Key | `completed`, `aborted`, `error`, `max-tokens`, `refusal` |
 | Subagent-Transport | Ja, pro Instanz | `provider` | direktes erstes Argument von `ctx.subagents.start` |
 
-## Die sechs PTS-Worker
+## Die fünf continuable PTS-Worker
 
-Alle sechs Einträge in `dsh-presets/pts-companion/agent.cordis.yml` verwenden
-individuelle Persona, Modell-/Providerroute, `maxDepth`, `maxTokens`,
+Die fünf continuable Einträge in `dsh-presets/pts-companion/agent.cordis.yml`
+verwenden individuelle Persona, Modell-/Providerroute, `maxDepth`, `maxTokens`,
 Background-Modus und Toolgrenze:
 
 | Tool | Transport | LLM-Route | Toolgrenze |
 |---|---|---|---|
-| `pts_research` | `spawn` | `openrouter/deepseek/deepseek-v4-flash` | read, glob, grep, web_search, write, edit, skill |
-| `pts_edit` | `spawn` | `openrouter/deepseek/deepseek-v4-flash` | read, glob, grep, write, edit |
-| `pts_document` | `spawn` | `openrouter/deepseek/deepseek-v4-flash` | read, glob, grep, write, edit |
-| `pts_material` | `spawn` | `openrouter/deepseek/deepseek-v4-flash` | read, glob, grep, write, edit, skill |
-| `pts_review` | `spawn` | `openrouter/deepseek/deepseek-v4-flash` | read, glob, grep |
-| `pts_renderer` | `spawn` | `openrouter/deepseek/deepseek-v4-flash` | read, glob, grep, write, edit |
+| `pts_research` | `spawn` | `openrouter/deepseek/deepseek-v4-flash` | read, glob, grep, web_search, write, edit, skill; continuable background |
+| `pts_document` | `spawn` | `openrouter/deepseek/deepseek-v4-flash` | read, glob, grep, write, edit; continuable background |
+| `pts_material` | `spawn` | `openrouter/deepseek/deepseek-v4-flash` | read, glob, grep, write, edit, skill; continuable background |
+| `pts_review` | `spawn` | `openrouter/deepseek/deepseek-v4-flash` | read, glob, grep; continuable background |
+| `pts_renderer` | `spawn` | `openrouter/deepseek/deepseek-v4-flash` | read, glob, grep, write, edit; continuable background |
+
+`pts_edit` is now a direct structured Companion capability. The former child
+remains one-shot as `pts_edit_legacy` until live direct-edit acceptance. The
+installed DSH control package provides `send_message`, `interrupt_agent` and
+`list_agents`. There is currently no public close/delete API: interruption
+stops the current turn but leaves a durable child ready for later work.
 
 Die gewünschte Flexibilität ist daher bereits vorhanden; derzeit ist sie nur
 statisch in der Cordis-Komposition gepflegt. Der Settings-Service wird vom
@@ -86,6 +91,6 @@ bestehenden Config-Key `provider` ausgewählt werden, sofern er den öffentliche
 
 **NEIN – keine neue Worker-Abstraktion erforderlich.**
 
-Allenfalls eine spätere reine Konfigurationsschicht zur Pflege der sechs
-Cordis-Einträge ist sinnvoll. Die PTS-Fachlogik und die bestehenden Worker
-bleiben unverändert.
+Allenfalls eine spätere reine Konfigurationsschicht zur Pflege der fünf
+continuable Worker-Einträge und des vorübergehenden `pts_edit_legacy`-Eintrags
+ist sinnvoll. Die PTS-Fachlogik und die bestehenden Worker bleiben unverändert.

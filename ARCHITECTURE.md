@@ -25,18 +25,40 @@ services rather than recreating their lifecycle.
 ```text
 Teacher <-> pts-companion
                 |
-                +-- pts_research  --+
-                +-- pts_edit      --+
-                +-- pts_document  --+--> DSH subagents/jobs --> Companion
-                +-- pts_material  --+
-                +-- pts_review    ---+
-                +-- pts_renderer  --+
+                +-- pts_edit (direct, structured, guarded)
+                +-- pts_research  --+   continuable background
+                +-- pts_document  --+   continuable background
+                +-- pts_material  --+   continuable background
+                +-- pts_review    --+   continuable background
+                +-- pts_renderer  --+   continuable background
+                +-- pts_edit_legacy -- one-shot rollback path
+                    native DSH subagents via ctx.subagents --> Companion
 
 completed top-level turn --> pts-background-steward --> reversible Denkstand patch
 ```
 
 The Steward is not on the delegation path. An explicit task starts from the
-Companion turn immediately. DSH emits the job identity and completion state.
+Companion turn immediately. DSH emits the child identity and completion state.
+
+Background and continuable are different properties. Background means that
+the teacher and Companion do not wait for execution. Continuable means that
+the same specialist can receive a later prompt for the same subject and reuse
+its child Session. PTS uses DSH's native `startContinuable()` and
+`send_message`; it does not add a dispatcher, queue or lifecycle manager.
+
+The direct `pts_edit` capability is intentionally narrower than a file tool:
+it can add a proposed open question to `planning-board.yml` or record a
+teacher-confirmed decision in `decisions.yml` for the current Denkraum. It
+uses fixed targets, input limits, PTS-root validation and atomic replacement.
+Large conceptual edits, materials and unresolved pedagogy remain conversation
+or worker work. The legacy child remains installed as `pts_edit_legacy` until
+the direct path has passed live acceptance.
+
+DSH `0.1.2-rc.1` currently exposes no public close/delete operation for a
+continuable child. `interrupt_agent` stops only the current turn; the durable
+child remains `ready` for a later follow-up. PTS therefore keeps the native
+interruption/settlement behavior and does not build idle cleanup or a
+scheduler; parent/session teardown remains DSH-owned.
 
 ### Companion system-prompt injection ("headroom")
 
@@ -71,14 +93,16 @@ runtime registrations and cannot become executable through a PTS status flag.
 ## Acceptance criteria
 
 1. A direct research order invokes `pts_research` during the same Companion
-   turn with `run_in_background: true`.
+   turn with `run_in_background: true` or its continuable default.
 2. A direct material order invokes `pts_material`; no Steward run is required.
-3. DSH returns a job id and owns status, output and cancellation.
+3. DSH returns a child id and owns status, output, continuation and
+   interruption.
 4. Research has web tools and may write only requested research drafts or
    Knowledge Proposals; material, edit and documentation production have
    write tools but no web tools; review is read-only.
-5. The Companion's own Agent scope exposes no web, skill, write or edit path;
-   the DSH Worker tools are the only execution boundary for those operations.
+5. The Companion's own Agent scope exposes no web, skill, write or generic edit
+   path; the structured direct `pts_edit` and DSH Worker tools are the only
+   PTS execution boundaries for mutation.
 6. Every Session created through the PTS Workspace UI explicitly names the
    `pts-companion` preset instead of inheriting a machine-wide default.
 7. The Companion remains responsive while independent jobs run.
@@ -95,3 +119,6 @@ runtime registrations and cannot become executable through a PTS status flag.
     design or produce material during the clarifying phase, and it parks
     unresolved open questions in the planning board while following the
     teacher's actual direction.
+14. A follow-up for the same subject uses the existing continuable child id;
+    a different subject starts a new child. PTS does not promise automatic
+    deletion of settled continuable Sessions because DSH does not expose it.
