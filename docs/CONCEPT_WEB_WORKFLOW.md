@@ -93,7 +93,7 @@ streifen (Layout-Änderungen berühren nie die Landscape).
   Platzierungen), ein Moment über mehrere Stunden verteilt sein (mehrere
   Platzierungen in verschiedenen Fenstern) — exakt das Platzierungs-Modell.
 - **Status:** Die Lehrkraft-Handlung ist eine Entscheidung → geschriebene
-  Platzierungen erhalten `status: binding`. Steward-/Backfill-Vorschläge
+  Platzierungen erhalten `status: binding`. Documentarian-/Backfill-Vorschläge
   bleiben `proposed` und zeigen einen „Übernehmen“-Button (Badge
   „Vorschlag“/„Verbindlich“). Fenster anlegen/umbenennen/Zeiten ändern
   direkt im Editor.
@@ -129,7 +129,7 @@ streifen (Layout-Änderungen berühren nie die Landscape).
   - „Offene Fragen“-Panel (aus Landschafts-Momenten + Board-Klärungen +
     Snapshot), dezent, immer sichtbar.
   - „Nächster Schritt“-Karte: der Companion benennt genau EINEN nächsten
-    notwendigen Schritt (aus Snapshot + Steward-Hint); die Karte hat den
+  notwendigen Schritt (aus Snapshot + Documentarian-Hinweis); die Karte hat den
     passenden Aktions-Button („Öffnen“, „Zuordnen“, „Vorschlagen“).
   - **Dokument-Buttons:** Nach jedem Worker-Ergebnis und Documentarian-Check zeigt
     die Antwort prominente „Öffnen“-Buttons auf die berührten Dokumente

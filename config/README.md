@@ -14,7 +14,7 @@ checkout. The installer refuses to replace an existing directory unless
 timestamped backup instead of deleting it.
 
 The `pts-web` profile mounts the PTS UI plugins. Worker execution needs no PTS
-dispatcher or post-turn Steward plugin: the Companion preset exposes five
+dispatcher or post-turn host plugin: the Companion preset exposes five
 continuable specialist workers plus the continuable `pts_documentarian`.
 
 Merge `pts-web-profile.settings.example.yaml` into the profile-local settings

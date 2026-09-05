@@ -23,7 +23,7 @@ check('board has clarify column', clarify.length >= 1);
 check('clarify items carry title', clarify.length >= 1 && typeof clarify[0].title === 'string' && clarify[0].title.length > 0);
 check('clarify items carry kind label', clarify.every((x) => x.kind_label === 'Klärung'));
 // Offene Klärungen sind "Vorschlag", beantwortete sind "Beantwortet"
-// (settle-board-item des Stewards); nie ein roher unbekannter Status.
+// (after a documented teacher answer); never a raw unknown status.
 check('clarify items carry status', clarify.every((x) => x.status_label === 'Vorschlag' || x.status_label === 'Beantwortet'));
 check('clarify resolved items labeled not raw', clarify.every((x) => !/resolved/i.test(x.status_label)));
 

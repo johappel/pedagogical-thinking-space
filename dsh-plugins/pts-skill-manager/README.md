@@ -119,7 +119,7 @@ node --test dsh-plugins/pts-skill-manager/test/*.test.mjs
 ```
 
 Abgedeckt: Frontmatter-Parser (Defaults/ungültig), Matrix-Normalisierung und
--Vorvalidierung, Settings-Sektion lesen/schreiben inkl. Konvoi mit dem
-Steward-Writer, Import-Pfad-Härtung (kein Escape aus `skills/`), Konflikt- und
+-Vorvalidierung, Settings-Sektion lesen/schreiben ohne fremde Sektionen zu
+löschen, Import-Pfad-Härtung (kein Escape aus `skills/`), Konflikt- und
 Löschregeln sowie Rollen-Erkennung, Guard und Prompt-Sektion des
 Preset-Plugins.

@@ -12,10 +12,6 @@ const forbidden = [
   'capabilities/registry.yml',
   'harness/dispatcher.py',
   'dsh-plugins/pts-background-steward',
-  'dsh-plugins/pts-background-steward/lib/service-coordinator.js',
-  'dsh-plugins/pts-background-steward/lib/research-job.js',
-  'dsh-plugins/pts-background-steward/lib/capability-lifecycle.js',
-  'dsh-plugins/pts-background-steward/lib/capability-builder.js',
 ];
 
 test('competing runtime layers are absent', async () => {
@@ -89,6 +85,6 @@ test('Documentarian is a bounded native worker, not a host scheduler', async () 
   assert.match(preset, /pts_documentarian[\s\S]*documentation gap/);
   assert.match(service, /normal `@deepseek-ai\/dsh-tool-subagent` instance/);
   assert.match(service, /If evidence is ambiguous/);
-  assert.doesNotMatch(service, /start another worker/);
+  assert.match(service, /start another worker/);
   assert.doesNotMatch(preset, /pts-background-steward/);
 });

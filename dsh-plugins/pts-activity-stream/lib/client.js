@@ -127,10 +127,12 @@ window.__ModuleLoader__.load({
 			pts_renderer: "draft",
 			pts_edit: "update",
 			pts_document: "draft",
+			pts_documentarian: "update",
 		};
 		const CONTINUABLE_WORKERS = {
 			pts_research: true, pts_material: true, pts_review: true,
 			pts_document: true, pts_renderer: true,
+			pts_documentarian: true,
 		};
 
 		function textBlocks(content) {

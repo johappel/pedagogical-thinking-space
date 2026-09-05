@@ -1,4 +1,4 @@
-// Realtest for active workspace stewardship and the generic DSH question UI.
+// Realtest for active workspace documentation and the generic DSH question UI.
 // Usage: node scripts/pts-companion-question-test.mjs selection|free-text|skip|close
 // Requires a running pts-web on 3081, standard DSH on 3080, and Chrome CDP 9222.
 import fs from 'node:fs';
@@ -11,7 +11,7 @@ const wsRequire = createRequire('C:/Users/Joachim/AppData/Local/nvm/v24.19.0/nod
 const WebSocket = wsRequire('ws').WebSocket;
 const root = path.resolve(import.meta.dirname, '..');
 const port = 9222;
-const name = `PTS Stewardship ${mode} ${Date.now()}`;
+const name = `PTS Documentarian ${mode} ${Date.now()}`;
 const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const workspace = path.join(root, 'workspace', slug);
 

@@ -1,5 +1,9 @@
 # PTS Background Steward — Abnahmekriterien
 
+> **Status: superseded.** This is the historical acceptance record for the
+> removed host plugin. The current replacement is documented in
+> `docs/architecture/PTS_DOCUMENTARIAN_MIGRATION.md`.
+
 > Prüfung der Hintergrundpflege (`dsh-plugins/pts-background-steward`) gegen
 > die im Kernel vereinbarten Abnahmekriterien. Stand: DSH 0.1.1-rc.2,
 > pts-web-Profil, Port 3081. Das Standard-Web (Port 3080) bleibt unberührt.

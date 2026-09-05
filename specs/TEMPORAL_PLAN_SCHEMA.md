@@ -48,10 +48,10 @@ paths; neither may be displayed as one compulsory sequence.
 
 Both windows and placements may carry an optional `status` field:
 
-- `proposed` — AI/Steward suggestion, not yet teacher-approved;
+- `proposed` — AI/Documentarian or worker suggestion, not yet teacher-approved;
 - `binding` — default when absent, teacher-approved timing.
 
-The Steward writes only `proposed` entries; converting them to `binding`
+The Documentarian writes only `proposed` entries; converting them to `binding`
 requires a recognizable teacher decision.
 
 ## Validation

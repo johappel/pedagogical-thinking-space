@@ -170,7 +170,7 @@ rollenspezifische Unterschied.
     Kind-Komposition. Deshalb erhält das Plugin den Settings-Dokument-Pfad
     über die Row-Config (`settingsPath: '@PTS_SETTINGS_PATH@'`, vom Installer
     ersetzt) und liest die Datei direkt (gleiches Dokument, gleicher Parser
-    wie der Steward). Fallback: `ctx.get('settings')` — nie ein bloßer
+    wie andere profileigene Worker). Fallback: `ctx.get('settings')` — nie ein bloßer
     `ctx.settings`-Zugriff, der „without inject" wirft.
 - **Nachweis:** Tool-Aufruf-Log (`skill google-search` gelingt, `skill ppt-builder`
   im Research-Worker wird vom Guard abgelehnt) + Persona-Wirkung.

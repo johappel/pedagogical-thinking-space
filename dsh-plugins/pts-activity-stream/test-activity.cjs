@@ -157,10 +157,12 @@ const CWD = "F:/code/pedagogical-thinking-space";
 	const research = runningCall("pts_research", JSON.stringify({ description: "Lehrplan prüfen", prompt: "...", run_in_background: true }));
 	const material = runningCall("pts_material", JSON.stringify({ description: "Arbeitsblatt entwerfen", prompt: "...", run_in_background: true }));
 	const review = runningCall("pts_review", JSON.stringify({ description: "Entwurf prüfen", prompt: "...", run_in_background: true }));
-	const s = snap([toolNode(research), toolNode(material), toolNode(review)]);
+	const documentarian = runningCall("pts_documentarian", JSON.stringify({ description: "Denkstand abgleichen", prompt: "...", run_in_background: true }));
+	const s = snap([toolNode(research), toolNode(material), toolNode(review), toolNode(documentarian)]);
 	check("C2: pts_research classified as research", describeKey("tool-call:" + research.callId, s, CWD).type === "research");
 	check("C2: pts_material classified as draft", describeKey("tool-call:" + material.callId, s, CWD).type === "draft");
 	check("C2: pts_review classified as review", describeKey("tool-call:" + review.callId, s, CWD).type === "review");
+	check("C2: pts_documentarian classified as update", describeKey("tool-call:" + documentarian.callId, s, CWD).type === "update");
 }
 
 // --- Scenario C3: continuable start, follow-up and settlement notice -------
