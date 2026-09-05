@@ -9,9 +9,10 @@
 
 Grundsatz: **Die Lehrkraft handelt, der Companion denkt mit.** Jede direkte
 UI-Handlung (Bearbeiten, Zuordnen, Verteilen) ist eine Lehrkraft-Entscheidung
-und schreibt direkt in die kanonischen Dateien. KI-Aktionen (Steward,
-Worker) bleiben Vorschläge (`draft`/`proposed`), bis die Lehrkraft sie
-übernimmt. Es entsteht kein zweiter Dispatcher oder Registry-Mechanismus.
+und schreibt direkt in die kanonischen Dateien. KI-Aktionen (Documentarian,
+Worker) bleiben überprüfbare Arbeitsstände (`draft`/`proposed`), bis die
+Lehrkraft sie übernimmt. Es entsteht kein zweiter Dispatcher oder Registry-
+Mechanismus.
 
 ---
 
@@ -23,6 +24,7 @@ Worker) bleiben Vorschläge (`draft`/`proposed`), bis die Lehrkraft sie
 | `artifact-panel` (Tab „Artefakte“)                   | Galerie produzierter Dateien, Vorschau (md/html/pdf/Bild), Download, Chips im Chat — **kein Editieren**                |
 | `pts-workspaces`                                     | Denkraum anlegen/löschen, harte Pfad-Grenze (Vorbild für Save-Routen)                                                  |
 | `pts-workspace-snapshot` (Preset)                    | injiziert pro Turn Status, offene Fragen, Board, Entscheidungen in den Companion                                       |
+| `pts_documentarian`                                  | prüft auf ausdrücklichen Auftrag Vollständigkeit, Konsistenz und Provenienz                                          |
 | Worker (`pts_material`, `pts_edit`, `pts_review`, …) | Erzeugen/überarbeiten Artefakte, Verlaufspläne, Review                                                                 |
 
 Fehlend: grafische Lernlandschaft, Artefakt-Editor, Material↔Moment-Zuordnung,
@@ -52,7 +54,7 @@ streifen (Layout-Änderungen berühren nie die Landscape).
   `learning-landscape.layout.json`; Übergänge als Pfeile.
 - Klick auf eine Karte öffnet die Details (rechte Spalte) mit den
   Pflichtfeldern + Offenen Fragen + „Bearbeiten“.
-- Vorschlags-Zustände sichtbar: `draft` (Begleiter/Steward) vs. `stable`
+- Vorschlags-Zustände sichtbar: `draft` (Begleiter/Documentarian) vs. `stable`
   (Lehrkraft übernommen) vs. `needs_review` — Badge wie im Board.
 
 ## 4. Schritt 2 — Ausarbeitung im Editor (ohne DSH zu verlassen)
@@ -120,15 +122,16 @@ streifen (Layout-Änderungen berühren nie die Landscape).
 ## 8. Companion hält offene Fragen/Entscheidungen im Blick
 
 - **Bereits vorhanden:** `pts-workspace-snapshot` injiziert pro Turn den
-  Denkstand (Status, Board, Entscheidungen, offene Fragen); der Steward
-  liefert `next_turn_hint` (höchstens eine offene Frage).
+  Denkstand (Status, Board, Entscheidungen, offene Fragen). Der
+  `pts_documentarian` liefert bei einem expliziten Check Dokumentationslücken,
+  aber keinen pädagogischen `next_turn_hint`.
 - **Neu (UI):**
   - „Offene Fragen“-Panel (aus Landschafts-Momenten + Board-Klärungen +
     Snapshot), dezent, immer sichtbar.
   - „Nächster Schritt“-Karte: der Companion benennt genau EINEN nächsten
     notwendigen Schritt (aus Snapshot + Steward-Hint); die Karte hat den
     passenden Aktions-Button („Öffnen“, „Zuordnen“, „Vorschlagen“).
-  - **Dokument-Buttons:** Nach jedem Worker-Ergebnis und Steward-Lauf zeigt
+  - **Dokument-Buttons:** Nach jedem Worker-Ergebnis und Documentarian-Check zeigt
     die Antwort prominente „Öffnen“-Buttons auf die berührten Dokumente
     (Lernlandschaft, Timeline, Planungsboard, Entscheidungen, Material) —
     sie öffnen die Artefakt-/Denkstand-Ansicht direkt. Immer wenn sich etwas
@@ -147,4 +150,4 @@ streifen (Layout-Änderungen berühren nie die Landscape).
    als eigene Spur.
 
 Jede Stufe bleibt einzeln nutzbar; die kanonischen Dateien und die
-DSH-Delegation (Worker/Steward) bleiben unverändert die einzige Wahrheit.
+DSH-Delegation (Worker/Documentarian) bleiben unverändert die einzige Wahrheit.

@@ -9,13 +9,9 @@ Service-Request-Queue, kein Capability-Registry, kein PTS-Dispatcher).
 
 - [x] Planning Board (`planning-board.yml`) ersetzt Legacy `service-requests/`.
 - [x] Denkraum-Scaffold ohne `service-requests/` (pts-workspaces).
-- [x] Background Steward pflegt den Denkstand nach abgeschlossenen Turns:
-  - `learning-design.md` (Abschnitte),
-  - `learning-landscape.md` (Lernmomente als vollständige Entwürfe, Status `draft`),
-  - `decisions.yml` (nur bei belegter Lehrkraftentscheidung),
-  - `planning-board.yml` (höchstens ein Vorschlag pro Lauf),
-  - `temporal-plan.yml` (Fenster/Platzierungen nur als Vorschlag,
-    Status `proposed`, siehe Steward-Policy).
+- [x] `pts_documentarian` hält Workspace-Dokumentation und Provenienz nach
+      ausdrücklich ausgelösten Checks konsistent; unklare Evidenz wird als
+      Lücke gemeldet und nicht als pädagogische Entscheidung eingetragen.
 - [x] Skill-Bibliothek `skills/<id>/SKILL.md` mit Rolle↔Skill-Matrix
       (pts-skill-manager).
 - [x] Denkstand-Tab (pts-denkstand) rendert Planning Board und Timeline.

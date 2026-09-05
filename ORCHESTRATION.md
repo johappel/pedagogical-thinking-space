@@ -13,6 +13,7 @@ audience and expected result are clear enough.
 - A larger or pedagogically unresolved edit -> `pts_edit_legacy` only as a
   bounded worker fallback, or keep it in conversation until clarified
 - A process or outcome to capture factually -> `pts_document`
+- Workspace completeness, consistency or provenance check -> `pts_documentarian`
 - Approved material draft -> `pts_material`
 - Returned result needs checking -> `pts_review`
 - Approved content needs another representation -> `pts_renderer`
@@ -34,14 +35,14 @@ implement an intention but never silently choose it. Results return as drafts.
 ## Background behavior
 
 Independent work starts with `run_in_background: true`; the five specialist
-workers are configured as `backgroundMode: continuable`, so that is also their
-default. DSH owns the lifecycle. The visible Companion acknowledges the start
-briefly and remains available. A follow-up for the same subject uses the
-existing child id through native `send_message`; a different subject gets a
-new child. `interrupt_agent` stops the current turn but does not close the
-durable child. DSH currently has no public close/delete operation, so PTS does
-not add an idle scheduler or cleanup layer. Dependent work starts only after
-the required DSH result/settlement has arrived.
+workers and `pts_documentarian` are configured as `backgroundMode: continuable`,
+so that is also their default. DSH owns the lifecycle. The visible Companion
+acknowledges the start briefly and remains available. A follow-up for the same
+subject uses the existing child id through native `send_message`; a different
+subject gets a new child. `interrupt_agent` stops the current turn but does not
+close the durable child. DSH currently has no public close/delete operation, so
+PTS does not add an idle scheduler or cleanup layer. Dependent work starts only
+after the required DSH result/settlement has arrived.
 
 The semantic distinction is deliberate: background describes whether the
 conversation waits, while continuable describes whether the same specialist
@@ -53,8 +54,10 @@ or record a teacher-confirmed decision in the current Denkraum. Large design
 rewrites, materials and unresolved pedagogical choices remain outside this
 direct path.
 
-The Background Steward is separate. It runs after completed dialogue turns and
-only maintains the Denkstand. It performs no orchestration.
+The Documentarian is a normal DSH worker, not a post-turn scheduler. The
+Companion invokes it for an explicit, bounded workspace check or after an
+accepted result with a documentation target. It preserves provenance and
+reports gaps; it does not decide pedagogy, curate Knowledge or start workers.
 
 ## Protecting attention
 

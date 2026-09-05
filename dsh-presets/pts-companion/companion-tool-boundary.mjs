@@ -5,8 +5,8 @@
 // visible root Agent must nevertheless not see or execute those tools itself.
 // This plugin applies DSH's own Agent-scoped restriction and monotonic guard;
 // subagents are intentionally excluded and remain governed by the toolFilter
-// on pts_research / pts_edit / pts_document / pts_material / pts_review /
-// pts_renderer.
+// on pts_research / pts_edit / pts_document / pts_documentarian / pts_material /
+// pts_review / pts_renderer.
 
 export const name = 'pts-companion-tool-boundary';
 export const inject = ['tools', 'agents'];
@@ -39,9 +39,8 @@ export const FORBIDDEN_DIRECT_EXECUTION = Object.freeze(new Set([
 
 // The Companion must NOT write or delegate the writing of the canonical design
 // during the clarifying/planning phase. The Learning Design is co-authored
-// with the teacher and its reversible maintenance belongs to the Background
-// Steward after the turn. The Companion records agreed points in
-// planning-board.yml / decisions.yml and parks open questions there instead.
+// with the teacher. Small agreed points use the structured direct edit; the
+// Documentarian is reserved for an explicit, bounded documentation check.
 const DESIGN_EDIT_TARGETS = Object.freeze([
 	'learning-design.md',
 	'learning-landscape.md',
@@ -76,7 +75,7 @@ const DESIGN_WRITE_VERBS = Object.freeze([
 ]);
 
 function designBlockMessage(target) {
-	return `pts_edit targeting ${target} is not allowed from the Companion during the clarifying/planning phase. The Learning Design is co-authored with the teacher; do not write or delegate a complete design before you have jointly shaped the intention, the journey and at least the core moments IN CONVERSATION. Keep the conversation going, park unresolved open questions in planning-board.yml via pts_edit (status: proposed, requires_teacher_approval: true), and let the Background Steward record reversible learning-design changes after the turn.`;
+	return `pts_edit targeting ${target} is not allowed from the Companion during the clarifying/planning phase. The Learning Design is co-authored with the teacher; do not write or delegate a complete design before you have jointly shaped the intention, the journey and at least the core moments IN CONVERSATION. Keep the conversation going, park unresolved open questions in planning-board.yml via pts_edit (status: proposed, requires_teacher_approval: true), and use pts_documentarian only for an explicit, bounded documentation check after the relevant evidence exists.`;
 }
 
 function isSubagent(agent) {
@@ -90,7 +89,7 @@ function installBoundary(agent) {
 		const designBlock = designEditBlock(execution);
 		if (designBlock !== undefined) return designBlock;
 		if (!FORBIDDEN_DIRECT_EXECUTION.has(execution.name)) return undefined;
-		return `PTS Companion may not execute "${execution.name}" directly. Start the matching worker immediately in the background (run_in_background: true) and continue the free conversation while it runs: suchen/recherchieren → pts_research · ändern/überarbeiten → pts_edit · dokumentieren/festhalten → pts_document · Material erstellen → pts_material · Review → pts_review · Rendering → pts_renderer. Do not answer "not possible" and do not stop talking — delegate now via the worker tool and keep engaging the teacher.`;
+		return `PTS Companion may not execute "${execution.name}" directly. Start the matching worker immediately in the background (run_in_background: true) and continue the free conversation while it runs: research → pts_research · edit → pts_edit · factual documentation → pts_document · Denkstand/Konsistenz → pts_documentarian · material → pts_material · review → pts_review · rendering → pts_renderer. Do not answer "not possible" and do not stop talking — delegate now via the worker tool and keep engaging the teacher.`;
 	});
 	return () => {
 		liftGuard();

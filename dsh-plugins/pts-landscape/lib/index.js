@@ -810,7 +810,7 @@ function isContained(rootReal, targetReal) {
 	return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
 }
 
-/** Atomic write inside dir (temp file + rename), same pattern as the steward. */
+/** Atomic write inside dir (temp file + rename), local route safety. */
 export async function atomicWriteFile(dir, name, content) {
 	const tmp = path.join(dir, `.${name}.pts-landscape-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.tmp`);
 	await fsp.writeFile(tmp, content, 'utf8');

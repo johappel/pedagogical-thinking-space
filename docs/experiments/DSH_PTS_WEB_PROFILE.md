@@ -13,6 +13,13 @@
 > [`../architecture/dsh-0.1.2-client-module-contract.md`](../architecture/dsh-0.1.2-client-module-contract.md)
 > und die [PTS-Plugin-Matrix](../architecture/pts-plugin-client-matrix.md).
 
+> **Nachfolgende Architekturentscheidung:** Der in diesem historischen Spike
+> beschriebene `pts-background-steward` ist superseded. Die aktuelle
+> Architektur verwendet den normalen, im Companion-Preset konfigurierten
+> `pts_documentarian`-Worker; die alte Host-Komposition und ihr Status-/Settings-
+> UI werden nicht weiter betrieben. Die historische Beschreibung unten bleibt
+> als Abnahmeprotokoll unverändert.
+
 ---
 
 ## 1. Verwendete Versionen

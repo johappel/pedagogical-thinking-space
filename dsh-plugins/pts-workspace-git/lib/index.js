@@ -8,8 +8,8 @@
 // revertible with a plain `git -C workspace log` / `git revert` / `git checkout`.
 //
 // Design:
-//  - Observes the same turn/end trigger as the Background Steward (completed,
-//    top-level only) — it never blocks the conversation and never chats.
+//  - Observes completed top-level turns — it never blocks the conversation and
+//    never chats. This is deterministic technical housekeeping, not a worker.
 //  - Debounces per workspace and runs at most one commit at a time.
 //  - Commits at the workspace repo ROOT (workspace/), covering every Denkraum.
 //  - Skips commits when there is nothing to commit; all failures are logged

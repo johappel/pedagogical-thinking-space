@@ -9,7 +9,7 @@
 //     web_search/web_fetch, material does not, review/renderer have no `skill`),
 //   - reads the assigned skill ids for that role from the `pts-worker-skills:`
 //     section of the profile settings document (same document the background
-//     steward parser reads; hot-reloaded per agent creation),
+//     worker parser reads; hot-reloaded per agent creation),
 //   - installs a per-agent tool guard that HARD-REJECTS `skill` calls for
 //     non-assigned names (fail-closed until the assignment is loaded),
 //   - registers a system-prompt section naming the assigned skills so the

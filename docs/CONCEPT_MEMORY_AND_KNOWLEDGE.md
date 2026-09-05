@@ -20,8 +20,8 @@ Die konzeptionellen Grundlagen existieren bereits:
 - `knowledge/README.md` — Proposal-Flow: Konversation/Service-Ergebnis →
   Proposal → Review → kuratiertes `knowledge/`; `_incoming/` für Importe.
 - `specs/KNOWLEDGE_PROPOSAL_TEMPLATE.md` — Vorlage für Knowledge-Proposals.
-- `pts-background-steward` — pflegt nach abgeschlossenen Turns reversible
-  Denkstand-Vorschläge (Vorbild für Vorschlagsmechanik).
+- `pts_documentarian` — prüft auf ausdrücklichen Auftrag Workspace-
+  Vollständigkeit, Konsistenz und Provenienz; er pflegt kein Knowledge.
 - `pts-workspace-snapshot` (Preset-Plugin) — injiziert pro Turn einen
   kompakten Denkstand in den Companion-System-Prompt (Vorbild für
   Verfügbarkeit über Projekte hinweg).
@@ -38,7 +38,7 @@ Wissen oder bringt kuratierten Bestand in neue Sessions.
 
 ```text
 memory.local/
-  proposals/     # Steward-Entwürfe, noch nicht geprüft
+  proposals/     # Vorschläge eines künftigen Memory-/Knowledge-Workflows
   curated/       # von der Lehrkraft übernommene Einträge
   log.md         # Änderungsprotokoll (Revision statt Überschreiben)
 ```
@@ -46,9 +46,9 @@ memory.local/
 - Ein Eintrag folgt dem Mindestrecord aus `services/MEMORY.md`
   (`context`, `epistemic_entries`, `action_or_intervention`, `learning`,
   `privacy`, `consent`).
-- **Nur Vorschläge automatisch:** Der Steward legt nach Turns höchstens
-  Entwürfe in `proposals/` ab (z. B. wenn die Lehrkraft eine
-  Erfahrung/Beobachtung explizit als merk-würdig markiert).
+- **Keine automatische Kuratierung:** Der Documentarian schreibt weder
+  `memory.local/` noch `knowledge/`. Vorschläge für diese Domänen gehören in
+  einen künftigen, getrennten Memory-/Knowledge-Workflow.
 - **Langzeit-Speicherung nur mit erkennbarer Lehrkraft-Entscheidung**
   (AGENTS.md „Pedagogical protection“); die Lehrkraft kann jederzeit
   Konfidenz senken, Ausnahmen ergänzen, Transferbedingungen einschränken
@@ -74,17 +74,17 @@ knowledge/
 
 ```text
 Gespräch / Worker-Ergebnis
-  → Steward: Memory- oder Knowledge-Vorschlag (Entwurf, nie kuratiert)
+  → Knowledge Worker: fachlich geprüfter Vorschlag (Entwurf, nie kuratiert)
   → pts_review: prüft (Mandat, Quellen, Risiken, Datenschutz)
   → Lehrkraft: entscheidet sichtbar („merken“, „übernehmen“, „verwerfen“)
   → pts_edit: übernimmt in memory.local/curated bzw. knowledge/<Kategorie>
   → End-of-Project-Review: „Was bleibt wiederverwendbar?“ → neue Vorschläge
 ```
 
-- **Steward:** schreibt ausschließlich Entwürfe in die jeweiligen
-  Proposal-Bereiche; er kuratiert nie, entscheidet nie über pädagogische
-  Richtung und fasst Memory/Knowledge nicht an (bestehende Persona-Grenze
-  wird für die Proposal-Bereiche geöffnet).
+- **Documentarian:** bleibt auf den aktuellen Workspace begrenzt und fasst
+  Memory/Knowledge nicht an.
+- **Knowledge Worker:** arbeitet ausschließlich an fachlichen Knowledge-
+  Proposals und kuratiert nie ohne sichtbare Lehrkraft-Entscheidung.
 - **Review:** `pts_review` bleibt read-only; Quellen- und
   Datenschutzprüfung vor Adoption.
 - **Adoption:** nur über erkennbare Lehrkraft-Entscheidung — im Gespräch
@@ -149,9 +149,9 @@ Zusätzliche Such-Ebene für den Companion/Worker (DSH-nativ, kein Registry):
 ## 6. Umsetzungsschritte
 
 1. **Phase 1 — Struktur + Vorschlagsmechanik:** `memory.local/`-Bereiche
-   anlegen (gitignored, bereits im `.gitignore`), Steward um Vorschlags-Ops
-   erweitern (`propose-memory-record`, `propose-knowledge-entry`), Schema
-   (`specs/STEWARDSHIP_RESULT_SCHEMA.md`) und Tests.
+   anlegen (gitignored, bereits im `.gitignore`) und einen getrennten
+   Memory-/Knowledge-Worker-Vertrag definieren. Der Documentarian erhält
+   keine Proposal- oder Kuratierungs-Operationen.
 2. **Phase 2 — Sichtbarkeit über Projekte:** `pts-knowledge-snapshot`-Plugin
    (Headroom-Injektion), Einträge in `knowledge/index.md` pflegen.
 3. **Phase 3 — Wiki + Review-UI:** „Wissen“-Tab (Suche/Browse) und
@@ -166,5 +166,5 @@ Zusätzliche Such-Ebene für den Companion/Worker (DSH-nativ, kein Registry):
 | ------------------------------ | ---------------------------------------------------------- |
 | `pts-workspace-snapshot`       | aktueller Denkstand (Status, Board, Entscheidungen)        |
 | `pts-knowledge-snapshot` (neu) | kuratiertes Wissen + lokale Erfahrung über Projekte hinweg |
-| Steward-Vorschläge             | reversible Entwürfe nach Turns                             |
+| `pts_documentarian`            | Workspace-Konsistenz und Dokumentationslücken                |
 | `pts_review` / `pts_edit`      | Prüfung und Übernahme nach Lehrkraft-Entscheidung          |

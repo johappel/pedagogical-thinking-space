@@ -11,14 +11,14 @@ dieses Plugin ein **eigenes lokales Git-Repo** im Workspace:
 ```text
 workspace/
 ├── .git/            <- lokales Repo, ausschließlich für Workspace-Inhalte
-├── .gitignore       <- .trash/, Steward-Temp, OS-Dateien
+├── .gitignore       <- .trash/, temporary files, OS-Dateien
 └── <denkraum>/…
 ```
 
 ## Verhalten
 
-- Beobachtet `turn/end` (completed, nur Top-Level-Sessions) — derselbe Trigger
-  wie der Background-Steward.
+- Beobachtet `turn/end` (completed, nur Top-Level-Sessions) als deterministisches
+  Housekeeping — nicht als Dokumentar- oder Worker-Trigger.
 - Debounced (2,5 s) und führt höchstens einen Commit gleichzeitig aus.
 - Committet **am Workspace-Repo-Root** (deckt alle Denkräume ab):
   `git add -A && git commit -m "pts: Workspace-Update …"`.

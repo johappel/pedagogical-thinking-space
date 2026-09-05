@@ -1,8 +1,9 @@
 # pts-companion preset
 
 This preset is the executable DSH boundary of the PTS prototype. It exposes
-five continuable, differently constrained instances of DSH's native subagent
-tool plus one retained one-shot edit fallback. Children
+five continuable specialist workers plus the continuable Documentarian as
+differently constrained instances of DSH's native subagent tool, and one
+retained one-shot edit fallback. Children
 inherit the parent composition in the current DSH architecture, so role
 separation is expressed through a fixed persona, tool filter and model route on
 each tool instance rather than through a PTS dispatcher.
@@ -19,7 +20,8 @@ contains.
 workflow, subagent)
 with an actionable delegation directive naming the matching worker per task
 type, so the model starts `pts_research` / `pts_edit_legacy` / `pts_document` /
-`pts_material` immediately instead of answering "not possible". Observed
+`pts_documentarian` / `pts_material` immediately instead of answering "not
+possible". Observed
 finding: in this DSH build the per-agent tool `restrict` may leave the tools
 visible in the schema while the guard still blocks execution — the persona and
 the guard message therefore both mandate delegation.
@@ -29,11 +31,13 @@ canonical design** (`learning-design.md`, `learning-landscape.md`, `materials/`
 — by path or by a write-intent on "learning design") during the
 clarifying/planning phase. The Learning Design is co-authored with the teacher;
 the Companion may record agreed points in `planning-board.yml` / `decisions.yml`
-via `pts_edit`, while the Background Steward maintains the reversible
-`learning-design.md` state after the turn. This enforces the production gate at
-the tool boundary, not only in the persona.
+via `pts_edit`. The Documentarian is a separate, explicitly invoked worker for
+workspace consistency and provenance checks; it does not replace the direct
+edit path. This enforces the production gate at the tool boundary, not only in
+the persona.
 
-The five specialist calls are continuable background DSH children. DSH returns
+The five specialist calls and the Documentarian are continuable background DSH
+children. DSH returns
 their durable child id; native `send_message` continues the same child and
 `interrupt_agent` stops its current turn. DSH has no public close/delete API
 for these durable children, so do not add a PTS job layer, scheduler or

@@ -43,11 +43,13 @@ Delegate bounded work with the role-specific DSH tools supplied by the
 | `pts_research` | public, source-grounded research and verification |
 | `pts_edit` | direct, structured small Denkstand edits; no child-agent |
 | `pts_document` | factual documentation, protocols and decision records |
+| `pts_documentarian` | workspace completeness, consistency and provenance checks |
 | `pts_material` | reviewable teaching-material drafts |
 | `pts_review` | read-only pedagogical and factual review |
 | `pts_renderer` | conversion of an approved draft into a target format |
 
-The five specialist tools start real DSH subagents. `pts_edit` is the deliberate
+The five specialist tools plus the Documentarian start real DSH subagents.
+`pts_edit` is the deliberate
 exception: it is a direct, structured PTS capability with fixed targets and no
 raw `write`/`edit` surface. The legacy `pts_edit_legacy` child remains as a
 rollback path for larger bounded edits.
@@ -89,16 +91,17 @@ worker result and do not claim a file exists before DSH reports success.
 - Worker results are drafts until the teacher or Companion has reviewed them.
 - Results return through DSH to the Companion before they become teacher-facing.
 
-## Background stewardship
+## Workspace documentation
 
-The Companion does not maintain the Denkstand during its visible answer. After
-a completed top-level turn, the independent `pts-background-steward` plugin may
-record reversible state updates.
+The Companion remains the visible pedagogical partner. Small clarified changes
+go through the direct structured `pts_edit` capability. For an explicitly
+requested consistency check, or after an accepted worker result, it may invoke
+the continuable `pts_documentarian` in the background.
 
-The Steward only maintains the Denkstand. It never detects service needs,
-routes work, starts research or material workers, creates capabilities, or
-waits in front of the teacher. A Steward failure must not block delegation or
-conversation.
+The Documentarian preserves the current workspace state, provenance and
+documentation gaps. It never makes pedagogical decisions, resolves ambiguity,
+curates Knowledge, starts other workers or replaces the Companion. It writes
+only inside the active workspace and leaves unclear evidence unchanged.
 
 ## Pedagogical protection
 

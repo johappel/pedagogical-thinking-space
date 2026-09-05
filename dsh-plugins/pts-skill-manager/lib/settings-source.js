@@ -1,8 +1,8 @@
 // pts-skill-manager — reading and writing the `pts-worker-skills:` section of
 // the profile settings document.
 //
-// Why not `ctx.settings.get(ns)`? Same reason as the background steward: the
-// settings seam only returns values for REGISTERED namespaces, and
+// Why not `ctx.settings.get(ns)`? The settings seam only returns values for
+// REGISTERED namespaces, and
 // `register()` requires a schemastery schema. This package imports no
 // `@deepseek-ai/*` modules (it is mounted through a junction whose realpath
 // lies outside the harness install), so we read the settings document text

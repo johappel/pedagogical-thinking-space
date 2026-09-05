@@ -12,8 +12,8 @@
 // preset plugin worker-skill-scope.mjs (role detection, hard `skill` guard,
 // prompt section). This package imports no @deepseek-ai modules: it is mounted
 // through a junction whose realpath lies outside the harness installation.
-// Settings come from `ctx.settings.documentPath` (same seam as the background
-// steward), never from the namespace registry.
+// Settings come from `ctx.settings.documentPath`, never from the namespace
+// registry.
 
 import {
 	listLibrary,

@@ -29,7 +29,7 @@ const FULL = [
 	'  review: []',
 	'  renderer: []',
 	'',
-	'pts-background-steward:',
+	'other-settings:',
 	'  provider: ollama',
 	'  model: qwen3.8:27b',
 	'  maxTokens: 8192',
@@ -81,7 +81,7 @@ test('parseWorkerSkillsSection: ungültige ids werden verworfen, unbekannte Roll
 test('parseWorkerSkillsSection: null ohne Sektion, auch bei fremden Sektionen', () => {
 	assert.equal(parseWorkerSkillsSection(''), null);
 	assert.equal(parseWorkerSkillsSection(null), null);
-	assert.equal(parseWorkerSkillsSection('pts-background-steward:\n  model: x\n'), null);
+	assert.equal(parseWorkerSkillsSection('other-settings:\n  model: x\n'), null);
 });
 
 test('readWorkerSkillsMatrix liest aus documentPath; fehlende Datei -> null', async () => {
@@ -150,12 +150,12 @@ test('writeWorkerSkillsSection: ersetzt die Sektion atomar und erhält Fremd-Sek
 		});
 		const after = await readFile(doc, 'utf8');
 		assert.ok(after.includes('agent-default-model:'));
-		assert.ok(after.includes('pts-background-steward:'));
+		assert.ok(after.includes('other-settings:'));
 		assert.ok(after.includes('llm-pi-ai:'));
 		const parsed = parseWorkerSkillsSection(after);
 		assert.deepEqual(parsed.research, ['ppt-builder']);
 		assert.deepEqual(parsed.material, []);
-		// Steward-Sektion bleibt unberührt (Konvoi-Test).
+		// Unrelated settings remain untouched.
 		assert.ok(after.includes('  provider: ollama'));
 	} finally {
 		await rm(dir, { recursive: true, force: true });
@@ -177,26 +177,19 @@ test('writeWorkerSkillsSection: legt die Sektion an, wenn keine existiert', asyn
 	}
 });
 
-test('Konvoi: beide Section-Writer überleben sich gegenseitig', async () => {
-	// Der Steward-Writer (Schreibmuster) und der Skills-Writer dürfen sich
-	// nicht gegenseitig löschen: dieselbe Datei, zwei Sektionen.
-	const { writeStewardSettingsSection } = await import('../../../dsh-plugins/pts-background-steward/lib/settings-source.js');
+test('writeWorkerSkillsSection: erhält fremde Settings-Sektionen', async () => {
+	// The skills writer owns only its own section and must not erase unrelated
+	// settings in the same document.
 	const dir = await mkdtemp(path.join(tmpdir(), 'pts-skills-konvoi-'));
 	try {
 		const doc = path.join(dir, 'settings.yaml');
 		await writeFile(doc, 'agent-default-model:\n  model: x\n', 'utf8');
-		await writeStewardSettingsSection(doc, { provider: 'ollama', model: 'qwen3.8:27b', maxTokens: 4096, reasoningEffort: '' });
 		await writeWorkerSkillsSection(doc, { research: ['google-search'], material: [], review: [], renderer: [] });
 		const after1 = await readFile(doc, 'utf8');
-		assert.ok(after1.includes('pts-background-steward:'));
+		assert.ok(after1.includes('agent-default-model:'));
 		assert.ok(after1.includes('pts-worker-skills:'));
-		await writeStewardSettingsSection(doc, { provider: 'lmstudio', model: 'ornith-1.5-9b-mtp', maxTokens: 8192, reasoningEffort: 'low' });
-		const after2 = await readFile(doc, 'utf8');
-		assert.ok(after2.includes('pts-worker-skills:'));
-		const parsed = parseWorkerSkillsSection(after2);
+		const parsed = parseWorkerSkillsSection(after1);
 		assert.deepEqual(parsed.research, ['google-search']);
-		const steward = (await import('../../../dsh-plugins/pts-background-steward/lib/settings-source.js')).parseStewardSettingsSection(after2);
-		assert.equal(steward.model, 'ornith-1.5-9b-mtp');
 	} finally {
 		await rm(dir, { recursive: true, force: true });
 	}

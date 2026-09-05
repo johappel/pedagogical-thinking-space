@@ -13,9 +13,9 @@ checkout. The installer refuses to replace an existing directory unless
 `-Replace` is supplied; in that case it moves the previous directory to a
 timestamped backup instead of deleting it.
 
-The `pts-web` profile still mounts the PTS UI plugins and
-`pts-background-steward`. Worker execution needs no PTS dispatcher plugin: the
-Companion preset exposes six native DSH subagent tools.
+The `pts-web` profile mounts the PTS UI plugins. Worker execution needs no PTS
+dispatcher or post-turn Steward plugin: the Companion preset exposes five
+continuable specialist workers plus the continuable `pts_documentarian`.
 
 Merge `pts-web-profile.settings.example.yaml` into the profile-local settings
 and adjust only provider/model identifiers that exist in the installation.
@@ -44,7 +44,7 @@ live Denkstand + fragment summary). Both skip worker subagents. See
 session start, prompt changes require a fresh conversation.
 
 `scripts/start-pts-web.ps1` now fails before launch when the canonical preset is
-missing or does not contain `@deepseek-ai/dsh-tool-jobs` and all six PTS worker
+missing or does not contain `@deepseek-ai/dsh-tool-jobs` and all PTS worker
 tools. A direct `dsh --profile pts-web` invocation bypasses that preflight.
 
 ## Workspace-Git-Sicherheitsnetz (`pts-workspace-git`)

@@ -9,7 +9,6 @@ Status: static inventory for the DSH 0.1.2-rc.1 contract, 2026-09-04.
 | `pts-denkstand` | yes | yes | yes | checked-in classic factory | `react` seed | compatible by static contract |
 | `pts-landscape` | yes | yes | yes | checked-in classic factory | `react` seed | compatible; duplicate host log removed |
 | `pts-activity-stream` | yes | yes | yes | checked-in classic factory | `react` seed | compatible by static contract |
-| `pts-background-steward` | yes | yes | yes | checked-in classic factory | `react` seed | compatible by static contract |
 | `pts-skill-manager` | yes | yes | yes | checked-in classic factory | `react` seed | compatible by static contract |
 | `pts-web-brand` | yes | yes | yes | checked-in classic factory | `react` seed | compatible by static contract |
 | `pts-workspace-git` | yes | no | no | none | none | host-only; no client migration needed |

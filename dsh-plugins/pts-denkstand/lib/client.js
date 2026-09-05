@@ -560,7 +560,7 @@ window.__ModuleLoader__.load({
 		}
 
 		function isBoardItemSettled(it) {
-			// "resolved/beantwortet" (steward's answered-clarification status) and
+			// "resolved/beantwortet" (answered-clarification status) and
 			// every prefix of it count as settled — such items leave the open queue.
 			const s = String(it && it.status ? it.status : "").toLowerCase();
 			return s === "approved" || s === "ready" || s === "discarded" || s.startsWith("resolved");

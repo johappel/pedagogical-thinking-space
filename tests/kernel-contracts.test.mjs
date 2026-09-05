@@ -24,13 +24,13 @@ test('direct bounded orders delegate without a second approval', async () => {
   assert.match(orchestration, /Do not ask for the\s+same permission twice/);
 });
 
-test('steward is post-turn state maintenance only', async () => {
+test('Documentarian is bounded workspace documentation only', async () => {
   const agents = await read('AGENTS.md');
-  const steward = await read('services/STEWARDSHIP.md');
-  assert.match(agents, /After\s+a completed top-level turn/);
-  assert.match(steward, /must not:[\s\S]*research or access the web/);
-  assert.match(steward, /detect, route or start Worker tasks/);
-  assert.match(steward, /without affecting the conversation or any Worker job/);
+  const documentarian = await read('services/DOCUMENTARIAN.md');
+  assert.match(agents, /pts_documentarian/);
+  assert.match(documentarian, /must not:[\s\S]*make or imply a pedagogical decision/);
+  assert.match(documentarian, /research externally, start another worker or act as a dispatcher/);
+  assert.match(documentarian, /If evidence is ambiguous/);
 });
 
 test('planning board carries no competing runtime lifecycle', async () => {

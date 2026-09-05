@@ -155,12 +155,16 @@ function directTool() {
 		name: 'pts_edit',
 		description: 'Apply one small, already clarified PTS Denkstand update directly. This is not a general file editor: use add_open_question for an unresolved question or record_decision only after an explicit teacher-confirmed decision. Larger conceptual rewrites, materials, learning-design changes, and arbitrary paths must stay conversational or use the legacy worker path.',
 		parameters: {
-			operation: { type: 'string', required: true, enum: [...OPERATIONS] },
-			question: { type: 'string', description: 'One concise open question for add_open_question.' },
-			title: { type: 'string', description: 'Short title for record_decision.' },
-			decision: { type: 'string', description: 'The already confirmed teacher decision.' },
-			rationale: { type: 'string', description: 'Optional factual rationale for record_decision.' },
-			teacher_confirmed: { type: 'boolean', description: 'Must be true only when the teacher explicitly confirmed the decision.' },
+			type: 'object',
+			properties: {
+				operation: { type: 'string', enum: [...OPERATIONS] },
+				question: { type: 'string', description: 'One concise open question for add_open_question.' },
+				title: { type: 'string', description: 'Short title for record_decision.' },
+				decision: { type: 'string', description: 'The already confirmed teacher decision.' },
+				rationale: { type: 'string', description: 'Optional factual rationale for record_decision.' },
+				teacher_confirmed: { type: 'boolean', description: 'Must be true only when the teacher explicitly confirmed the decision.' },
+			},
+			required: ['operation'],
 		},
 		output: {
 			schema: {
@@ -170,6 +174,7 @@ function directTool() {
 					file: { type: 'string' }, id: { type: 'string' },
 					direct: { type: 'boolean' }, childAgentStarted: { type: 'boolean' },
 				},
+				required: ['ok', 'operation', 'file', 'id', 'direct', 'childAgentStarted'],
 			},
 			render: (_args, value) => [{ type: 'text', text: `${value.file} aktualisiert (${value.operation}; direkt, kein Child-Agent)` }],
 		},

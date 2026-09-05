@@ -11,6 +11,7 @@ const forbidden = [
   'AGENTS_MINIMAL.md',
   'capabilities/registry.yml',
   'harness/dispatcher.py',
+  'dsh-plugins/pts-background-steward',
   'dsh-plugins/pts-background-steward/lib/service-coordinator.js',
   'dsh-plugins/pts-background-steward/lib/research-job.js',
   'dsh-plugins/pts-background-steward/lib/capability-lifecycle.js',
@@ -23,10 +24,10 @@ test('competing runtime layers are absent', async () => {
   }
 });
 
-test('preset exposes five continuable workers plus a legacy edit fallback', async () => {
+test('preset exposes continuable specialists, the Documentarian and a legacy edit fallback', async () => {
   const preset = await read('dsh-presets/pts-companion/agent.cordis.yml');
   assert.match(preset, /@deepseek-ai\/dsh-tool-jobs/);
-  for (const tool of ['pts_research', 'pts_document', 'pts_material', 'pts_review', 'pts_renderer']) {
+  for (const tool of ['pts_research', 'pts_document', 'pts_documentarian', 'pts_material', 'pts_review', 'pts_renderer']) {
     assert.match(preset, new RegExp('toolName: ' + tool));
     assert.match(preset, new RegExp('toolName: ' + tool + '[\\s\\S]*backgroundMode: continuable[\\s\\S]*enableRunInBackground: true'));
   }
@@ -34,6 +35,9 @@ test('preset exposes five continuable workers plus a legacy edit fallback', asyn
   assert.match(preset, /toolName: pts_material[\s\S]*allow: \[read, glob, grep, write, edit, skill\]/);
   assert.match(preset, /toolName: pts_edit_legacy[\s\S]*backgroundMode: one-shot[\s\S]*allow: \[read, glob, grep, write, edit\]/);
   assert.match(preset, /toolName: pts_document[\s\S]*allow: \[read, glob, grep, write, edit\]/);
+  assert.match(preset, /toolName: pts_documentarian[\s\S]*backgroundMode: continuable[\s\S]*enableRunInBackground: true[\s\S]*maxDepth: 0/);
+  assert.match(preset, /toolName: pts_documentarian[\s\S]*allow: \[read, glob, grep, write, edit\]/);
+  assert.doesNotMatch(preset, /toolName: pts_documentarian[\s\S]*web_search/);
   assert.match(preset, /toolName: pts_review[\s\S]*allow: \[read, glob, grep\]/);
   assert.match(preset, /name: '@deepseek-ai\/dsh-tool-subagent-control'/);
   assert.match(preset, /name: '@deepseek-ai\/dsh-tool-subagent-control\/list-agents'/);
@@ -52,7 +56,7 @@ test('preset exposes five continuable workers plus a legacy edit fallback', asyn
 test('prototype launch requires the canonical installed worker preset', async () => {
   const installer = await read('scripts/install-pts-preset.ps1');
   const launcher = await read('scripts/start-pts-web.ps1');
-  for (const marker of ['@deepseek-ai/dsh-tool-jobs', 'pts_research', 'pts_edit_legacy', 'pts_document', 'pts_material', 'pts_review', 'pts_renderer', 'dsh-tool-subagent-control', 'direct-pts-edit.mjs', 'pts-companion-tool-boundary', 'pts-worker-skill-scope', 'pts-skill-manager']) {
+  for (const marker of ['@deepseek-ai/dsh-tool-jobs', 'pts_research', 'pts_edit_legacy', 'pts_document', 'pts_documentarian', 'pts_material', 'pts_review', 'pts_renderer', 'dsh-tool-subagent-control', 'direct-pts-edit.mjs', 'pts-companion-tool-boundary', 'pts-worker-skill-scope', 'pts-skill-manager']) {
     assert.match(installer, new RegExp(marker.replace('/', '\\/')));
     assert.match(launcher, new RegExp(marker.replace('/', '\\/')));
   }
@@ -78,12 +82,13 @@ test('PTS workspace sidebar preserves native session actions after its scoped-tr
   assert.match(client, /workspaces\.archiveSession\(sessionId\)/);
 });
 
-test('steward code has no service dispatch seam', async () => {
-  const index = await read('dsh-plugins/pts-background-steward/lib/index.js');
-  const reflection = await read('dsh-plugins/pts-background-steward/lib/reflection-job.js');
-  const validator = await read('dsh-plugins/pts-background-steward/lib/patch-validator.js');
-  const all = [index, reflection, validator].join('\n');
-  assert.doesNotMatch(all, /service-coordinator|research-job|capability-lifecycle|service_intents/);
-  assert.match(index, /session\/event/);
-  assert.match(reflection, /subagents\.start/);
+test('Documentarian is a bounded native worker, not a host scheduler', async () => {
+  const preset = await read('dsh-presets/pts-companion/agent.cordis.yml');
+  const service = await read('services/DOCUMENTARIAN.md');
+  assert.match(preset, /toolName: pts_documentarian[\s\S]*maxDepth: 0/);
+  assert.match(preset, /pts_documentarian[\s\S]*documentation gap/);
+  assert.match(service, /normal `@deepseek-ai\/dsh-tool-subagent` instance/);
+  assert.match(service, /If evidence is ambiguous/);
+  assert.doesNotMatch(service, /start another worker/);
+  assert.doesNotMatch(preset, /pts-background-steward/);
 });

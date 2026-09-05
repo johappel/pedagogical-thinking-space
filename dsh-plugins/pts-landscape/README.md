@@ -40,7 +40,7 @@ das pts-web-Profil (Umsetzung Stufe 1–3 aus `docs/CONCEPT_WEB_WORKFLOW.md`).
   `temporal-plan.yml` (Start folgt dem letzten Platzierungsende, Rolle/Modus/
   Dauer direkt editierbar). Mehrere Momente pro Stunde, ein Moment über
   mehrere Stunden — genau das Platzierungs-Modell. Lehrkraft-Züge werden
-  `binding` geschrieben; Steward-/Backfill-Vorschläge bleiben `proposed` und
+  `binding` geschrieben; Documentarian-/Backfill-Vorschläge bleiben `proposed` und
   sind per „✓ Übernehmen“ adoptierbar. „+ Stundenfenster“ liegt direkt über
   der Stunden-Zuordnung.
 - **Zeitbedarf + Vollständigkeits-Status:** Jeder Lernmoment kann eine
@@ -99,7 +99,7 @@ Denkraums liegt (`..`/absolute Pfade/fehlende Eltern → abgelehnt), erlauben
 nur `md/yml/yaml/json/txt` und begrenzen die Größe (512 KB). Die
 Temporal-Route validiert Schemas (Fensterarten, Rollen, Modi, IDs, Minuten)
 und schreibt atomar im kanonischen Format — Kommentare aus
-Steward-/Backfill-Schrieben gehen bei einer Lehrkraft-Speicherung verloren
+Documentarian-/Backfill-Schreiben gehen bei einer Lehrkraft-Speicherung verloren
 (Status `proposed` bleibt erhalten).
 
 ## Installation (einmalig pro Rechner)

@@ -15,12 +15,12 @@ REQUIRED_FILES = [
     "services/KNOWLEDGE.md",
     "services/WORKER.md",
     "services/RENDERER.md",
-    "services/STEWARDSHIP.md",
+    "services/DOCUMENTARIAN.md",
     "specs/LEARNING_DESIGN_SCHEMA.md",
     "dsh-presets/pts-companion/agent.cordis.yml",
     "dsh-presets/pts-companion/preset.yml",
     "dsh-presets/pts-companion/companion-tool-boundary.mjs",
-    "dsh-plugins/pts-background-steward/lib/index.js",
+    "dsh-presets/pts-companion/direct-pts-edit.mjs",
 ]
 
 FORBIDDEN_PATHS = [
@@ -29,12 +29,7 @@ FORBIDDEN_PATHS = [
     "harness",
     "hermes-profiles",
     "capabilities/registry.yml",
-    "dsh-plugins/pts-background-steward/lib/capability-builder.js",
-    "dsh-plugins/pts-background-steward/lib/capability-lifecycle.js",
-    "dsh-plugins/pts-background-steward/lib/registry.js",
-    "dsh-plugins/pts-background-steward/lib/research-job.js",
-    "dsh-plugins/pts-background-steward/lib/service-coordinator.js",
-    "dsh-plugins/pts-background-steward/lib/service-request.js",
+    "dsh-plugins/pts-background-steward",
 ]
 
 MUST_CONTAIN = {
@@ -43,6 +38,7 @@ MUST_CONTAIN = {
     "dsh-presets/pts-companion/agent.cordis.yml": [
         "toolName: pts_research",
         "toolName: pts_material",
+        "toolName: pts_documentarian",
         "toolName: pts_review",
         "toolName: pts_renderer",
         "pts-companion-tool-boundary",
