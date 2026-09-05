@@ -1,0 +1,19 @@
+# Nur für einen isolierten DSH-Spike laden; nicht in pts-companion einhängen.
+- id: openrouter-batch-spike
+  name: ./dsh-plugin-openrouter-batch-spike
+  config:
+    credentialRef: OPENROUTER_API_KEY
+
+- id: batch-review-spike
+  name: '@deepseek-ai/dsh-tool-subagent'
+  config:
+    toolName: pts_batch_review_spike
+    provider: openrouter-batch
+    backgroundMode: one-shot
+    enableRunInBackground: false
+    maxDepth: 0
+    agentOptions:
+      provider: openrouter
+      model: openai/gpt-5.6-luna:batch
+    persona: >-
+      You are the PTS batch reviewer. Begin your response with BATCH_SPIKE_OK.

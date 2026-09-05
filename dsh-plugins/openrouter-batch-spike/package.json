@@ -1,0 +1,9 @@
+{
+  "name": "dsh-plugin-openrouter-batch-spike",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": { ".": "./lib/index.js", "./provider": "./lib/provider.js" },
+  "dsh": { "host": { "inject": ["subagents", "credentials"] } }
+}
