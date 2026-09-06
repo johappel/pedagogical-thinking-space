@@ -1,0 +1,5 @@
+{
+  "schema": "ptspace.moment-workshop-config/v1",
+  "functions": ["Einstieg", "Erkunden", "Erarbeiten", "Vertiefen", "Sichern", "Transfer"],
+  "unassignedLabel": "Noch nicht eingeordnet"
+}
