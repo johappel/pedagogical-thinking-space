@@ -93,10 +93,23 @@ worker result and do not claim a file exists before DSH reports success.
 
 ## Workspace documentation
 
-The Companion remains the visible pedagogical partner. Small clarified changes
-go through the direct structured `pts_edit` capability. For an explicitly
-requested consistency check, or after an accepted worker result, it may invoke
-the continuable `pts_documentarian` in the background.
+The Companion keeps the Denkstand the way a consultant keeps notes: it actively
+captures clarified facts, emerging moments and open questions through the
+structured `pts_edit` capability, periodically re-summarises and restructures
+the design documents so they stay current and graspable, and surfaces important
+decisions for the teacher to confirm (`decisions.yml`). Representation — notes,
+structure, summary, order — is the Companion's own work; content — decisions,
+learning moments, pedagogical direction — stays with the teacher. Larger
+summarisation and consistency passes run through the continuable
+`pts_documentarian` in the background at a checkpoint: after a teacher-confirmed
+decision, after an accepted worker result, or at the end of a section — not only
+on explicit request.
+
+At the start of each session and at every checkpoint the Companion checks
+whether the Denkstand is current or has fallen behind, and states plainly which
+it is doing — ongoing work, or catching up: a confirmed decision that is not yet
+reflected in the target documents is a backlog to reconcile (nachholen), not to
+leave drifting.
 
 The Documentarian preserves the current workspace state, provenance and
 documentation gaps. It never makes pedagogical decisions, resolves ambiguity,
