@@ -99,5 +99,3 @@ installer) because a subagent context cannot reach the host `settings` service.
 Assignment changes take effect for newly started workers (composition is fixed
 at session start); use the manager's "Denkraum neu laden" action for a fresh
 session.
-
-

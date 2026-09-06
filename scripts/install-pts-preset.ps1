@@ -122,5 +122,16 @@ if (-not (Test-Path $junctionPath)) {
 	throw "Profile junction missing: $junctionPath -> F:\code\pedagogical-thinking-space\dsh-plugins\pts-skill-manager"
 }
 
+# Apply worker LLM routes from the settings section `pts-worker-routes:` into
+# the freshly installed preset (idempotent; the start script re-applies on
+# every launch). See scripts/render-worker-routes.mjs.
+$renderScript = Join-Path $repoRoot "scripts\render-worker-routes.mjs"
+if (Test-Path $renderScript -PathType Leaf) {
+	& node $renderScript --agent-cordis $presetPath --settings $settingsPath
+	if ($LASTEXITCODE -ne 0) {
+		throw "render-worker-routes failed (exit $LASTEXITCODE)"
+	}
+}
+
 Write-Host "Installed canonical PTS preset (copy) at $target" -ForegroundColor Green
 Write-Host "Restart DSH; pts-companion now appears under CUSTOM." -ForegroundColor Cyan

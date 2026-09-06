@@ -13,6 +13,9 @@ if (-not $dshHome) {
 }
 $profileDir = Join-Path $dshHome "profiles\pts-web"
 $presetFile = Join-Path $dshHome ".agent-presets\pts-companion\agent.cordis.yml"
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$settingsPath = Join-Path $profileDir "settings.yaml"
+$renderScript = Join-Path $repoRoot "scripts\render-worker-routes.mjs"
 
 if (-not (Test-Path (Join-Path $profileDir "package.json") -PathType Leaf)) {
 	throw "pts-web profile not found at $profileDir"
@@ -56,6 +59,19 @@ if (-not (Test-Path $patchFile -PathType Leaf) -or -not ((Get-Content $patchFile
 $junctionDir = Join-Path $profileDir "node_modules\pts-skill-manager"
 if (-not (Test-Path $junctionDir)) {
 	throw "pts-web profile junction missing for pts-skill-manager (see docs/experiments/DSH_PTS_WEB_PROFILE.md)."
+}
+
+# Apply worker LLM routes from the settings section `pts-worker-routes:` into
+# the installed preset before starting (idempotent; routes take effect on this
+# restart). See scripts/render-worker-routes.mjs.
+if (Test-Path $renderScript -PathType Leaf) {
+	Write-Host "Rendering worker routes from $settingsPath ..." -ForegroundColor DarkGray
+	& node $renderScript --agent-cordis $presetFile --settings $settingsPath
+	if ($LASTEXITCODE -ne 0) {
+		throw "render-worker-routes failed (exit $LASTEXITCODE)"
+	}
+} else {
+	Write-Host "render-worker-routes.mjs missing — skipping route render." -ForegroundColor Yellow
 }
 
 Write-Host "Starting PTS web (profile: pts-web) on http://127.0.0.1:$Port ..." -ForegroundColor Cyan

@@ -328,6 +328,134 @@ window.__ModuleLoader__.load({
 		}
 
 		// ------------------------------------------------------------------
+		// Worker routes tab (conversation.view)
+		// ------------------------------------------------------------------
+		function WorkersView(props) {
+			const workersState = React.useState([]);
+			const workers = workersState[0];
+			const setWorkers = workersState[1];
+			const routesState = React.useState({});
+			const routes = routesState[0];
+			const setRoutes = routesState[1];
+			const errState = React.useState(null);
+			const error = errState[0];
+			const setError = errState[1];
+			const noticeState = React.useState(null);
+			const notice = noticeState[0];
+			const setNotice = noticeState[1];
+			const busyState = React.useState(false);
+			const busy = busyState[0];
+			const setBusy = busyState[1];
+
+			function load() {
+				fetchJson("/api/pts-worker-routes/get").then(function(r) {
+					setWorkers(Array.isArray(r && r.workers) ? r.workers : []);
+					setRoutes(r && r.routes && typeof r.routes === "object" ? r.routes : {});
+					setError(null);
+				}).catch(function(e) {
+					setError(String(e && e.message ? e.message : e));
+				});
+			}
+			React.useEffect(function() {
+				load();
+			}, []);
+
+			function setField(slug, field, value) {
+				setRoutes(function(prev) {
+					const next = Object.assign({}, prev);
+					const cur = Object.assign({}, next[slug]);
+					cur[field] = value;
+					next[slug] = cur;
+					return next;
+				});
+			}
+
+			function save() {
+				setBusy(true);
+				setNotice(null);
+				postJson("/api/pts-worker-routes/save", { routes: routes }).then(function(r) {
+					setRoutes(r && r.routes && typeof r.routes === "object" ? r.routes : {});
+					setNotice("Routen gespeichert — wirken erst nach DSH-Neustart (start-pts-web.ps1).");
+				}).catch(function(e) {
+					setError(String(e && e.message ? e.message : e));
+				}).finally(function() { setBusy(false); });
+			}
+
+			function fieldValue(r, field) {
+				const v = r && r[field];
+				return v === undefined || v === null ? "" : String(v);
+			}
+
+			const rowEls = (Array.isArray(workers) ? workers : []).map(function(w) {
+				const r = routes[w.slug] || {};
+				return React.createElement("tr", { key: w.slug },
+					React.createElement("td", null, w.label),
+					React.createElement("td", null, React.createElement("input", {
+						className: "psk-input", value: fieldValue(r, "provider"), placeholder: "openrouter",
+						onChange: function(e) { setField(w.slug, "provider", e.target.value); },
+					})),
+					React.createElement("td", null, React.createElement("input", {
+						className: "psk-input", value: fieldValue(r, "model"), placeholder: "deepseek/deepseek-v4-flash",
+						onChange: function(e) { setField(w.slug, "model", e.target.value); },
+					})),
+					React.createElement("td", null, React.createElement("input", {
+						className: "psk-input", type: "number", min: "1", value: fieldValue(r, "maxTokens"), placeholder: "16000",
+						onChange: function(e) { setField(w.slug, "maxTokens", e.target.value); },
+					})),
+					React.createElement("td", null, React.createElement("input", {
+						className: "psk-input", value: fieldValue(r, "reasoningEffort"), placeholder: "(adapter-default)",
+						onChange: function(e) { setField(w.slug, "reasoningEffort", e.target.value); },
+					})));
+			});
+
+			const body = [];
+			if (error !== null) {
+				body.push(React.createElement("div", { key: "err", className: "psk-note psk-errmsg" }, "Routen konnten nicht geladen werden: " + error));
+			}
+			if (notice !== null) {
+				body.push(React.createElement("div", { key: "ok", className: "psk-okmsg" }, notice));
+			}
+			body.push(React.createElement("div", { key: "routes", className: "psk-sec" },
+				React.createElement("div", { className: "psk-sechead" }, "Worker-Routen (Provider / Modell / Max Tokens / Effort)"),
+				React.createElement("table", { className: "psk-table" },
+					React.createElement("thead", null, React.createElement("tr", null,
+						React.createElement("th", null, "Worker"),
+						React.createElement("th", null, "Provider"),
+						React.createElement("th", null, "Modell"),
+						React.createElement("th", null, "Max Tokens"),
+						React.createElement("th", null, "Effort"))),
+					React.createElement("tbody", null, rowEls)),
+				React.createElement("div", { className: "psk-note" }, "Routenänderungen werden beim nächsten DSH-Start in die Preset-Komposition gerendert. Ein laufendes Gespräch bleibt unverändert."),
+				React.createElement("div", { className: "psk-actions" },
+					React.createElement("button", { className: "psk-btn", disabled: busy, onClick: save }, "Routen speichern"))));
+
+			// Fresh-session action, same path as the Skills tab. Routes
+			// themselves need a DSH restart; the note below says so honestly.
+			const workspaceApi = props && typeof props.startPtsSession === "function" ? props : null;
+			if (workspaceApi !== null) {
+				body.push(React.createElement("div", { key: "reload", className: "psk-sec" },
+					React.createElement("div", { className: "psk-sechead" }, "Wirkung"),
+					React.createElement("button", { className: "psk-btn", disabled: busy, onClick: function() {
+						setNotice(null);
+						Promise.resolve().then(function() {
+							return workspaceApi.startPtsSession();
+						}).then(function() {
+							setNotice("Denkraum neu geladen.");
+						}).catch(function(e) {
+							setError(String(e && e.message ? e.message : e));
+						});
+					} }, "Denkraum neu laden"),
+					React.createElement("div", { className: "psk-note" }, "„Denkraum neu laden“ startet nur eine frische Session. Routen wirken erst nach einem DSH-Neustart (start-pts-web.ps1).")));
+			}
+
+			return React.createElement("div", { className: "psk-root" },
+				React.createElement("div", { className: "psk-toolbar" },
+					React.createElement("span", { className: "psk-title" }, "Worker-Routen"),
+					React.createElement("button", { className: "psk-btn", onClick: load }, "Aktualisieren")),
+				body);
+		}
+
+		// ------------------------------------------------------------------
 		// Registration
 		// ------------------------------------------------------------------
 		const inject = ["slots", "workspaces", "sessions"];
@@ -360,6 +488,12 @@ window.__ModuleLoader__.load({
 					{ name: "conversation.view", id: "skills", order: 20, label: "Skills" },
 					function(props) {
 						return React.createElement(SkillsView, Object.assign({}, props, { startPtsSession: startPtsSession }));
+					},
+				);
+				ctx.slots.register(
+					{ name: "conversation.view", id: "workers", order: 25, label: "Worker-Routen" },
+					function(props) {
+						return React.createElement(WorkersView, Object.assign({}, props, { startPtsSession: startPtsSession }));
 					},
 				);
 			});

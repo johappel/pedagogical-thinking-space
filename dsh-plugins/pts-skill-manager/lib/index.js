@@ -1,4 +1,4 @@
-﻿// pts-skill-manager — host half.
+// pts-skill-manager — host half.
 //
 // Exposes the skill library and the role↔skill matrix to the web tab:
 //
@@ -29,10 +29,18 @@ import {
 	writeWorkerSkillsSection,
 	WORKER_ROLES,
 } from './settings-source.js';
+import {
+	readWorkerRoutesSection,
+	writeWorkerRoutesSection,
+	normalizeWorkerRoutes,
+	effectiveRoutesBySlug,
+	ROUTE_WORKERS,
+} from './worker-routes-source.js';
 
 export const inject = ['webServer'];
 
 const ROOT = '/api/pts-skills';
+const ROUTES_ROOT = '/api/pts-worker-routes';
 
 export function apply(ctx) {
 	let settingsService = undefined;
@@ -173,6 +181,71 @@ export function apply(ctx) {
 				}
 			},
 		}), 'pts-skill-manager-route');
-		log(`Routen ${ROOT}/* registriert`);
+
+		ctx.effect(() => webServer.register({
+			kind: 'prefix',
+			path: ROUTES_ROOT,
+			handler: async (req, res) => {
+				try {
+					const rawUrl = typeof req.url === 'string' ? req.url : '/';
+					const qIndex = rawUrl.indexOf('?');
+					const sub = (qIndex >= 0 ? rawUrl.slice(0, qIndex) : rawUrl).replace(/\/+$/, '') || ROUTES_ROOT;
+					const method = req.method || 'GET';
+
+					const sendJson = (status, value) => {
+						res.statusCode = status;
+						res.setHeader('content-type', 'application/json; charset=utf-8');
+						res.setHeader('cache-control', 'no-store');
+						res.end(JSON.stringify(value));
+					};
+					const parseBody = async () => {
+						try {
+							return JSON.parse((await readBody(req)) || '{}');
+						} catch {
+							sendJson(400, { ok: false, error: 'ungültiges JSON' });
+							return null;
+						}
+					};
+
+					if (sub === `${ROUTES_ROOT}/get`) {
+						if (method !== 'GET') { sendJson(405, { ok: false, error: 'method-not-allowed' }); return; }
+						const doc = settingsService && settingsService.documentPath;
+						if (typeof doc !== 'string' || doc === '') {
+							sendJson(503, { ok: false, error: 'Settings-Dokument nicht verfügbar' });
+							return;
+						}
+						const routesBySlug = await readWorkerRoutesSection(settingsService);
+						const workers = ROUTE_WORKERS.map(({ slug, id, label }) => ({ slug, id, label }));
+						sendJson(200, { ok: true, workers, routes: effectiveRoutesBySlug(routesBySlug) });
+						return;
+					}
+
+					if (sub === `${ROUTES_ROOT}/save`) {
+						if (method !== 'POST') { sendJson(405, { ok: false, error: 'method-not-allowed' }); return; }
+						const body = await parseBody();
+						if (body === null) return;
+						if (!body.routes || typeof body.routes !== 'object' || Array.isArray(body.routes)) {
+							sendJson(400, { ok: false, error: 'routes wird erwartet' });
+							return;
+						}
+						const routesBySlug = normalizeWorkerRoutes(body.routes);
+						const doc = settingsService && settingsService.documentPath;
+						if (typeof doc !== 'string' || doc === '') {
+							sendJson(503, { ok: false, error: 'Settings-Dokument nicht verfügbar' });
+							return;
+						}
+						await writeWorkerRoutesSection(doc, routesBySlug);
+						log('Worker-Routen gespeichert (wirken nach DSH-Neustart)');
+						sendJson(200, { ok: true, routes: effectiveRoutesBySlug(routesBySlug) });
+						return;
+					}
+
+					sendJson(404, { ok: false, error: 'not-found' });
+				} catch (error) {
+					sendJson(500, { ok: false, error: String((error && error.message) || error) });
+				}
+			},
+		}), 'pts-worker-routes-route');
+		log(`Routen ${ROOT}/* und ${ROUTES_ROOT}/* registriert`);
 	});
 }

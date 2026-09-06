@@ -21,6 +21,8 @@ REQUIRED_FILES = [
     "dsh-presets/pts-companion/preset.yml",
     "dsh-presets/pts-companion/companion-tool-boundary.mjs",
     "dsh-presets/pts-companion/direct-pts-edit.mjs",
+    "dsh-presets/pts-companion/worker-routes.mjs",
+    "scripts/render-worker-routes.mjs",
 ]
 
 FORBIDDEN_PATHS = [

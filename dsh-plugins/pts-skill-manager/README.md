@@ -88,6 +88,27 @@ entsprechen (die Matrix referenziert die `id`). Details: [`skills/README.md`](..
   (`sessions.create({ workspaceId, agentPreset: 'pts-companion' })` + `open`),
   nie das rohe `workspaces.startSession` (Global-New-Session-Guard).
 
+## Worker-Routen (Tab „Worker-Routen")
+
+Der Tab **„Worker-Routen"** (`order: 25`, rechts neben „Skills") pflegt die
+LLM-Route der sieben Worker (Provider, Modell, Max Tokens, Reasoning Effort) in
+der Settings-Sektion `pts-worker-routes:`.
+
+- **Host-Routen:** `GET /api/pts-worker-routes/get` (effektive Route je Worker)
+  und `POST /api/pts-worker-routes/save` (schreibt die Sektion atomar; fremde
+  Sektionen bleiben erhalten).
+- **Wirkung:** `agentOptions` liest der `dsh-tool-subagent` zum
+  Kompositionszeitpunkt; es gibt keinen Spawn-Zeit-Interceptor. Deshalb rendert
+  [`scripts/render-worker-routes.mjs`](../../scripts/render-worker-routes.mjs)
+  die Sektion beim Start/Install in die installierte `agent.cordis.yml` (beide
+  Skripte rufen ihn auf). Eine Route wirkt erst nach **DSH-Neustart** — nicht
+  über „Denkraum neu laden".
+- **Defaults im Repo, Override in Settings:** Die kanonischen `agentOptions` in
+  `agent.cordis.yml` sind die Defaults; die Sektion überschreibt einzelne
+  Felder, ein entferntes Feld fällt auf den Default zurück (kein „sticky
+  override"). Ein Round-Trip-Test sichert die Defaults gegen das kanonische
+  Preset ab.
+
 ## Skill-Erstellungs-Flow (Lehrkraft-Alltag)
 
 1. **Entwurf:** Die Lehrkraft lässt den Companion einen Skill-Entwurf über

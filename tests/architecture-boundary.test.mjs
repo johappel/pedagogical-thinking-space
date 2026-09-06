@@ -88,3 +88,17 @@ test('Documentarian is a bounded native worker, not a host scheduler', async () 
   assert.match(service, /start another worker/);
   assert.doesNotMatch(preset, /pts-background-steward/);
 });
+
+test('worker LLM routes render from settings at install/start time (no live dispatcher)', async () => {
+  const installer = await read('scripts/install-pts-preset.ps1');
+  const launcher = await read('scripts/start-pts-web.ps1');
+  for (const script of [installer, launcher]) {
+    assert.match(script, /render-worker-routes/);
+    assert.match(script, /--agent-cordis/);
+    assert.match(script, /--settings/);
+  }
+  const routesModule = await read('dsh-presets/pts-companion/worker-routes.mjs');
+  assert.match(routesModule, /parseWorkerRoutesSection/);
+  assert.match(routesModule, /renderWorkerRoutes/);
+  assert.match(routesModule, /WORKER_ROUTES_DEFAULTS/);
+});
