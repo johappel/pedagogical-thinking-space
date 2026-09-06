@@ -262,7 +262,7 @@ Ungültige Referenzen melden einen Fehler.
 
    - Lernmomente bleiben kanonische, eigenständige Denkobjekte.
    - Der bestehende Momenteditor bleibt erhalten und wird Teil der Lernmoment-Werkstatt.
-   - Öffnen oder Besprechen eines Lernmoments setzt den gemeinsamen Focus Context; kein Sub-Workspace, aber ein eigener persistenter Conversation-Thread pro Lernmoment.
+   - Öffnen oder Besprechen eines Lernmoments setzt den gemeinsamen Focus Context; kein Sub-Workspace, aber ein eigener persistenter Conversation-Baum pro Gegenstand pro Lernmoment/Gegenstand, DSH-native Forks als alternative Denkwege.
    - Die graphartige Übergangslogik ist nicht mehr Bestandteil der primären Arbeitsform.
    - Primäransicht wird ein ruhiges Board nach didaktischen Funktionen.
    - Standardfunktionen zunächst:
@@ -279,48 +279,29 @@ Ungültige Referenzen melden einen Fehler.
    - Materialbeziehungen am Lernmoment bleiben vorgelagerte Möglichkeiten; konkrete Materialverwendungen gehören zum Teaching Product.
    - Bestehende Übergangsdaten können als Legacy-Information erhalten bleiben, sind aber keine Voraussetzung für die neue Ansicht.
 
-   - Beispielthread für die Konversation zu einem Lernmoment 
+   - Beispiel-Conversation-Baum für die Konversation zu einem Lernmoment 
 	
 	Workspace „Hoffnung“
 	│
 	├── Allgemeines Gespräch
 	│
 	│   „Was wollen wir mit der Reihe erreichen?“
+   │   „Was liegt in diesem Thread gerade auf dem Tisch?“
 	│
 	├── Lernmoment moment-07
-	│   └── eigener Conversation-Thread
+	│   └── eigener Conversation-Baum
 	│       „Wie könnte dieser Moment funktionieren?“
 	│       „Was machen die Lernenden konkret?“
 	│       „Ich bin mit dem Einstieg noch nicht zufrieden …“
+	│       └── Fork …
 	│
 	├── Lernmoment moment-12
-	│   └── eigener Conversation-Thread
+	│   └── eigener Conversation-Baum
 	│
 	└── Teaching Product
 		└── Phase phase-04
-			└── ggf. eigener Conversation-Thread
+			└── ggf. Conversation-Baum
 
-
-	Damit haben wir drei Eebenen:
-	1. Workspace
-	   gemeinsame kanonische Wahrheit
-	   ├── Lernmomente
-	   ├── Entscheidungen
-	   ├── Teaching Product
-	   └── Materialien
-
-	2. Conversations
-	   persistente Denkverläufe
-	   ├── allgemeiner Thread
-	   ├── Thread zu moment-07
-	   ├── Thread zu moment-12
-	   └── eventuell Thread zu phase-04
-	   
-	   Aber: nicht automatisch für jedes Objekt einen Thread erzeugen.
-	         Erst wenn die Lehrkraft „Darüber sprechen“ auswählt, entsteht bzw. öffnet sich der Thread.
-
-	3. Focus Context
-		„Was liegt in diesem Thread gerade auf dem Tisch?“
 
    Tests:
    - Öffnen/Besprechen setzt den korrekten Focus Context.
