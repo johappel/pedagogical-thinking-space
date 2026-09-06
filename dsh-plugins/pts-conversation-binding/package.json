@@ -1,0 +1,15 @@
+{
+  "name": "pts-conversation-binding",
+  "description": "DSH-native persistent conversation binding for PTS objects: stores only subject-to-session metadata while DSH owns session history and lifecycle.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": { "client": { "inject": [], "platform": "web" } },
+  "license": "MIT"
+}
