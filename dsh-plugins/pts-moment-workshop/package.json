@@ -1,0 +1,15 @@
+{
+  "name": "pts-moment-workshop",
+  "description": "Calm didactic-function board for PTS learning moments. Shadows only the landscape conversation view; existing teaching-product/status views remain owned by pts-landscape.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": { "client": { "inject": [], "platform": "web" } },
+  "license": "MIT"
+}
