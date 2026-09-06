@@ -10,7 +10,7 @@ zu einer expliziten Migration unverändert.
 | Kanonisches Artefakt | Inhalt / Leser / Schreiber | Befund |
 | --- | --- | --- |
 | `learning-design.md` | Freies Markdown: Kontext, Intention, Lernweg, Fragen, Materialien, Reflexion; Worker und Denkstand-Akzentaktionen schreiben; Denkstand und Snapshot lesen Teilmengen | Thinking Model, kein normalisiertes Stundenmodell. Zusammenfassungen können hinter Entscheidungen zurückbleiben. |
-| `learning-landscape.md` | IDs in `###`-Blöcken, Funktion, Lernaktivität, erwartete Erfahrung, Materialbedarfe, Materialpfade, Fragen, draft/stable, Herkunft, Zeitbedarf; `pts-landscape` liest/schreibt, Worker schreiben | Lernmomente und pädagogische Übergänge; keine Phasenidentität. |
+| `learning-landscape.md` | Lernmomente mit stabilen IDs, didaktischer Funktion, Lernaktivität, erwarteter Erfahrung, Materialbedarfen, Materialpfaden, Fragen, Reifegrad und Herkunft; bisher zusätzlich Übergänge und eine graphartige Darstellung; `pts-landscape` liest/schreibt, Worker schreiben | Die praktisch tragfähige Einheit ist der **Lernmoment**, nicht der Übergang. Die Übergangslogik hat sich in der Nutzung nicht als zentrale Arbeitsform bewährt. Künftig wird die Datei als kanonische **Lernmoment-Sammlung** verstanden. Lernmomente können einer didaktischen Funktion wie Einstieg, Erkunden, Erarbeiten, Vertiefen, Sichern oder Transfer zugeordnet werden. Diese Einordnung ist keine Unterrichtsphase und keine zeitliche Platzierung. Übergänge gehören nicht mehr zum primären Zielmodell. |
 | `temporal-plan.yml` | `windows` mit IDs, Titel, Art, Dauer, Status; `placements` mit Moment-/Fenster-ID, Start, Dauer, Rolle, Modus, Status, Notiz | Bereits vorhandener Vorläufer der Produktstruktur. Die Landkarte schreibt komplette Zeitpläne einschließlich Drag-and-drop-Zuordnungen. |
 | `learning-landscape.layout.json` | Kartenpositionen und Gruppenbänder | Ausschließlich Darstellung; weiterverwenden. |
 | `decisions.yml` | Bestätigte Entscheidungen; heterogene Felder `statement`, `decision`, `title`, `evidence`, `rationale` | Ein kanonisches Entscheidungsregister erhalten. Snapshot liest bisher nur `statement`; direkte Bearbeitung schreibt `decision`: konkrete Synchronisationslücke. |
@@ -41,13 +41,20 @@ flowchart LR
   C --> W[DSH Worker]
   E --> F[Workspace-Dateien]
   W --> F
-  F --> S[Prompt-Snapshot je Turn]
+  F --> S[Workspace-Snapshot-Helper]
   S --> C
   F --> H[Plugin-Host: getrennte Parser]
   H --> P[Polling: Denkstand und Landkarte]
   P --> H
   H --> F
 ```
+
+Mit `workspace-snapshot.mjs` existiert bereits ein technischer Vorläufer für
+eine zusammengefasste Workspace-Projektion. Ein verbindlicher
+**Prompt-Snapshot je Companion-Turn** ist jedoch noch nicht als
+Architekturgrenze etabliert. Insbesondere ist noch nicht festgelegt, dass der
+Companion seinen Workspace-Kontext ausschließlich über eine gemeinsame,
+fokusbezogene und begrenzte Projektion erhält.
 
 Plugin-Grenzen: `pts-workspaces` besitzt Workspace-Auswahl/Scaffold;
 `pts-landscape` besitzt Karten, Momenteditor, Materialbeziehungen und
@@ -74,6 +81,68 @@ materials`. Materialverwendungen enthalten Pfade, keine Materialkopien.
 Phasen besitzen eigene IDs und optionale Mehrfachreferenzen auf Lernmomente.
 Lernmomentänderungen überschreiben bestätigte Phasen niemals automatisch.
 
+
+Die bisherige Lernlandschaft wird fachlich zur **Lernmoment-Werkstatt**
+weiterentwickelt.
+
+Ein Lernmoment beschreibt eine pädagogische Möglichkeit: eine Situation,
+Tätigkeit, Erfahrung oder Denkbewegung, die für den Lernprozess interessant
+sein könnte. Lernmomente bilden noch keine konkrete Unterrichtsstunde und
+besitzen keine Phasenidentität.
+
+Die primäre Projektion der Lernmoment-Sammlung ist ein ruhiges Board nach
+**didaktischen Funktionen**. Eine sinnvolle Standardkonfiguration ist:
+
+```text
+Einstieg
+Erkunden
+Erarbeiten
+Vertiefen
+Sichern
+Transfer
+```
+
+Diese Kategorien sind keine Fortschrittszustände wie `todo`, `in_progress`
+oder `done`. Sie beschreiben die gegenwärtige didaktische Einordnung eines
+Lernmoments. Das Funktionsschema bleibt konfigurierbar und darf nicht als
+universelles Unterrichtsmodell fest in die Domäne codiert werden.
+
+Das Verschieben eines Lernmoments zwischen diesen Bereichen verändert
+ausschließlich seine didaktische Einordnung. Es erzeugt keine Unterrichtsphase,
+keine zeitliche Platzierung und keine bestätigte Produktänderung.
+
+Lernmoment und Unterrichtsphase bleiben unterschiedliche Entitäten:
+
+```text
+Lernmoment
+„Eigene Vorstellungen von Hoffnung sichtbar machen“
+        │
+        ├── mögliche Verwendung
+        ▼
+Teaching Product
+
+Stunde 1
+└── Phase 1 · Einstieg · 10 Minuten
+
+Stunde 4
+└── Phase 4 · Rückblick/Sicherung · 8 Minuten
+```
+
+Ein Lernmoment kann daher in mehreren Stunden und Phasen verwendet werden.
+Eine konkrete Verwendung entsteht ausschließlich im `teaching-product.json`,
+gegebenenfalls zunächst als Produktvorschlag. Änderungen am Lernmoment
+verändern bereits bestätigte Phasen niemals automatisch.
+
+Materialbeziehungen eines Lernmoments bleiben erhalten. Eine
+Materialbeziehung am Lernmoment bedeutet jedoch nicht automatisch, dass dieses
+Material in jeder daraus entstandenen Phase verwendet wird. Die konkrete
+Materialverwendung wird im Teaching Product festgelegt.
+
+Die bisherige Übergangsstruktur der Lernlandschaft gehört nicht mehr zum
+primären Zielmodell. Bestehende Übergangsdaten können bei der Migration
+erhalten oder als Legacy-Information lesbar bleiben, dürfen aber keine
+Voraussetzung für die neue Lernmoment-Werkstatt sein.
+
 Im selben Produktartefakt liegen vorgeschlagene Produktänderungen mit
 Quellrevision, Begründung und Referenzen. Ein Vorschlag verändert die Reihe
 nicht. Übernahme benötigt eine bestätigte Entscheidung aus `decisions.yml`;
@@ -92,6 +161,46 @@ schützt Schreibtransaktionen; sie ist kein Job-System. Entscheidungen werden
 vor der referenzierenden Produktänderung geschrieben. Bei Teilausfall bleibt
 die Entscheidung sichtbar; der Vorschlag ist wiederholbar über ihre ID.
 
+
+Der Companion erhält bei jedem Turn einen neu berechneten
+**Prompt Snapshot** als gemeinsame Context Projection. Dieser Snapshot ist
+keine weitere kanonische Datei und wird nicht als eigener Denkstand
+zurückgeschrieben. Er wird deterministisch aus den kanonischen
+Workspace-Artefakten, dem Teaching Product, offenen Produktvorschlägen,
+relevanten Entscheidungen, Arbeitsständen und dem aktuellen Focus Context
+erzeugt.
+
+Der Snapshot ist strukturiert und begrenzt. Er lädt nicht pauschal alle
+Workspace-Inhalte, sondern priorisiert den aktuellen Gegenstand und unmittelbar
+relevante Referenzen. Bei einem Phasenfokus gehören beispielsweise die Phase,
+ihre Stunde, referenzierte Lernmomente, konkrete Materialverwendungen,
+relevante Entscheidungen und offene Vorschläge in den Kontext; nicht
+automatisch die vollständige Materialsammlung oder alle Lernmomente des
+Workspace.
+
+Jeder Snapshot enthält die für Konflikt- und Aktualitätsprüfung nötigen
+Revisionen beziehungsweise Provenance. Fehlerhafte, widersprüchliche oder
+veraltete Quelldaten werden nicht stillschweigend normalisiert. Der Snapshot
+darf keine neue pädagogische Wahrheit erzeugen und keine Freigaben ableiten.
+
+Damit gilt als Architekturgrenze:
+
+```text
+                 LESEN
+Workspace ──→ Prompt Snapshot ──→ Companion
+                                  │
+                                  │ pts_edit
+                                  ▼
+Workspace ←──── Domain Store ←────┘
+                 SCHREIBEN
+```
+
+Der Companion liest den kanonischen Workspace nicht über eigene, verteilte
+Dateiparser zusammen und schreibt kanonische Zustände nicht direkt in Dateien.
+Lesender Laufzeitkontext wird über die Context Projection bereitgestellt;
+strukturierte Änderungen laufen über `pts_edit` und denselben Domain Store,
+den auch die UI verwendet.
+
 Product Status ist eine jederzeit neu berechnete Projektion: vorhandene
 Einheiten, Ideen, Ausarbeitung, offene Voraussetzungen und nächster
 Arbeitsschritt. Unterrichtsreihe und Status werden als zusätzliche Ansichten
@@ -101,10 +210,12 @@ Produktnavigation.
 
 Focus Context ist temporärer, sessionbezogener Kontext im selben Workspace:
 `kind` (moment/lesson/phase/material/question), `id`, `returnView`.
-Der Host löst Referenzen gegen aktuelle Artefakte auf. Der bestehende
-Prompt-Snapshot liest den Fokus; die UI verwendet denselben DSH-Composer und
-dieselbe History. Ein Fokuswechsel erzeugt weder Session noch Unterordner.
-Fokus beenden entfernt den Kontext. Ungültige Referenzen melden einen Fehler.
+Der Host löst Referenzen gegen aktuelle Artefakte auf. Der Prompt Snapshot
+wertet diesen Fokus bei jedem Companion-Turn aus und stellt den aktuellen
+Gegenstand zusammen mit den dafür relevanten kanonischen Artefakten bereit.
+Die UI verwendet denselben DSH-Composer und dieselbe History. Ein Fokuswechsel
+erzeugt weder Session noch Unterordner. Fokus beenden entfernt den Kontext.
+Ungültige Referenzen melden einen Fehler.
 
 ## Migrationspfad und Arbeitspakete
 
@@ -120,30 +231,130 @@ Fokus beenden entfernt den Kontext. Ungültige Referenzen melden einen Fehler.
    Migration wiederholen verändert vorhandenes Produkt nicht. Neue Workspaces
    starten direkt mit leerem Produkt. Tests: Altbestand, Wiederholung,
    Fehlerzustände, Konflikte, Pfadgrenzen.
-3. **Companion:** `pts_edit` um strukturierte Produktvorschläge und deren
-   bestätigte Übernahme erweitern; Snapshot zeigt Produkt und offene Vorschläge,
-   veraltete Momentbezüge, Entscheidungen und Fokus. Tests über echte
-   Toolregistrierung und Dateien, ohne einen simulierten Modellbeweis.
-4. **Status:** gemeinsame reine Projektion mit nachvollziehbaren Lücken und
+3. **Prompt Snapshot / Context Projection:** einen gemeinsamen, reinen
+   Snapshot-Builder als verbindliche Lesegrenze für jeden Companion-Turn
+   implementieren. Er erzeugt den Laufzeitkontext aus den kanonischen
+   Workspace-Artefakten, `teaching-product.json`, offenen Produktvorschlägen,
+   relevanten Entscheidungen, Arbeitsständen und dem aktuellen Focus Context.
+   Der Snapshot ist keine kanonische Datei, wird nicht unabhängig
+   zurückgeschrieben und darf keine Entscheidungen oder Freigaben ableiten.
+   Er priorisiert fokussierte und unmittelbar referenzierte Inhalte statt den
+   gesamten Workspace pauschal in den Prompt zu laden. Revisionen und
+   Provenance bleiben sichtbar; fehlerhafte oder widersprüchliche Quelldaten
+   werden nicht stillschweigend normalisiert. Tests: deterministische Projektion,
+   Fokuswechsel, Produktänderungen, neue Entscheidungen, offene und veraltete
+   Vorschläge, mehrfach referenzierte Lernmomente, ungültige Referenzen,
+   Kontextbegrenzung und Aktualisierung zwischen zwei aufeinanderfolgenden
+   Turns.
+4. **Companion:** `pts_edit` um strukturierte Produktvorschläge und deren
+   bestätigte Übernahme erweitern. Der Companion erhält seinen
+   Workspace-Kontext über den gemeinsamen Prompt Snapshot und schreibt
+   kanonische Zustände ausschließlich über strukturierte Domain-Operationen.
+   Tests über echte Toolregistrierung und Dateien, ohne einen simulierten
+   Modellbeweis.
+5. **Status:** gemeinsame reine Projektion mit nachvollziehbaren Lücken und
    getrennten Einschätzungen. Tests vor/nach Übernahme und Quelländerung.
-5. **Produktpanel:** lesbare Stunden/Phasen, Materialzugriff, Vorschlagsvergleich,
+6. **Produktpanel:** lesbare Stunden/Phasen, Materialzugriff, Vorschlagsvergleich,
    explizite Übernahme, Unterrichtsbereitschaft und Weiterdenken. UI-Flow-Tests.
-6. **Generischer Fokus:** sessionisolierte Host-Auflösung, Prompt-Einbindung,
+7. **Generischer Fokus:** sessionisolierte Host-Auflösung, Prompt-Einbindung,
    Fokus beenden und Rückweg; Tests für alle Gegenstandstypen und Isolation.
-7. **Moment-Werkstatt:** bestehender Editor bleibt; Öffnen/Besprechen setzt
-   denselben Focus Context. Kein Sub-Workspace. UI-Flow-Test.
-8. **Landkarte reduzieren:** Zeitplaneditor und Stunden-Dropziele aus der
-   primären Kartenansicht entfernen, Karten/Übergänge/Materialbeziehungen
-   erhalten. Verwendungen kommen aus Produktprojektion. Regressionstest.
-9. **Dokumentation/Abnahme:** Architektur, Bedienfluss und Betriebsgrenzen
+8. **Lernmoment-Werkstatt:** Die bisherige Lernlandschaft fachlich und in der primären UI zur Lernmoment-Werkstatt umbauen.
+
+   - Lernmomente bleiben kanonische, eigenständige Denkobjekte.
+   - Der bestehende Momenteditor bleibt erhalten und wird Teil der Lernmoment-Werkstatt.
+   - Öffnen oder Besprechen eines Lernmoments setzt den gemeinsamen Focus Context; kein Sub-Workspace, aber ein eigener persistenter Conversation-Thread pro Lernmoment.
+   - Die graphartige Übergangslogik ist nicht mehr Bestandteil der primären Arbeitsform.
+   - Primäransicht wird ein ruhiges Board nach didaktischen Funktionen.
+   - Standardfunktionen zunächst:
+     `Einstieg`, `Erkunden`, `Erarbeiten`, `Vertiefen`, `Sichern`, `Transfer`.
+   - Das Funktionsschema bleibt konfigurierbar und wird nicht als universelles Unterrichtsphasenmodell fest in die Domäne codiert.
+   - Drag-and-drop verändert ausschließlich die didaktische Einordnung eines Lernmoments.
+   - Verschieben erzeugt weder eine Unterrichtsphase noch eine zeitliche Platzierung.
+   - Momenteditor, Ausarbeitung, Materialbeziehungen, Fragen, Herkunft und Reifegrad bleiben erhalten.
+   - Ein Lernmoment kann aus der Werkstatt heraus besprochen, weiterentwickelt oder als Grundlage einer Produktänderung vorgeschlagen werden.
+   - Die konkrete Verwendung eines Lernmoments im Teaching Product erfolgt ausschließlich über eine Produktreferenz beziehungsweise einen Produktvorschlag.
+   - Ein Lernmoment darf in mehreren Stunden und Phasen verwendet werden.
+   - Änderungen am Lernmoment überschreiben bestätigte Phasen niemals automatisch.
+   - Zeitplanung, Stunden-Dropziele und Unterrichtsplatzierungen werden vollständig aus der Lernmoment-Werkstatt entfernt.
+   - Materialbeziehungen am Lernmoment bleiben vorgelagerte Möglichkeiten; konkrete Materialverwendungen gehören zum Teaching Product.
+   - Bestehende Übergangsdaten können als Legacy-Information erhalten bleiben, sind aber keine Voraussetzung für die neue Ansicht.
+
+   - Beispielthread für die Konversation zu einem Lernmoment 
+	
+	Workspace „Hoffnung“
+	│
+	├── Allgemeines Gespräch
+	│
+	│   „Was wollen wir mit der Reihe erreichen?“
+	│
+	├── Lernmoment moment-07
+	│   └── eigener Conversation-Thread
+	│       „Wie könnte dieser Moment funktionieren?“
+	│       „Was machen die Lernenden konkret?“
+	│       „Ich bin mit dem Einstieg noch nicht zufrieden …“
+	│
+	├── Lernmoment moment-12
+	│   └── eigener Conversation-Thread
+	│
+	└── Teaching Product
+		└── Phase phase-04
+			└── ggf. eigener Conversation-Thread
+
+
+	Damit haben wir drei Eebenen:
+	1. Workspace
+	   gemeinsame kanonische Wahrheit
+	   ├── Lernmomente
+	   ├── Entscheidungen
+	   ├── Teaching Product
+	   └── Materialien
+
+	2. Conversations
+	   persistente Denkverläufe
+	   ├── allgemeiner Thread
+	   ├── Thread zu moment-07
+	   ├── Thread zu moment-12
+	   └── eventuell Thread zu phase-04
+	   
+	   Aber: nicht automatisch für jedes Objekt einen Thread erzeugen.
+	         Erst wenn die Lehrkraft „Darüber sprechen“ auswählt, entsteht bzw. öffnet sich der Thread.
+
+	3. Focus Context
+		„Was liegt in diesem Thread gerade auf dem Tisch?“
+
+   Tests:
+   - Öffnen/Besprechen setzt den korrekten Focus Context.
+   - Fokuswechsel erzeugt keinen Sub-Workspace.
+   - Verschieben eines Moments ändert nur seine didaktische Funktion.
+   - Verschieben erzeugt keine Phase.
+   - Ein Moment kann mehrfach im Teaching Product referenziert werden.
+   - Änderung eines mehrfach verwendeten Moments verändert keine bestätigte Phase.
+   - konfigurierbares Funktionsschema.
+   - Materialbeziehung am Moment wird nicht automatisch zur Phasenverwendung.
+   - Legacy-Workspaces mit Übergängen bleiben lesbar.
+   - UI-Flow-Test für Board → Moment öffnen → darüber sprechen → zurück zur Werkstatt.
+
+
+
+   
+10. **Dokumentation/Abnahme:** Architektur, Bedienfluss und Betriebsgrenzen
    aktualisieren; automatisierte Integration und Browserabnahme getrennt
    ausweisen. Keine Änderung bestehender Unterrichtsinhalte für Tests.
 
-Zentraler E2E: Lernmoment im Gespräch weiterentwickeln -> konkreter Vorschlag
-für eine Phase einer Stunde -> Lehrkraft bestätigt -> Reihe und Status ändern
-sich -> Stunde öffnen -> unfertige Phase weiterdenken -> gleicher Workspace,
-gleicher Chat, aktueller Phasenkontext. Zusätzlich Ablehnung, veralteter
-Vorschlag, mehrfach verwendeter Moment, fehlendes Material und Reload prüfen.
+Zentraler E2E: Vor jedem Companion-Turn wird der Prompt Snapshot aus dem
+aktuellen Workspace und Focus Context neu erzeugt -> Lernmoment entsteht oder
+wird im Gespräch weiterentwickelt -> Companion hält ihn in der
+Lernmoment-Werkstatt fest -> der folgende Turn sieht den aktualisierten
+Snapshot -> Lernmoment wird einer didaktischen Funktion wie `Erkunden`
+zugeordnet -> Lernmoment wird dort weiterentwickelt und gegebenenfalls mit
+Material verbunden -> daraus entsteht ein konkreter Vorschlag für die
+Verwendung in einer Phase einer Stunde ->
+Lehrkraft bestätigt -> Phase mit eigener ID entsteht im Teaching Product ->
+Reihe und Status ändern sich -> ursprünglicher Lernmoment bleibt eigenständig
+erhalten und kann später für eine weitere Phase vorgeschlagen werden -> Stunde
+öffnen -> unfertige Phase weiterdenken -> gleicher Workspace, gegenstandsbezogener persistenter Conversation-Thread,
+gemeinsamer kanonischer Denkstand. Zusätzlich Ablehnung, veralteter Vorschlag, mehrfach
+verwendeter Moment, fehlendes Material und Reload prüfen.
 Ein deterministischer UI/HTTP/Tool-Test belegt die Verdrahtung; autonomes
 Modellverhalten und laufende DSH-Browserdarstellung benötigen eigene Abnahme.
 
