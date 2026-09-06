@@ -3,6 +3,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createServer } from 'node:http';
 import { apply as landscape } from '../../dsh-plugins/pts-landscape/lib/index.js';
+import { apply as binding } from '../../dsh-plugins/pts-conversation-binding/lib/index.js';
+import { apply as workshop } from '../../dsh-plugins/pts-moment-workshop/lib/index.js';
 import { apply as edit } from '../../dsh-presets/pts-companion/direct-pts-edit.mjs';
 import { emptyProduct } from '../../dsh-presets/pts-companion/teaching-product.mjs';
 
@@ -64,6 +66,8 @@ placements:
   const disposers = [];
   const ctx = { get: (name) => ({ webServer: { register: (spec) => { routes.set(spec.path, spec.handler); return () => routes.delete(spec.path); } }, sessions: { get: (id) => sessions.get(id) } })[name], effect: (effect) => disposers.push(effect()) };
   landscape(ctx);
+  binding(ctx);
+  workshop(ctx);
   let tool;
   const agent = { session: sessions.get('test-session'), ctx: { tools: { register: (definition) => { tool = definition; return () => {}; } } } };
   edit({ agent });

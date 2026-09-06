@@ -5,7 +5,10 @@ import { promises as fs } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import * as pls from 'file:///F:/code/pedagogical-thinking-space/dsh-plugins/pts-landscape/lib/index.js';
+import { pathToFileURL } from 'node:url';
+
+const repo = path.resolve(import.meta.dirname, '../..');
+const pls = await import(pathToFileURL(path.join(repo, 'dsh-plugins/pts-landscape/lib/index.js')).href);
 
 let pass = 0;
 let fail = 0;
@@ -19,7 +22,7 @@ check('host inject has webServer', Array.isArray(pls.inject) && pls.inject.inclu
 check('host apply is function', typeof pls.apply === 'function');
 
 // 2. Landscape parser against the real backfilled workspace file
-const rawReal = await fs.readFile('F:/code/pedagogical-thinking-space/workspace/hoffnung/learning-landscape.md', 'utf8');
+const rawReal = await fs.readFile(path.join(repo, 'workspace/hoffnung/learning-landscape.md'), 'utf8');
 const real = pls.parseLandscape(rawReal);
 check('real landscape parses moments', Array.isArray(real.moments) && real.moments.length >= 1);
 check('real moment has title', real.moments.length >= 1 && typeof real.moments[0].title === 'string' && real.moments[0].title.length > 0);

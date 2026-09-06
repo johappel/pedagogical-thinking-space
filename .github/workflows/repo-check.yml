@@ -22,11 +22,30 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Install Node dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Install Chromium for browser checks
+        run: npx playwright install --with-deps chromium
+
       - name: Run repo consistency checks
         run: python scripts/check_repo.py
 
-      - name: Run architecture and Steward tests
-        run: node --test tests/*.test.mjs dsh-plugins/pts-background-steward/test/*.test.mjs dsh-plugins/pts-skill-manager/test/*.test.mjs
+      - name: Check DSH client module contracts
+        run: npm run check:dsh-client-contract
+
+      - name: Run unit and integration tests
+        shell: bash
+        run: >-
+          node --test --test-isolation=none
+          $(find tests -maxdepth 1 -name '*.test.mjs' ! -name '*.browser.test.mjs' -print)
+          dsh-plugins/pts-skill-manager/test/*.test.mjs
+
+      - name: Run landscape smoke test
+        run: node dsh-plugins/pts-landscape/test-landscape.mjs
 
       - name: Run activity projection checks
         run: node dsh-plugins/pts-activity-stream/test-activity.cjs
+
+      - name: Run product browser E2E
+        run: npm run test:product:e2e

@@ -77,8 +77,8 @@ test('6 Focus E2E: generic subjects, current data, same workspace, session isola
   for (const [kind, id] of [['moment', 'lm-perspektive'], ['lesson', 'lesson-1'], ['phase', 'phase-1'], ['material', 'materials/impuls.md'], ['question', 'question-1']]) {
     const response = await f.request('/api/pts-focus', { focus: { kind, id, returnView: 'teaching-product' } });
     assert.equal(response.status, 200, JSON.stringify(response.body)); assert.equal(response.body.focus.subject.id, id);
-    assert.match(buildSnapshot(f.root, 'test-session'), /Aktueller Focus Context/);
-    assert.doesNotMatch(buildSnapshot(f.root, 'other-session'), /Aktueller Focus Context/);
+    assert.match(buildSnapshot(f.root, 'test-session'), /PRIMARY FOCUS|Aktueller Focus Context/);
+    assert.doesNotMatch(buildSnapshot(f.root, 'other-session'), /PRIMARY FOCUS|Aktueller Focus Context/);
   }
   assert.equal((await f.request('/api/pts-focus', { focus: { kind: 'phase', id: 'absent', returnView: 'chat' } })).status, 400);
   await f.request('/api/pts-focus', { focus: null });

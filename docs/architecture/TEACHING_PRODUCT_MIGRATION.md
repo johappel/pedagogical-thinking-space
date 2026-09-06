@@ -1,6 +1,8 @@
 # Thinking Space und Teaching Product
 
-Architektur-Audit und Zielentwurf, 2026-09-06. Vor der Implementierung erstellt.
+Architektur-Audit und Umsetzungsstand, 2026-09-06/07. Der Zielentwurf ist in
+den aktuellen DSH-nativen Plugins und Domain-Routen umgesetzt; die
+automatisierte Abnahme ist unten dokumentiert.
 Der Auftrag autorisiert die technische Migration, keine neuen pädagogischen
 Entscheidungen in bestehenden Denkräumen. Bestehende Arbeitsräume bleiben bis
 zu einer expliziten Migration unverändert.
@@ -49,12 +51,12 @@ flowchart LR
   H --> F
 ```
 
-Mit `workspace-snapshot.mjs` existiert bereits ein technischer Vorläufer für
-eine zusammengefasste Workspace-Projektion. Ein verbindlicher
-**Prompt-Snapshot je Companion-Turn** ist jedoch noch nicht als
-Architekturgrenze etabliert. Insbesondere ist noch nicht festgelegt, dass der
-Companion seinen Workspace-Kontext ausschließlich über eine gemeinsame,
-fokusbezogene und begrenzte Projektion erhält.
+Mit `workspace-snapshot.mjs` existiert eine verbindliche Context Projection für
+eine fokusspezifische, revisionsbewusste und budgetierte Workspace-Projektion.
+Der verbindliche **Prompt-Snapshot je Companion-Turn**
+ist als gemeinsame Leseschnittstelle etabliert. Sichtbare Kürzungen und ein
+Workspace-Überblick machen die Begrenzung nachvollziehbar; eine zweite
+PTS-History entsteht dadurch nicht.
 
 Plugin-Grenzen: `pts-workspaces` besitzt Workspace-Auswahl/Scaffold;
 `pts-landscape` besitzt Karten, Momenteditor, Materialbeziehungen und
@@ -209,12 +211,17 @@ Denkgeschichte bleibt nachgeordnet einsehbar. Der Dateibaum ist keine
 Produktnavigation.
 
 Focus Context ist temporärer, sessionbezogener Kontext im selben Workspace:
-`kind` (moment/lesson/phase/material/question), `id`, `returnView`.
+`kind` (moment/lesson/phase/material/question), `id`, `returnView`. Das
+persistente Conversation Binding ist davon getrennt und ordnet ein Objekt über
+`kind:id` einer DSH-Session zu.
 Der Host löst Referenzen gegen aktuelle Artefakte auf. Der Prompt Snapshot
 wertet diesen Fokus bei jedem Companion-Turn aus und stellt den aktuellen
 Gegenstand zusammen mit den dafür relevanten kanonischen Artefakten bereit.
-Die UI verwendet denselben DSH-Composer und dieselbe History. Ein Fokuswechsel
-erzeugt weder Session noch Unterordner. Fokus beenden entfernt den Kontext.
+Die UI verwendet denselben DSH-Composer und dieselbe History der jeweils
+geöffneten DSH-Session. Ein reiner Fokuswechsel erzeugt weder Session noch
+Unterordner. Die bewusste Aktion „Darüber sprechen“ erzeugt beim ersten Mal
+eine frische DSH-Session im selben Denkraum und öffnet danach genau diese
+Session wieder. Fokus beenden entfernt nur den temporären Kontext.
 Ungültige Referenzen melden einen Fehler.
 
 ## Migrationspfad und Arbeitspakete
@@ -231,9 +238,9 @@ Ungültige Referenzen melden einen Fehler.
    Migration wiederholen verändert vorhandenes Produkt nicht. Neue Workspaces
    starten direkt mit leerem Produkt. Tests: Altbestand, Wiederholung,
    Fehlerzustände, Konflikte, Pfadgrenzen.
-3. **Prompt Snapshot / Context Projection:** einen gemeinsamen, reinen
-   Snapshot-Builder als verbindliche Lesegrenze für jeden Companion-Turn
-   implementieren. Er erzeugt den Laufzeitkontext aus den kanonischen
+3. **Prompt Snapshot / Context Projection:** **umgesetzt.** Der gemeinsame,
+   reine Snapshot-Builder ist die verbindliche Lesegrenze für jeden
+   Companion-Turn. Er erzeugt den Laufzeitkontext aus den kanonischen
    Workspace-Artefakten, `teaching-product.json`, offenen Produktvorschlägen,
    relevanten Entscheidungen, Arbeitsständen und dem aktuellen Focus Context.
    Der Snapshot ist keine kanonische Datei, wird nicht unabhängig
@@ -258,11 +265,16 @@ Ungültige Referenzen melden einen Fehler.
    explizite Übernahme, Unterrichtsbereitschaft und Weiterdenken. UI-Flow-Tests.
 7. **Generischer Fokus:** sessionisolierte Host-Auflösung, Prompt-Einbindung,
    Fokus beenden und Rückweg; Tests für alle Gegenstandstypen und Isolation.
-8. **Lernmoment-Werkstatt:** Die bisherige Lernlandschaft fachlich und in der primären UI zur Lernmoment-Werkstatt umbauen.
+8. **Lernmoment-Werkstatt:** **umgesetzt.** Die bisherige Lernlandschaft ist
+   fachlich und in der primären UI zur Lernmoment-Werkstatt weiterentwickelt;
+   Produkt- und Statusansichten bleiben erhalten.
 
    - Lernmomente bleiben kanonische, eigenständige Denkobjekte.
    - Der bestehende Momenteditor bleibt erhalten und wird Teil der Lernmoment-Werkstatt.
-   - Öffnen oder Besprechen eines Lernmoments setzt den gemeinsamen Focus Context; kein Sub-Workspace, aber ein eigener persistenter Conversation-Baum pro Gegenstand pro Lernmoment/Gegenstand, DSH-native Forks als alternative Denkwege.
+   - Öffnen des Editors erzeugt keinen Thread. „Darüber sprechen“ setzt den
+     temporären Focus Context und bindet den Gegenstand an eine frische oder
+     wieder geöffnete DSH-Session im selben Denkraum. Es gibt keine PTS-History
+     und keine Fork-/Kopie-Logik.
    - Die graphartige Übergangslogik ist nicht mehr Bestandteil der primären Arbeitsform.
    - Primäransicht wird ein ruhiges Board nach didaktischen Funktionen.
    - Standardfunktionen zunächst:
@@ -289,18 +301,18 @@ Ungültige Referenzen melden einen Fehler.
    │   „Was liegt in diesem Thread gerade auf dem Tisch?“
 	│
 	├── Lernmoment moment-07
-	│   └── eigener Conversation-Baum
+	│   └── eigene DSH-Conversation-Session
 	│       „Wie könnte dieser Moment funktionieren?“
 	│       „Was machen die Lernenden konkret?“
 	│       „Ich bin mit dem Einstieg noch nicht zufrieden …“
-	│       └── Fork …
+	│       └── beim nächsten Öffnen wiederaufnehmbarer DSH-Thread
 	│
 	├── Lernmoment moment-12
-	│   └── eigener Conversation-Baum
+	│   └── eigene DSH-Conversation-Session
 	│
 	└── Teaching Product
 		└── Phase phase-04
-			└── ggf. Conversation-Baum
+			└── ggf. eigene DSH-Conversation-Session
 
 
    Tests:
@@ -313,7 +325,8 @@ Ungültige Referenzen melden einen Fehler.
    - konfigurierbares Funktionsschema.
    - Materialbeziehung am Moment wird nicht automatisch zur Phasenverwendung.
    - Legacy-Workspaces mit Übergängen bleiben lesbar.
-   - UI-Flow-Test für Board → Moment öffnen → darüber sprechen → zurück zur Werkstatt.
+   - UI-Flow-Test für Board → Moment öffnen → darüber sprechen → Thread wieder
+     öffnen mit aktuellem Workspace-Snapshot.
 
 
 
@@ -334,7 +347,9 @@ Lehrkraft bestätigt -> Phase mit eigener ID entsteht im Teaching Product ->
 Reihe und Status ändern sich -> ursprünglicher Lernmoment bleibt eigenständig
 erhalten und kann später für eine weitere Phase vorgeschlagen werden -> Stunde
 öffnen -> unfertige Phase weiterdenken -> gleicher Workspace, gegenstandsbezogener persistenter Conversation-Thread,
-gemeinsamer kanonischer Denkstand. Zusätzlich Ablehnung, veralteter Vorschlag, mehrfach
+gemeinsamer kanonischer Denkstand. Der implementierte Browser-E2E prüft außerdem
+Lernmoment -> „Darüber sprechen“ -> Thread wieder öffnen und den aktuellen
+Workspace-Snapshot. Zusätzlich Ablehnung, veralteter Vorschlag, mehrfach
 verwendeter Moment, fehlendes Material und Reload prüfen.
 Ein deterministischer UI/HTTP/Tool-Test belegt die Verdrahtung; autonomes
 Modellverhalten und laufende DSH-Browserdarstellung benötigen eigene Abnahme.
