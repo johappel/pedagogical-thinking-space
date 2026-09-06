@@ -30,6 +30,7 @@ import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { emptyProduct } from '../../../dsh-presets/pts-companion/teaching-product.mjs';
 export const inject = ['webServer'];
 
 const MAX_NAME_LENGTH = 120;
@@ -303,7 +304,7 @@ export function apply(ctx) {
 		await fsp.mkdir(target, { recursive: true });
 		await fsp.writeFile(path.join(target, 'learning-design.md'), learningDesignTemplate(name, slug, date), 'utf8');
 		await fsp.writeFile(path.join(target, 'learning-landscape.md'), learningLandscapeTemplate(name), 'utf8');
-		await fsp.writeFile(path.join(target, 'temporal-plan.yml'), temporalPlanTemplate(name), 'utf8');
+		await fsp.writeFile(path.join(target, 'teaching-product.json'), JSON.stringify(emptyProduct(name), null, 2) + '\n', 'utf8');
 		await fsp.writeFile(path.join(target, 'planning-board.yml'), PLANNING_BOARD_TEMPLATE, 'utf8');
 		await fsp.writeFile(path.join(target, 'decisions.yml'), DECISIONS_TEMPLATE, 'utf8');
 		await fsp.mkdir(path.join(target, 'materials'), { recursive: true });

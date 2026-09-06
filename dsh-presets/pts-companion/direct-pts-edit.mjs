@@ -7,6 +7,7 @@
 
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
+import { mutateProduct, productView } from './teaching-product.mjs';
 
 export const name = 'pts-direct-edit';
 export const inject = ['tools', 'agents'];
@@ -15,7 +16,8 @@ const MAX_QUESTION = 500;
 const MAX_TITLE = 160;
 const MAX_DECISION = 800;
 const MAX_RATIONALE = 800;
-const OPERATIONS = Object.freeze(['add_open_question', 'record_decision']);
+const PRODUCT_OPERATIONS = ['read_product', 'propose_product', 'accept_product', 'reject_product', 'assess_product', 'mark_ready'];
+const OPERATIONS = Object.freeze(['add_open_question', 'record_decision', ...PRODUCT_OPERATIONS]);
 
 function isSubagent(agent) {
 	return agent?.session?.header?.origin === 'subagent';
@@ -131,9 +133,13 @@ function confirmedDecision(content, args) {
 }
 
 /** Apply one supported structured operation. No arbitrary path or raw content. */
-export async function applyDirectEdit(agent, args) {
+async function applyDirectEditUnchecked(agent, args) {
 	if (!args || !OPERATIONS.includes(args.operation)) throw new Error(`unsupported direct pts_edit operation; use one of: ${OPERATIONS.join(', ')}`);
 	const root = await resolveDenkraum(agent);
+	if (PRODUCT_OPERATIONS.includes(args.operation)) {
+		const result = args.operation === 'read_product' ? await productView(root) : await mutateProduct(root, args);
+		return { ok: true, operation: args.operation, file: 'teaching-product.json', id: result.product?.proposals.at(-1)?.id || 'series', direct: true, childAgentStarted: false, result };
+	}
 	if (args.operation === 'add_open_question') {
 		const question = asText(args.question, 'question', MAX_QUESTION);
 		const file = path.join(root, 'planning-board.yml');
@@ -150,10 +156,27 @@ export async function applyDirectEdit(agent, args) {
 	return { ok: true, operation: args.operation, file: 'decisions.yml', id: result.id, direct: true, childAgentStarted: false };
 }
 
+export async function applyDirectEdit(agent, args) {
+	if (PRODUCT_OPERATIONS.includes(args?.operation)) return applyDirectEditUnchecked(agent, args);
+	if (!OPERATIONS.includes(args?.operation)) throw new Error(`unsupported direct pts_edit operation; use one of: ${OPERATIONS.join(', ')}`);
+	const root = await resolveDenkraum(agent);
+	const lockPath = path.join(root, '.pts-direct-edit.lock');
+	let lock;
+	try { lock = await fsp.open(lockPath, 'wx'); }
+	catch (e) { if (e.code === 'EEXIST') throw new Error('Denkstand busy; retry after current write'); throw e; }
+	try {
+		const file = path.join(root, args.operation === 'record_decision' ? 'decisions.yml' : 'planning-board.yml');
+		const real = await fsp.realpath(file).catch((e) => { if (e.code === 'ENOENT') return file; throw e; });
+		const relative = path.relative(await fsp.realpath(root), real);
+		if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('Denkstand file escapes workspace');
+		return await applyDirectEditUnchecked(agent, args);
+	} finally { await lock.close(); await fsp.unlink(lockPath); }
+}
+
 function directTool() {
 	return {
 		name: 'pts_edit',
-		description: 'Apply one small, already clarified PTS Denkstand update directly. This is not a general file editor: use add_open_question for an unresolved question or record_decision only after an explicit teacher-confirmed decision. Larger conceptual rewrites, materials, learning-design changes, and arbitrary paths must stay conversational or use the legacy worker path.',
+		description: 'Structured PTS editing. read_product returns the current product, revision, pending proposals and migration status. propose_product stores a reviewable series, never adopts it. Preserve all unchanged lessons/phases and use stable IDs. accept_product requires a matching decisions.yml confirmed decision containing the exact proposal approval token [PTS product PROPOSAL_ID HASH], recorded only after explicit teacher agreement. assess_product is a Companion opinion, never teacher readiness. mark_ready requires an explicit matching teacher readiness decision. learning-design rewrites and arbitrary paths remain worker work.',
 		parameters: {
 			type: 'object',
 			properties: {
@@ -163,6 +186,10 @@ function directTool() {
 				decision: { type: 'string', description: 'The already confirmed teacher decision.' },
 				rationale: { type: 'string', description: 'Optional factual rationale for record_decision.' },
 				teacher_confirmed: { type: 'boolean', description: 'Must be true only when the teacher explicitly confirmed the decision.' },
+				expectedRevision: { type: 'integer', description: 'Current product revision from read_product; required for writes.' },
+				series: { type: 'object', description: 'Complete structured series: id,title,intention,notes,lessons[]. Lesson: id,title,intention,notes,durationMinutes(number|null),phases[]. Phase: id,title,intention,activity,notes,durationMinutes,startMinute(number|null),role,mode,momentIds[],materials[](relative materials/ or rendered/ paths),openQuestions[],sourceHashes:{} (server fills hashes). Never invent adoption of moments.' },
+				reason: { type: 'string' }, proposalId: { type: 'string' }, decisionId: { type: 'string' }, lessonId: { type: 'string' },
+				assessment: { type: 'string', enum: ['idea', 'developing', 'ready_candidate'] }, note: { type: 'string' }, ready: { type: 'boolean' },
 			},
 			required: ['operation'],
 		},
@@ -173,10 +200,11 @@ function directTool() {
 					ok: { type: 'boolean' }, operation: { type: 'string' },
 					file: { type: 'string' }, id: { type: 'string' },
 					direct: { type: 'boolean' }, childAgentStarted: { type: 'boolean' },
+					result: { type: 'object' },
 				},
 				required: ['ok', 'operation', 'file', 'id', 'direct', 'childAgentStarted'],
 			},
-			render: (_args, value) => [{ type: 'text', text: `${value.file} aktualisiert (${value.operation}; direkt, kein Child-Agent)` }],
+			render: (_args, value) => [{ type: 'text', text: value.result ? JSON.stringify(value.result) : `${value.file} aktualisiert (${value.operation}; direkt, kein Child-Agent)` }],
 		},
 		isConcurrencySafe: () => false,
 		execute: (args, exec) => {

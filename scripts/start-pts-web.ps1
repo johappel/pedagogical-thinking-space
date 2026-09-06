@@ -31,6 +31,7 @@ $required = @(
 	"toolName: pts_edit_legacy",
 	"@deepseek-ai/dsh-tool-subagent-control",
 	"direct-pts-edit.mjs",
+	"pts-product-v1",
 	"toolName: pts_document",
 	"toolName: pts_documentarian",
 	"toolName: pts_material",
@@ -44,6 +45,11 @@ $required = @(
 foreach ($needle in $required) {
 	if (-not $preset.Contains($needle)) {
 		throw "Installed PTS preset is stale (missing '$needle'). Run the installer with -Replace."
+	}
+}
+foreach ($module in @('teaching-product.mjs', 'focus-context.mjs', 'workspace-parsers.mjs')) {
+	if (-not (Test-Path (Join-Path (Split-Path -Parent $presetFile) $module) -PathType Leaf)) {
+		throw "Installed PTS product module missing: $module. Run install-pts-preset.ps1."
 	}
 }
 if ($preset.Contains("@PTS_SKILLS_DIR@") -or $preset.Contains("@PTS_SETTINGS_PATH@")) {

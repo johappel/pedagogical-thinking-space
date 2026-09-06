@@ -208,6 +208,18 @@ export function installWorkerSkillScope(agent, settingsPath = null) {
 	let sectionDispose = () => {};
 	try {
 		guardDispose = ctx.tools.guard((execution) => {
+			if (execution && ['write', 'edit'].includes(execution.name)) {
+				const paths = [];
+				const collect = (value) => {
+					if (!value || typeof value !== 'object') return;
+					for (const [key, item] of Object.entries(value)) {
+						if (/^(path|file|file_path|filePath|target)$/i.test(key) && typeof item === 'string') paths.push(item.replace(/\\/g, '/').toLowerCase());
+						else if (item && typeof item === 'object') collect(item);
+					}
+				};
+				collect(execution.arguments);
+				if (paths.some((p) => /(?:^|\/)(teaching-product\.json|temporal-plan\.yml|\.teaching-product[^/]*)$/.test(p))) return 'Product and legacy timeline writes belong to the Companion structured product API. Return a proposal; never adopt teaching use or readiness from a worker.';
+			}
 			if (!execution || execution.name !== 'skill') return undefined;
 			const wanted = execution.arguments && typeof execution.arguments.name === 'string'
 				? execution.arguments.name

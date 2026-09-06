@@ -60,7 +60,7 @@ test('creates a minimal valid workspace without technical approval language', as
 		for (const file of [
 			'learning-design.md',
 			'learning-landscape.md',
-			'temporal-plan.yml',
+			'teaching-product.json',
 			'planning-board.yml',
 			'decisions.yml',
 		]) {
@@ -73,6 +73,10 @@ test('creates a minimal valid workspace without technical approval language', as
 		const design = await readFile(path.join(target, 'learning-design.md'), 'utf8');
 		const landscape = await readFile(path.join(target, 'learning-landscape.md'), 'utf8');
 		const decisions = await readFile(path.join(target, 'decisions.yml'), 'utf8');
+		const product = JSON.parse(await readFile(path.join(target, 'teaching-product.json'), 'utf8'));
+		assert.equal(product.schema, 'ptspace.teaching-product/v1');
+		assert.deepEqual(product.series.lessons, []);
+		await assert.rejects(() => stat(path.join(target, 'temporal-plan.yml')), { code: 'ENOENT' });
 		assert.match(design, /Vorläufige Denkstände/);
 		assert.match(landscape, /als draft/);
 		assert.match(landscape, /als stable/);

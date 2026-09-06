@@ -17,8 +17,11 @@
 // This module imports no @deepseek-ai packages: it lives in the preset copy
 // whose realpath lies outside the harness installation.
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, realpathSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import { validateProduct, projectStatus, digest, PRODUCT_FILE } from './teaching-product.mjs';
+import { parseLandscape, parseYaml } from './workspace-parsers.mjs';
+import { getFocus, resolveFocus, clearFocus } from './focus-context.mjs';
 
 export const name = 'pts-workspace-snapshot';
 export const inject = ['systemPrompt', 'agents'];
@@ -110,7 +113,7 @@ function parseDecisions(p) {
 	let c; try { c = readFileSync(p, 'utf8'); } catch { return null; }
 	const statements = [];
 	for (const line of c.split(/\r?\n/)) {
-		const m = /^statement:\s*(.*)$/.exec(line.trim());
+		const m = /^(?:statement|decision):\s*(.*)$/.exec(line.trim());
 		if (m) statements.push(m[1]);
 	}
 	return statements;
@@ -135,7 +138,7 @@ function parseTemporal(p) {
 }
 
 /** Build the compact Denkstand + fragment snapshot for one Denkraum. */
-export function buildSnapshot(root) {
+export function buildSnapshot(root, sessionId = '') {
 	const parts = [];
 	parts.push(`Denkraum: ${path.basename(root)} (${posix(root)})`);
 
@@ -182,6 +185,28 @@ export function buildSnapshot(root) {
 		}
 	}
 
+	try {
+		const safe = (file) => {
+			const target = path.join(root, file);
+			if (!existsSync(target)) return '';
+			const relative = path.relative(realpathSync(root), realpathSync(target));
+			if (relative.startsWith('..') || path.isAbsolute(relative) || statSync(target).size > 512 * 1024) throw new Error('unsafe or oversized workspace artifact');
+			return readFileSync(target, 'utf8');
+		};
+		const raw = safe(PRODUCT_FILE);
+		const product = raw ? validateProduct(JSON.parse(raw)) : null;
+		const sources = Object.fromEntries(['learning-design.md', 'learning-landscape.md', 'planning-board.yml', 'temporal-plan.yml'].map((f) => [f, safe(f)]));
+		const moments = parseLandscape(sources['learning-landscape.md']).moments;
+		const materials = [...relFiles(root, 'materials'), ...relFiles(root, 'rendered')];
+		const status = projectStatus(product, { moments, sourceRevision: digest(sources) }, materials);
+		parts.push(`Teaching Product (kanonisch; keine automatische Zuordnung): ${JSON.stringify({ revision: product?.revision, series: product?.series, status }).slice(0, 12000)}`);
+		parts.push('Produktdetails und Vorschlags-IDs bei Bedarf mit pts_edit/read_product lesen. Produktfreigaben nur nach erkennbarer Lehrkraftentscheidung; Lernmoment-Aenderung ist keine Phasen-Aenderung.');
+		const focus = getFocus(sessionId, root);
+		if (focus) {
+			try { parts.push(`Aktueller Focus Context (gleicher Workspace, gleicher Chat): ${JSON.stringify(resolveFocus(focus, { moments, product, materials, questions: parseYaml(sources['planning-board.yml']).items || [] })).slice(0, 6000)}`); }
+			catch (e) { parts.push(`Focus Context nicht mehr gueltig: ${e.message}`); }
+		}
+	} catch (e) { parts.push(`Teaching Product nicht lesbar; nicht ueberschreiben: ${e.message}`); }
 	return parts.join('\n');
 }
 
@@ -200,7 +225,7 @@ function install(agent) {
 			text: () => {
 				if (disposed) return '';
 				try {
-					return `## Aktueller Denkstand (automatisch)\n${buildSnapshot(root.trim())}`;
+					return `## Aktueller Denkstand (automatisch)\n${buildSnapshot(root.trim(), agent.session.id || agent.session.header.id || '')}`;
 				} catch (error) {
 					return `## Aktueller Denkstand\n(nicht lesbar: ${String(error && error.message || error)})`;
 				}
@@ -211,6 +236,7 @@ function install(agent) {
 	}
 	return () => {
 		disposed = true;
+		clearFocus(agent.session.id || agent.session.header.id || '', root);
 		try { disposeSection(); } catch { /* disposal must never throw */ }
 	};
 }

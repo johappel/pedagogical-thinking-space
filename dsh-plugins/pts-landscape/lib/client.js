@@ -14,6 +14,9 @@ window.__ModuleLoader__.load({
 	id: "pts-landscape",
 	factory: (require) => {
 		const React = require("react");
+		// Navigation callbacks are DSH-owned; retain only the current session's
+		// public callback for the temporary focus return action.
+		let focusNavigation = null;
 
 		const CSS = `
 .pls-root { display:flex; flex-direction:column; gap:10px; height:100%; min-height:0; box-sizing:border-box; padding:12px 14px; }
@@ -461,7 +464,7 @@ window.__ModuleLoader__.load({
 			}
 			if (assign.status !== "none") {
 				meta.push(React.createElement("span", { key: "as", className: "pls-chip" },
-					"zugeordnet " + assign.assigned + " min" + (assign.estimated != null ? " / " + assign.estimated + " min" : "")));
+					"In " + assign.assigned + " Phase(n) verwendet"));
 			}
 
 			const children = [React.createElement("div", { key: "h", className: "pls-card-head" }, head)];
@@ -528,7 +531,7 @@ window.__ModuleLoader__.load({
 					className: "pls-btn pls-btn-edit",
 					title: "Diesen Lernmoment bearbeiten (nur dieser Moment)",
 					onClick: function(e) { if (e && e.stopPropagation) e.stopPropagation(); props.onEdit(m); },
-				}, "✎ Edit"),
+				}, "Werkstatt"),
 				React.createElement("button", {
 					className: "pls-btn",
 					title: expanded ? "Details einklappen" : "Details aufklappen",
@@ -570,82 +573,8 @@ window.__ModuleLoader__.load({
 			return React.createElement("div", cardProps, children);
 		}
 
-		function PlacementRow(props) {
-			const p = props.placement;
-			const w = props.window;
-			const onUpdate = props.onUpdate;
-			const onRemove = props.onRemove;
-			const onAdopt = props.onAdopt;
-			const disabled = props.disabled;
-			const children = [
-				React.createElement("span", { key: "t", className: "pls-placement-time" },
-					"ab " + (p.start_minute != null ? p.start_minute : "?") + "′"),
-				React.createElement("select", {
-					key: "r",
-					className: "pls-select",
-					title: "Dramaturgische Rolle",
-					value: p.dramaturgical_role || "exploration",
-					disabled: disabled,
-					onChange: function(e) { onUpdate({ dramaturgical_role: e.target.value }); },
-				}, ROLES.map(function(r) {
-					return React.createElement("option", { key: r, value: r }, roleLabel(r));
-				})),
-				React.createElement("select", {
-					key: "m",
-					className: "pls-select",
-					title: "Sozialform/Modus",
-					value: p.mode || "common",
-					disabled: disabled,
-					onChange: function(e) { onUpdate({ mode: e.target.value }); },
-				}, MODES.map(function(md) {
-					return React.createElement("option", { key: md, value: md }, modeLabel(md));
-				})),
-				React.createElement("input", {
-					key: "d",
-					className: "pls-input pls-minutes",
-					type: "number",
-					min: 5,
-					max: w.duration_minutes || 90,
-					title: "Dauer in Minuten",
-					value: p.duration_minutes,
-					disabled: disabled,
-					onChange: function(e) {
-						const v = parseInt(e.target.value, 10);
-						if (!isNaN(v) && v > 0) onUpdate({ duration_minutes: v });
-					},
-				}),
-				React.createElement("span", { key: "l", className: "pls-note" }, esc(p.moment_id)),
-				React.createElement("button", {
-					key: "x",
-					className: "pls-btn",
-					title: "Platzierung entfernen",
-					disabled: disabled,
-					onClick: onRemove,
-				}, "✕"),
-			];
-			if (typeof p.note === "string" && p.note !== "") {
-				children.push(React.createElement("span", { key: "n", className: "pls-note" }, esc(p.note)));
-			}
-			return React.createElement("div", { className: "pls-placement" }, children);
-		}
-
-		function buildStundenverlaufPrompt(window, momentsById) {
-			const lines = [];
-			lines.push("Erstelle einen Verlaufsplan für " + window.title + " (" + kindLabel(window.kind) + ", " + window.duration_minutes + " Minuten):");
-			lines.push("");
-			lines.push("Lernmomente dieser Stunde (laut temporal-plan.yml und learning-landscape.md):");
-			const placements = Array.isArray(window.placements) ? window.placements : [];
-			for (const p of placements) {
-				const m = momentsById[p.moment_id];
-				const title = m ? m.title : p.moment_id;
-				lines.push("- " + p.moment_id + " „" + title + "“ · " + roleLabel(p.dramaturgical_role) + " · " + modeLabel(p.mode) + " · ab " + p.start_minute + "′ (" + p.duration_minutes + " min)");
-			}
-			lines.push("");
-			lines.push("Nutze die Entscheidungen aus decisions.yml und das Learning Design. Ziel: ein konkreter Unterrichtsverlauf für " + window.duration_minutes + " Minuten mit Zeitangaben, Sozialform, Material und Sicherung.");
-			return lines.join("\n");
-		}
-
 		function LandscapeView(props) {
+			focusNavigation = { sessionId: props.sessionId, openView: props.openView };
 			const sessionId = props !== null && props !== undefined && typeof props.sessionId === "string" ? props.sessionId : null;
 			const dataState = React.useState(null);
 			const data = dataState[0];
@@ -665,9 +594,6 @@ window.__ModuleLoader__.load({
 			const pickerState = React.useState(null);
 			const picker = pickerState[0];
 			const setPicker = pickerState[1];
-			const winFormState = React.useState(false);
-			const winForm = winFormState[0];
-			const setWinForm = winFormState[1];
 			const transitionState = React.useState(null);
 			const transitionForm = transitionState[0];
 			const setTransitionForm = transitionState[1];
@@ -768,141 +694,6 @@ window.__ModuleLoader__.load({
 			}
 
 			// ——— Timeline helpers ———
-			function temporalState() {
-				const t = data && data.temporal ? data.temporal : { windows: [], placements: [], title: "" };
-				return {
-					title: t.title || "",
-					windows: (Array.isArray(t.windows) ? t.windows : []).map(function(w) {
-						return { id: w.id, title: w.title, kind: w.kind, duration_minutes: w.duration_minutes, note: w.note || "", status: w.status || "binding" };
-					}),
-					placements: (Array.isArray(t.placements) ? t.placements : []).map(function(p) {
-						return { id: p.id, moment_id: p.moment_id, window_id: p.window_id, start_minute: p.start_minute, duration_minutes: p.duration_minutes, dramaturgical_role: p.dramaturgical_role, mode: p.mode, note: p.note || "", status: p.status || "binding" };
-					}),
-				};
-			}
-
-			function saveTemporal(state, okMsg) {
-				// The teacher's action (drag/edit/remove) IS the decision: any
-				// timeline save adopts the visible flow as binding. No separate
-				// approval gate.
-				const owned = {
-					title: state.title,
-					windows: (Array.isArray(state.windows) ? state.windows : []).map(function(w) { return Object.assign({}, w, { status: "binding" }); }),
-					placements: (Array.isArray(state.placements) ? state.placements : []).map(function(p) { return Object.assign({}, p, { status: "binding" }); }),
-				};
-				setSaving(true);
-				fetch("/api/pts-landscape/temporal", {
-					method: "POST",
-					headers: { "content-type": "application/json" },
-					body: JSON.stringify({ sessionId: sessionId, title: owned.title, windows: owned.windows, placements: owned.placements }),
-				}).then(function(res) {
-					return res.text().then(function(body) {
-						let v = null;
-						try { v = JSON.parse(body); } catch (e) { v = null; }
-						if (!res.ok) throw new Error(v !== null && v && typeof v.error === "string" ? v.error : "HTTP " + res.status);
-						return v;
-					});
-				}).then(function() {
-					setFeedback(okMsg);
-					load();
-				}).catch(function(e) {
-					setError("Timeline: " + String(e && e.message ? e.message : e));
-				}).finally(function() { setSaving(false); });
-			}
-
-			function mutateTimeline(fn, okMsg) {
-				if (data === null || data.temporal === null) return;
-				const st = temporalState();
-				const next = fn(st);
-				if (next === null || next === undefined) return;
-				saveTemporal(next, okMsg);
-			}
-
-			function onDropMoment(windowId) {
-				return function(e) {
-					e.preventDefault();
-					const momentId = e.dataTransfer.getData("text/plain");
-					const intent = e.dataTransfer.getData("text/pts-intent");
-					if (!momentId || intent !== "assign") return;
-					const st = temporalState();
-					const win = st.windows.find(function(w) { return w.id === windowId; });
-					if (!win) return;
-					const winPlacements = st.placements.filter(function(p) { return p.window_id === windowId; });
-					const start = winPlacements.reduce(function(acc, p) { return Math.max(acc, (p.start_minute || 0) + (p.duration_minutes || 0)); }, 0);
-					const dur = clamp((win.duration_minutes || 45) - start, 5, win.duration_minutes || 45);
-					const ids = st.placements.map(function(p) { return p.id; });
-					st.placements.push({
-						id: nextSeqId(ids, "tp"),
-						moment_id: momentId,
-						window_id: windowId,
-						start_minute: start,
-						duration_minutes: dur,
-						dramaturgical_role: "exploration",
-						mode: "common",
-						note: "",
-						status: "binding",
-					});
-					saveTemporal(st, "Lernmoment " + momentId + " der Stunde " + windowId + " zugeordnet (verbindlich — du hast entschieden).");
-				};
-			}
-
-			function updatePlacement(placementId, patch) {
-				mutateTimeline(function(st) {
-					const p = st.placements.find(function(x) { return x.id === placementId; });
-					if (!p) return null;
-					Object.assign(p, patch);
-					return st;
-				}, "Platzierung aktualisiert.");
-			}
-
-			function removePlacement(placementId) {
-				mutateTimeline(function(st) {
-					st.placements = st.placements.filter(function(p) { return p.id !== placementId; });
-					return st;
-				}, "Platzierung entfernt.");
-			}
-
-			function adoptPlacement(placementId) {
-				mutateTimeline(function(st) {
-					const p = st.placements.find(function(x) { return x.id === placementId; });
-					if (p) p.status = "binding";
-					return st;
-				}, "Vorschlag als verbindlich übernommen.");
-			}
-
-			function adoptWindow(windowId) {
-				mutateTimeline(function(st) {
-					const w = st.windows.find(function(x) { return x.id === windowId; });
-					if (w) w.status = "binding";
-					return st;
-				}, "Fenster als verbindlich übernommen.");
-			}
-
-			function removeWindow(windowId) {
-				mutateTimeline(function(st) {
-					st.windows = st.windows.filter(function(w) { return w.id !== windowId; });
-					st.placements = st.placements.filter(function(p) { return p.window_id !== windowId; });
-					return st;
-				}, "Fenster (inkl. Platzierungen) entfernt.");
-			}
-
-			function addWindow(form) {
-				mutateTimeline(function(st) {
-					const ids = st.windows.map(function(w) { return w.id; });
-					st.windows.push({
-						id: nextSeqId(ids, "tw"),
-						title: form.title,
-						kind: form.kind,
-						duration_minutes: form.duration,
-						note: "",
-						status: "binding",
-					});
-					return st;
-				}, "Stundenfenster angelegt.");
-				setWinForm(false);
-			}
-
-			// ——— Time estimate ———
 			function saveEstimate(momentId, minutes) {
 				fetch("/api/pts-landscape/moment-estimate", {
 					method: "POST",
@@ -1059,19 +850,11 @@ window.__ModuleLoader__.load({
 			}
 
 			function chatMoment(m) {
-				const qs = Array.isArray(m.open_questions) ? m.open_questions : [];
-				const text = "Lass uns den Lernmoment " + m.id + " „" + m.title + "“ besprechen.\n" +
-					(m.function ? "Funktion: " + m.function + "\n" : "") +
-					(m.learning_activity ? "Lernaktivität: " + m.learning_activity + "\n" : "") +
-					(qs.length > 0 ? "Offene Fragen: " + qs.join("; ") + "\n" : "");
-				setChatDraft(text, "Prompt für den Moment „" + m.title + "“ ins Chat-Input übernommen.");
+				enterFocus(props, "moment", m.id, "landscape", true).catch(function(e) { setError(e.message); });
 			}
 
 			function chatMaterial(path) {
-				const entry = matIndex.find(function(x) { return x.path === path; });
-				const title = entry && entry.meta && typeof entry.meta.title === "string" && entry.meta.title !== "" ? entry.meta.title : path;
-				const text = "Lass uns das Material „" + title + "“ (" + path + ") besprechen oder überarbeiten.";
-				setChatDraft(text, "Prompt für das Material „" + title + "“ ins Chat-Input übernommen.");
+				enterFocus(props, "material", path, "landscape", true).catch(function(e) { setError(e.message); });
 			}
 
 			function createMaterial(m) {
@@ -1118,21 +901,6 @@ window.__ModuleLoader__.load({
 			}
 
 			// ——— Verlaufsplan vorschlagen ———
-			function proposeVerlauf(window) {
-				const momentsById = {};
-				for (const m of (Array.isArray(data.moments) ? data.moments : [])) momentsById[m.id] = m;
-				const text = buildStundenverlaufPrompt(window, momentsById);
-				const inputActions = props !== null && props !== undefined ? props.inputActions : undefined;
-				if (inputActions !== undefined && typeof inputActions.setDraft === "function") {
-					inputActions.setDraft(text);
-					setCompanion(true);
-					setFeedback("Prompt für „" + window.title + "“ ins Chat-Input übernommen — dort abschicken, der Companion beauftragt den Material-Worker.");
-				} else {
-					copyText(text);
-					setFeedback("Chat-Input nicht erreichbar — Prompt kopiert; bitte im Chat einfügen.");
-				}
-			}
-
 			if (error !== null && data === null) {
 				return React.createElement("div", { className: "pls-root" },
 					React.createElement("div", { className: "pls-errmsg" }, "Lernlandschaft konnte nicht geladen werden: " + esc(error)));
@@ -1147,7 +915,7 @@ window.__ModuleLoader__.load({
 			const temporal = data.temporal;
 			const decisions = data.decisions;
 			const errors = Array.isArray(data.errors) ? data.errors : [];
-			const placements = temporal && Array.isArray(temporal.placements) ? temporal.placements : [];
+			const placements = data.productRevision !== undefined && temporal && Array.isArray(temporal.placements) ? temporal.placements : [];
 
 			const errEls = errors.map(function(e, i) {
 				return React.createElement("div", { key: i, className: "pls-errmsg" }, esc(e.file) + ": " + esc(e.message));
@@ -1156,10 +924,7 @@ window.__ModuleLoader__.load({
 			function assignStatus(m) {
 				const mine = placements.filter(function(p) { return p.moment_id === m.id; });
 				if (mine.length === 0) return { status: "none", assigned: 0, estimated: null };
-				const assigned = mine.reduce(function(acc, p) { return acc + (p.duration_minutes || 0); }, 0);
-				const est = typeof m.time_estimate === "number" ? m.time_estimate : null;
-				if (est !== null) return { status: assigned >= est ? "ok" : "warn", assigned: assigned, estimated: est };
-				return { status: "warn", assigned: assigned, estimated: null };
+				return { status: "ok", assigned: mine.length, estimated: null };
 			}
 
 			const basePos = data.layout && data.layout.positions ? data.layout.positions : {};
@@ -1180,7 +945,7 @@ window.__ModuleLoader__.load({
 					assign: assignStatus(m),
 					onDragStart: function(e) { e.dataTransfer.setData("text/plain", m.id); e.dataTransfer.setData("text/pts-intent", "assign"); e.dataTransfer.effectAllowed = "all"; },
 					onChat: chatMoment,
-					onEdit: setMomentEdit,
+					onEdit: function(m) { enterFocus(props, "moment", m.id, "landscape", false).then(function() { setMomentEdit(m); }).catch(function(e) { setError(e.message); }); },
 					matIndex: matIndex,
 					onChatMaterial: chatMaterial,
 					onMove: function(id, x, y) {
@@ -1247,61 +1012,19 @@ window.__ModuleLoader__.load({
 					}, "✕"));
 			});
 
-			const windows = temporal && Array.isArray(temporal.windows) ? temporal.windows : [];
-			const winEls = windows.map(function(w) {
-				const winPlacements = Array.isArray(w.placements) ? w.placements : [];
-				const sumMinutes = winPlacements.reduce(function(acc, p) { return acc + (p.duration_minutes || 0); }, 0);
-				const over = w.duration_minutes != null && sumMinutes > w.duration_minutes;
-				const pEls = winPlacements.map(function(p) {
-					return React.createElement(PlacementRow, {
-						key: p.id,
-						placement: p,
-						window: w,
-						disabled: saving,
-						onUpdate: function(patch) { updatePlacement(p.id, patch); },
-						onRemove: function() { removePlacement(p.id); },
-						onAdopt: function() { adoptPlacement(p.id); },
-					});
-				});
-				const head = [
-					React.createElement("span", { key: "t", className: "pls-win-title" }, esc(w.title)),
-					React.createElement("span", { key: "k", className: "pls-badge" }, esc(kindLabel(w.kind))),
-					w.duration_minutes != null
-						? React.createElement("span", { key: "d", className: "pls-note" },
-							"Budget " + sumMinutes + " / " + w.duration_minutes + " min")
-						: null,
-				];
-				head.push(React.createElement("button", { key: "v", className: "pls-btn pls-btn-edit", disabled: saving || winPlacements.length === 0, title: "Prompt für einen Verlaufsplan dieser Stunde ins Chat-Input setzen", onClick: function() { proposeVerlauf(w); } }, "Stundenverlauf vorschlagen"));
-				head.push(React.createElement("button", { key: "x", className: "pls-btn", disabled: saving, title: "Fenster inkl. Platzierungen entfernen", onClick: function() { removeWindow(w.id); } }, "✕"));
-				if (over) {
-					head.push(React.createElement("span", { key: "ov", className: "pls-win-over-note" },
-						"⚠ Zeitbudget um " + (sumMinutes - w.duration_minutes) + " min überzogen"));
-				}
-				return React.createElement("div", {
-					key: w.id,
-					className: "pls-win pls-win-drop" + (over ? " pls-win-over" : ""),
-					onDragOver: function(e) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; },
-					onDrop: onDropMoment(w.id),
-				},
-					React.createElement("div", { className: "pls-win-head" }, head),
-					winPlacements.length === 0
-						? React.createElement("div", { className: "pls-note" }, "Lernmoment hierher ziehen, um ihn dieser Stunde zuzuordnen.")
-						: pEls);
-			});
-
 			const decisionCount = decisions && Array.isArray(decisions.decisions) ? decisions.decisions.length : 0;
 
 			return React.createElement("div", { className: "pls-root" },
 				React.createElement("div", { className: "pls-toolbar" },
-					React.createElement("span", { className: "pls-title" }, "Lernlandschaft" + (data.title ? " · " + data.title : "")),
+					React.createElement("span", { className: "pls-title" }, "Lernmomente" + (data.title ? " · " + data.title : "")),
 					data.structure ? React.createElement("span", { className: "pls-badge" }, esc(data.structure)) : null,
 					React.createElement("span", { className: "pls-counts" },
 						React.createElement("span", null, moments.length + " Lernmomente"),
-						React.createElement("span", null, windows.length + " Stundenfenster"),
+						
 						React.createElement("span", null, decisionCount + " Entscheidungen")),
-					React.createElement("button", { className: "pls-btn pls-companion-toggle", onClick: function() { setCompanion(true); } }, "PTS Companion"),
+					React.createElement("button", { className: "pls-btn pls-companion-toggle", onClick: function() { window.dispatchEvent(new CustomEvent("pts:open-companion")); } }, "PTS Companion"),
 					React.createElement("button", { className: "pls-btn", onClick: load }, "Aktualisieren")),
-				React.createElement("div", { className: "pls-path" }, data.root || ""),
+				
 				errEls.length > 0 ? errEls : null,
 				feedback !== null ? React.createElement("div", { className: "pls-feedback" }, esc(feedback)) : null,
 
@@ -1310,7 +1033,7 @@ window.__ModuleLoader__.load({
 						React.createElement("div", null,
 							React.createElement("div", { className: "pls-toolbar" },
 								React.createElement("span", { className: "pls-section-title", style: { marginBottom: 0 } }, "Lernlandschaft (Karten frei verschieben)")),
-							React.createElement("div", { className: "pls-note" }, "Linke Maustaste: in eine Stunde (rechts) zuordnen oder auf eine andere Karte ziehen = Übergang · Rechte Maustaste: auf der Landschaft verschieben"),
+							React.createElement("div", { className: "pls-note" }, "Linke Maustaste: auf eine andere Karte ziehen = Übergang · Rechte Maustaste: auf der Landschaft verschieben"),
 							momentsSection),
 						React.createElement("div", null,
 							React.createElement("div", { className: "pls-section-title" }, "Übergänge"),
@@ -1318,13 +1041,8 @@ window.__ModuleLoader__.load({
 								? React.createElement("div", { className: "pls-note" }, "Keine Übergänge festgelegt — ziehe eine Karte auf eine andere Karte, um z. B. Reihenfolge, Wahl oder Treffpunkt anzulegen.")
 								: React.createElement("div", null, transitionEls))),
 
-					React.createElement("div", { className: "pls-side" },
-						React.createElement("div", { className: "pls-toolbar" },
-							React.createElement("span", { className: "pls-section-title", style: { marginBottom: 0 } }, "Stunden-Zuordnung"),
-							React.createElement("button", { className: "pls-btn", disabled: saving, onClick: function() { setWinForm(true); } }, "+ Stundenfenster")),
-						winEls.length === 0
-							? React.createElement("div", { className: "pls-empty" }, "Noch keine Stundenfenster. Lege ein Fenster an (+ Stundenfenster) und ziehe Lernmomente hierher.")
-							: React.createElement("div", { className: "pls-wins" }, winEls))),
+					React.createElement("div", { className: "pls-side" }, "Lernmomente sind p\u00e4dagogische M\u00f6glichkeiten. Ihre best\u00e4tigte Verwendung findest du in der Unterrichtsreihe.")),
+
 
 				false
 					? React.createElement(CompanionDock, {
@@ -1476,10 +1194,7 @@ window.__ModuleLoader__.load({
 					})
 					: null,
 
-				// ——— New window form ———
-				winForm
-					? React.createElement(NewWindowForm, { onCancel: function() { setWinForm(false); }, onAdd: addWindow })
-					: null);
+				null);
 		}
 
 		function MomentEditor(props) {
@@ -1553,67 +1268,150 @@ window.__ModuleLoader__.load({
 							React.createElement("button", { className: "pls-btn pls-btn-edit", onClick: submit }, "Speichern")))));
 		}
 
-		function NewWindowForm(props) {
-			const titleState = React.useState("");
-			const title = titleState[0];
-			const setTitle = titleState[1];
-			const kindState = React.useState("lesson");
-			const kind = kindState[0];
-			const setKind = kindState[1];
-			const durState = React.useState(45);
-			const dur = durState[0];
-			const setDur = durState[1];
-
-			function submit() {
-				const t = title.trim();
-				if (t === "") return;
-				props.onAdd({ title: t, kind: kind, duration: parseInt(dur, 10) || 45 });
-			}
-
-			return React.createElement("div", { className: "pls-overlay" },
-				React.createElement("div", { className: "pls-dialog" },
-					React.createElement("div", { className: "pls-dialog-head" },
-						React.createElement("span", { className: "pls-title" }, "Neues Stundenfenster")),
-					React.createElement("div", { className: "pls-dialog-body" },
-						React.createElement("div", { className: "pls-form-row" },
-							React.createElement("label", { htmlFor: "pls-nw-title" }, "Titel"),
-							React.createElement("input", {
-								id: "pls-nw-title",
-								className: "pls-input",
-								style: { flex: 1 },
-								value: title,
-								placeholder: "z. B. Stunde 2 – Vertiefung",
-								onChange: function(e) { setTitle(e.target.value); },
-							})),
-						React.createElement("div", { className: "pls-form-row" },
-							React.createElement("label", { htmlFor: "pls-nw-kind" }, "Art"),
-							React.createElement("select", {
-								id: "pls-nw-kind",
-								className: "pls-select",
-								value: kind,
-								onChange: function(e) { setKind(e.target.value); },
-							}, ["lesson", "double_lesson", "project_block", "open_learning_time"].map(function(k) {
-								return React.createElement("option", { key: k, value: k }, kindLabel(k));
-							}))),
-						React.createElement("div", { className: "pls-form-row" },
-							React.createElement("label", { htmlFor: "pls-nw-dur" }, "Dauer (Min.)"),
-							React.createElement("input", {
-								id: "pls-nw-dur",
-								className: "pls-input pls-minutes",
-								type: "number",
-								min: 5,
-								max: 240,
-								value: dur,
-								onChange: function(e) { setDur(e.target.value); },
-							})),
-						React.createElement("div", { className: "pls-dialog-actions" },
-							React.createElement("button", { className: "pls-btn", onClick: props.onCancel }, "Abbrechen"),
-							React.createElement("button", { className: "pls-btn pls-btn-edit", onClick: submit }, "Anlegen")))));
+		async function productRequest(sessionId, args, route) {
+			const url = route || "/api/pts-product";
+			const response = await fetch(args ? url : url + "?sessionId=" + encodeURIComponent(sessionId), args ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(Object.assign({ sessionId: sessionId }, args)) } : undefined);
+			const value = await response.json();
+			if (!response.ok) throw new Error(value.error || "Anfrage fehlgeschlagen");
+			return value;
 		}
-
+		async function enterFocus(props, kind, id, returnView, discuss) {
+			const value = await productRequest(props.sessionId, { focus: { kind: kind, id: id, returnView: returnView } }, "/api/pts-focus");
+			window.dispatchEvent(new CustomEvent("pts:focus-changed"));
+			if (discuss) {
+				if (!props.inputActions || typeof props.inputActions.setDraft !== "function") throw new Error("Gesprächseingabe nicht erreichbar");
+				// Keep the teacher's existing draft; context belongs to the host,
+				// and is refreshed into the Companion prompt on the next turn.
+				if (typeof props.openView === "function") props.openView("chat", "");
+				window.dispatchEvent(new CustomEvent("pts:open-companion"));
+			}
+			return value.focus;
+		}
+		function ProductView(props) {
+			focusNavigation = { sessionId: props.sessionId, openView: props.openView };
+			const [view, setView] = React.useState(null);
+			const [error, setError] = React.useState("");
+			const [busy, setBusy] = React.useState(false);
+			const [selected, setSelected] = React.useState(null);
+			const sessionRef = React.useRef(props.sessionId); sessionRef.current = props.sessionId;
+			React.useEffect(function() {
+				if (!view || !view.product || !props.viewRequest || !props.viewRequest.focus) return;
+				const ref = props.viewRequest.focus;
+				const lesson = view.product.series.lessons.find(function(l) { return l.id === ref || l.phases.some(function(p) { return p.id === ref; }); });
+				if (lesson) setSelected(lesson.id);
+				if (typeof props.completeViewRequest === "function") props.completeViewRequest();
+			}, [view, props.viewRequest]);
+			React.useEffect(function() {
+				let active = true; setView(null); setSelected(null);
+				const load = function() { productRequest(props.sessionId).then(function(v) { if (active) { setView(v); setError(""); } }).catch(function(e) { if (active) setError(e.message); }); };
+				load(); const timer = setInterval(load, 3000);
+				window.addEventListener("pts:product-changed", load);
+				return function() { active = false; clearInterval(timer); window.removeEventListener("pts:product-changed", load); };
+			}, [props.sessionId]);
+			async function mutate(args) {
+				const sessionId = props.sessionId; setBusy(true); setError("");
+				try {
+					const result = await productRequest(sessionId, Object.assign({ expectedRevision: view.product && view.product.revision }, args));
+					if (sessionRef.current === sessionId) setView(result);
+					window.dispatchEvent(new CustomEvent("pts:product-changed"));
+				} catch (e) { if (sessionRef.current === sessionId) setError(e.message); }
+				finally { if (sessionRef.current === sessionId) setBusy(false); }
+			}
+			function focus(kind, id) { enterFocus(props, kind, id, props.statusOnly ? "product-status" : "teaching-product", true).catch(function(e) { setError(e.message); }); }
+			const h = React.createElement;
+			const button = function(label, action, extra) { return h("button", Object.assign({ type: "button", className: "pls-btn", disabled: busy, onClick: action }, extra || {}), label); };
+			function lessonBody(lesson, preview) {
+				return h("div", { className: "pts-product-lesson", key: lesson.id },
+					h("h3", null, lesson.title || "Stunde ohne Titel"),
+					h("p", null, lesson.intention || "Intention noch offen"),
+					lesson.durationMinutes !== null ? h("p", null, lesson.durationMinutes + " Minuten") : null,
+					lesson.notes ? h("p", null, lesson.notes) : null,
+					!preview ? button("Stunde weiterdenken", function() { focus("lesson", lesson.id); }) : null,
+					lesson.phases.map(function(phase) { return h("section", { key: phase.id, className: "pts-product-phase" },
+						h("h4", null, phase.title || "Phase ohne Titel"),
+						h("p", null, phase.intention || "Intention offen"), h("p", null, phase.activity || "Lernaktivität offen"),
+						phase.durationMinutes !== null ? h("p", null, phase.durationMinutes + " Minuten") : null,
+						phase.notes ? h("p", null, phase.notes) : null,
+						phase.openQuestions.length ? h("ul", null, phase.openQuestions.map(function(q, i) { return h("li", { key: i }, q); })) : null,
+						phase.materials.length ? h("ul", null, phase.materials.map(function(file) { return h("li", { key: file }, h("a", { href: "/artifacts/v2/file?sessionId=" + encodeURIComponent(props.sessionId) + "&p=" + encodeURIComponent(file), target: "_blank", rel: "noopener noreferrer" }, file.split("/").pop()), !preview ? button("Material weiterdenken", function() { focus("material", file); }) : null); })) : h("p", null, "Keine Materialien zugeordnet"),
+						!preview ? button("Phase weiterdenken", function() { focus("phase", phase.id); }, { "data-phase": phase.id }) : null); }));
+			}
+			if (!view) return h("div", { className: "pls-root", role: error ? "alert" : undefined }, error || "Unterrichtsreihe wird geladen…");
+			const product = view.product;
+			if (!product) return h("div", { className: "pls-root" },
+				h("h2", null, "Unterrichtsreihe vorbereiten"),
+				h("p", null, "Die vorhandene Zeitplanung wird als Vorschlag erhalten. Erst deine ausdrückliche Übernahme macht daraus die Unterrichtsreihe."),
+				view.migration.series.lessons.map(function(l) { return lessonBody(l, true); }),
+				view.migration.warnings.map(function(w, i) { return h("p", { key: i }, w); }),
+				button("Migration vorbereiten", function() { mutate({ operation: "migrate_product", sourceRevision: view.migration.sourceRevision }); }),
+				error ? h("p", { role: "alert" }, error) : null);
+			const status = view.status;
+			const lesson = product.series.lessons.find(function(l) { return l.id === selected; });
+			return h("div", { className: "pls-root pts-product", "data-product-revision": product.revision },
+				h("h2", null, props.statusOnly ? "Product Status" : product.series.title || "Unterrichtsreihe"),
+				product.series.intention ? h("p", null, product.series.intention) : null,
+				product.series.notes ? h("p", null, product.series.notes) : null,
+				h("p", { className: "pts-next-step" }, "Nächster Arbeitsschritt: " + status.nextStep),
+				error ? h("p", { role: "alert" }, error) : null,
+				!product.series.lessons.length ? h("p", null, "Noch keine Unterrichtseinheiten übernommen. Entwickle sie mit dem Companion aus deinem Denkstand.") : null,
+				status.lessons.map(function(s) { return h("section", { key: s.id, className: "pts-product-phase" },
+					button(s.title || "Stunde ohne Titel", function() { setSelected(s.id); }, { "data-lesson": s.id }),
+					h("p", null, s.stage === "idea" ? "Idee" : "In Ausarbeitung"),
+					h("p", null, "Lehrkraft: " + (s.teacherReadiness ? (s.teacherReadiness.ready ? "als unterrichtbar bestätigt" : "noch nicht unterrichtbar") : "Unterrichtsbereitschaft noch nicht entschieden")),
+					s.companionAssessment ? h("p", null, "Companion-Einschätzung: " + ({ idea: "Idee", developing: "In Ausarbeitung", ready_candidate: "zur Bereitschaftsprüfung vorgeschlagen" }[s.companionAssessment.value]) + " — " + s.companionAssessment.note) : null,
+					s.gaps.length ? h("ul", null, s.gaps.map(function(g, i) { return h("li", { key: i }, g); })) : h("p", null, "Keine strukturellen Lücken erkannt; dies ersetzt keine Unterrichtsentscheidung.")); }),
+				lesson ? h("article", null, lessonBody(lesson, false),
+					button("Als unterrichtbar bestätigen", function() { mutate({ operation: "confirm_readiness", lessonId: lesson.id, ready: true, note: "Lehrkraft hat die Stunde in der Produktansicht als unterrichtbar bestaetigt." }); }),
+					button("Noch nicht unterrichtbar", function() { mutate({ operation: "confirm_readiness", lessonId: lesson.id, ready: false, note: "Lehrkraft hat weiteren Ausarbeitungsbedarf festgestellt." }); })) : null,
+				product.proposals.filter(function(p) { return p.status === "pending"; }).map(function(p) {
+					const stale = status.pending.find(function(x) { return x.id === p.id; }).stale;
+					return h("details", { key: p.id, className: "pts-product-proposal" },
+						h("summary", null, "Vorschlag prüfen: " + p.reason),
+						h("h3", null, "Bisherige Reihe"), product.series.lessons.length ? product.series.lessons.map(function(l) { return lessonBody(l, true); }) : h("p", null, "Noch leer"),
+						h("h3", null, "Vorgeschlagene Reihe"), h("p", null, p.series.title), h("p", null, p.series.intention), h("p", null, p.series.notes), p.series.lessons.map(function(l) { return lessonBody(l, true); }),
+						stale ? h("p", null, "Denkstand oder Produkt hat sich geändert. Bitte mit dem Companion erneut prüfen.") : null,
+						button("Diesen Vorschlag übernehmen", function() { mutate({ operation: "confirm_proposal", proposalId: p.id }); }, { disabled: busy || stale }),
+						button("Vorschlag verwerfen", function() { mutate({ operation: "reject_product", proposalId: p.id }); }));
+				}));
+		}
+		function FocusBanner(props) {
+			const [focus, setFocus] = React.useState(null);
+			const [error, setError] = React.useState("");
+			React.useEffect(function() {
+				let active = true; setFocus(null); setError("");
+				function load() { if (props.sessionId) productRequest(props.sessionId, null, "/api/pts-focus").then(function(v) { if (active) { setFocus(v.focus); setError(""); } }).catch(function(e) { if (active) setError(e.message); }); }
+				load(); const timer = setInterval(load, 3000); window.addEventListener("pts:focus-changed", load);
+				return function() { active = false; clearInterval(timer); window.removeEventListener("pts:focus-changed", load); };
+			}, [props.sessionId]);
+			if (!focus && !error) return null;
+			return React.createElement("aside", { className: "pts-focus-banner", "aria-label": "Focus Context" },
+				React.createElement("span", null, error || "Im Fokus: " + (focus.subject.title || focus.subject.id)),
+				focus && focusNavigation && focusNavigation.sessionId === props.sessionId && typeof focusNavigation.openView === "function" ? React.createElement("button", { className: "pls-btn", onClick: function() { focusNavigation.openView(focus.returnView, focus.id); } }, "Zum Gegenstand") : null,
+				React.createElement("button", { className: "pls-btn", onClick: async function() {
+					try { await productRequest(props.sessionId, { focus: null }, "/api/pts-focus"); setFocus(null); setError(""); window.dispatchEvent(new CustomEvent("pts:focus-changed")); }
+					catch (e) { setError(e.message); }
+				} }, "Fokus beenden"));
+		}
 		return {
 			inject: ["slots", "sessions", "uiConversation"],
 			apply(ctx) {
+				if (!document.getElementById("pts-product-style")) {
+					const style = document.createElement("style"); style.id = "pts-product-style";
+					style.textContent = ".pts-product-phase,.pts-product-proposal{border:1px solid rgba(128,128,128,.3);border-radius:10px;padding:16px;margin:12px 0}.pts-product-phase h4{margin:0 0 10px}.pts-product-lesson{margin:20px 0}.pts-product .pls-btn{margin:4px}.pts-focus-banner{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:90;display:flex;gap:12px;align-items:center;max-width:70vw;padding:6px 12px;background:var(--background,#fff);color:var(--foreground,#222);border:1px solid #888;border-radius:10px;font-size:13px}.pts-focus-banner span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pts-product-proposal summary{cursor:pointer}";
+					document.head.appendChild(style);
+				}
+				ctx.slots.inject("conversation.view", function() {
+					return ctx.slots.register({ name: "conversation.view", id: "product-status", order: 10, label: "Product Status" }, function(props) { return React.createElement(ProductView, Object.assign({}, props, { statusOnly: true })); });
+				});
+				ctx.slots.inject("conversation.view", function() {
+					return ctx.slots.register({ name: "conversation.view", id: "teaching-product", order: 20, label: "Unterrichtsreihe" }, ProductView);
+				});
+				ctx.slots.inject("shell.overlay", function() {
+					return ctx.slots.register({ name: "shell.overlay", id: "pts-focus-context", order: 45 }, function() {
+						const sessions = React.useSyncExternalStore(ctx.sessions.list.subscribe, ctx.sessions.list.getSnapshot, ctx.sessions.list.getSnapshot);
+						return React.createElement(FocusBanner, { sessionId: sessions.current });
+					});
+				});
 				const emptySnapshot = { order: [], nodes: { get: function() { return undefined; } } };
 				const emptySource = { getSnapshot: function() { return emptySnapshot; }, subscribe: function() { return function() {}; } };
 				const chatSources = new Map();
@@ -1631,7 +1429,7 @@ window.__ModuleLoader__.load({
 				}
 				ctx.slots.inject("conversation.view", function() {
 					ctx.slots.register(
-						{ name: "conversation.view", id: "landscape", order: 30, label: "Lernlandschaft" },
+						{ name: "conversation.view", id: "landscape", order: 30, label: "Lernmomente" },
 						function(props) { return React.createElement(LandscapeView, Object.assign({}, props, { chatSource: chatSource(props.sessionId) })); },
 					);
 				});

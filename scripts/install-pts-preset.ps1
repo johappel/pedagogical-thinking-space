@@ -84,6 +84,7 @@ $required = @(
 	"toolName: pts_edit_legacy",
 	"@deepseek-ai/dsh-tool-subagent-control",
 	"direct-pts-edit.mjs",
+	"pts-product-v1",
 	"toolName: pts_document",
 	"toolName: pts_documentarian",
 	"toolName: pts_material",

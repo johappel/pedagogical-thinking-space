@@ -3,6 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check:dsh-client-contract": "node scripts/check-dsh-client-contract.mjs"
+    "check:dsh-client-contract": "node scripts/check-dsh-client-contract.mjs",
+    "test:product": "node --test --test-isolation=none tests/teaching-product.test.mjs",
+    "test:product:e2e": "node --test --test-isolation=none tests/teaching-product.browser.test.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }

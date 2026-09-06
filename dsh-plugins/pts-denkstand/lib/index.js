@@ -16,6 +16,7 @@
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 
+import { readProduct, productTemporal } from '../../../dsh-presets/pts-companion/teaching-product.mjs';
 export const inject = ['webServer'];
 
 const DENKSTAND_FILES = ['planning-board.yml', 'temporal-plan.yml', 'decisions.yml'];
@@ -645,6 +646,10 @@ export function apply(ctx) {
           }
         }
         result.thoughts = await readThoughts(base);
+        try {
+          const product = await readProduct(base);
+          if (product) result.temporal = productTemporal(product);
+        } catch (e) { result.temporal = null; result.errors.push({ file: 'teaching-product.json', message: e.message }); }
 
         res.statusCode = 200;
         res.setHeader('content-type', 'application/json; charset=utf-8');

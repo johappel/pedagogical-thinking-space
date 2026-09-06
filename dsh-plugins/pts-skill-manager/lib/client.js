@@ -33,6 +33,7 @@ window.__ModuleLoader__.load({
 .psk-errmsg { color:#e06c75; white-space:pre-wrap; word-break:break-word; }
 .psk-note { opacity:.65; font-size:12px; line-height:1.5; }
 .psk-okmsg { color:#7ec699; font-size:12px; }
+.psk-warnmsg { color:#d19a66; white-space:pre-wrap; word-break:break-word; }
 .psk-list { display:flex; flex-direction:column; gap:8px; }
 .psk-card { display:flex; flex-direction:column; align-items:flex-start; gap:5px; text-align:left; border:1px solid rgba(128,128,128,.3); border-radius:8px; padding:10px; background:rgba(128,128,128,.06); color:inherit; font:inherit; }
 .psk-card-name { font-weight:600; font-size:12.5px; word-break:break-all; }
@@ -346,6 +347,12 @@ window.__ModuleLoader__.load({
 			const busyState = React.useState(false);
 			const busy = busyState[0];
 			const setBusy = busyState[1];
+			const confirmEffortState = React.useState(false);
+			const confirmEffort = confirmEffortState[0];
+			const setConfirmEffort = confirmEffortState[1];
+			const warnState = React.useState(null);
+			const warn = warnState[0];
+			const setWarn = warnState[1];
 
 			function load() {
 				fetchJson("/api/pts-worker-routes/get").then(function(r) {
@@ -361,6 +368,8 @@ window.__ModuleLoader__.load({
 			}, []);
 
 			function setField(slug, field, value) {
+				setConfirmEffort(false);
+				setWarn(null);
 				setRoutes(function(prev) {
 					const next = Object.assign({}, prev);
 					const cur = Object.assign({}, next[slug]);
@@ -371,6 +380,18 @@ window.__ModuleLoader__.load({
 			}
 
 			function save() {
+				const missing = (Array.isArray(workers) ? workers : []).filter(function(w) {
+					const r = routes[w.slug] || {};
+					return String(r && r.model ? r.model : "").trim() !== "" && String(r && r.reasoningEffort ? r.reasoningEffort : "").trim() === "";
+				});
+				if (missing.length > 0 && confirmEffort !== true) {
+					setConfirmEffort(true);
+					setNotice(null);
+					setWarn("Achtung: kein Effort gesetzt für " + missing.map(function(w) { return w.label; }).join(", ") + ". Manche Modelle (z. B. openrouter/free) erzwingen Reasoning — ohne Effort schlägt der Aufruf mit 400 fehl. Nochmal klicken, um trotzdem zu speichern.");
+					return;
+				}
+				setConfirmEffort(false);
+				setWarn(null);
 				setBusy(true);
 				setNotice(null);
 				postJson("/api/pts-worker-routes/save", { routes: routes }).then(function(r) {
@@ -415,6 +436,9 @@ window.__ModuleLoader__.load({
 			if (notice !== null) {
 				body.push(React.createElement("div", { key: "ok", className: "psk-okmsg" }, notice));
 			}
+			if (warn !== null) {
+				body.push(React.createElement("div", { key: "warn", className: "psk-warnmsg" }, warn));
+			}
 			body.push(React.createElement("div", { key: "routes", className: "psk-sec" },
 				React.createElement("div", { className: "psk-sechead" }, "Worker-Routen (Provider / Modell / Max Tokens / Effort)"),
 				React.createElement("table", { className: "psk-table" },
@@ -427,7 +451,7 @@ window.__ModuleLoader__.load({
 					React.createElement("tbody", null, rowEls)),
 				React.createElement("div", { className: "psk-note" }, "Routenänderungen werden beim nächsten DSH-Start in die Preset-Komposition gerendert. Ein laufendes Gespräch bleibt unverändert."),
 				React.createElement("div", { className: "psk-actions" },
-					React.createElement("button", { className: "psk-btn", disabled: busy, onClick: save }, "Routen speichern"))));
+					React.createElement("button", { className: "psk-btn", disabled: busy, onClick: save }, confirmEffort ? "Trotzdem speichern" : "Routen speichern"))));
 
 			// Fresh-session action, same path as the Skills tab. Routes
 			// themselves need a DSH restart; the note below says so honestly.

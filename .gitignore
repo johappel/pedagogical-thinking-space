@@ -29,3 +29,6 @@ tmp/
 .dsh-contract-cache/
 .dsh-vision-toolkit
 .playwright-mcp/
+node_modules/
+test-results/
+playwright-report/
