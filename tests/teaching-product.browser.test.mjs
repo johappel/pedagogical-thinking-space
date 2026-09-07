@@ -83,6 +83,17 @@ test('5-8 browser E2E: conversation -> proposal -> explicit adoption -> status -
   assert.match(await page.locator('.pts-status-view').innerText(), /In Ausarbeitung/);
   assert.match(await page.locator('.pts-status-view').innerText(), /Verwendbarkeit offen/);
   assert.equal(await page.locator('.pts-status-view [data-phase]').count(), 0);
+  assert.equal(await page.locator('.pts-gap-check').count(), 1);
+  assert.equal(await page.locator('.pts-gap-chat').count(), 1);
+  assert.deepEqual(await page.locator('.pts-gap-item').first().evaluate((item) => Array.from(item.children).slice(0, 2).map((child) => child.className)), ['pts-gap-actions', 'pts-gap-text']);
+  await page.locator('.pts-status-card-action').click();
+  await page.locator('.pts-product-lesson').waitFor();
+  await page.getByRole('tab', { name: 'Product Status', exact: true }).click();
+  await page.locator('.pts-gap-chat').click();
+  await page.getByRole('complementary', { name: 'Focus Context' }).waitFor();
+  await page.getByRole('tab', { name: 'Product Status', exact: true }).click();
+  await page.locator('.pts-gap-check').click();
+  await page.waitForFunction(() => document.querySelectorAll('.pts-gap-check').length === 0);
   await page.getByRole('tab', { name: 'Unterrichtsreihe', exact: true }).click();
   assert.equal(await page.locator('.pts-status-item').count(), 0);
   await page.locator('[data-lesson="lesson-1"]').click();

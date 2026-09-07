@@ -16,7 +16,7 @@ const MAX_QUESTION = 500;
 const MAX_TITLE = 160;
 const MAX_DECISION = 800;
 const MAX_RATIONALE = 800;
-const PRODUCT_OPERATIONS = ['read_product', 'propose_product', 'accept_product', 'reject_product', 'assess_product', 'mark_ready'];
+const PRODUCT_OPERATIONS = ['read_product', 'propose_product', 'propose_lesson_intention', 'accept_product', 'reject_product', 'assess_product', 'mark_ready'];
 const OPERATIONS = Object.freeze(['add_open_question', 'record_decision', ...PRODUCT_OPERATIONS]);
 
 function isSubagent(agent) {
@@ -188,7 +188,7 @@ function directTool() {
 				teacher_confirmed: { type: 'boolean', description: 'Must be true only when the teacher explicitly confirmed the decision.' },
 				expectedRevision: { type: 'integer', description: 'Current product revision from read_product; required for writes.' },
 				series: { type: 'object', description: 'Complete structured series: id,title,intention,notes,lessons[]. Lesson: id,title,intention,notes,durationMinutes(number|null),phases[]. Phase: id,title,intention,activity,notes,durationMinutes,startMinute(number|null),role,mode,momentIds[],materials[](relative materials/ or rendered/ paths),openQuestions[],sourceHashes:{} (server fills hashes). Never invent adoption of moments.' },
-				reason: { type: 'string' }, proposalId: { type: 'string' }, decisionId: { type: 'string' }, lessonId: { type: 'string' },
+				reason: { type: 'string' }, intention: { type: 'string', description: 'Complete intention text for propose_lesson_intention.' }, proposalId: { type: 'string' }, decisionId: { type: 'string' }, lessonId: { type: 'string' },
 				assessment: { type: 'string', enum: ['idea', 'developing', 'ready_candidate'] }, note: { type: 'string' }, ready: { type: 'boolean' },
 			},
 			required: ['operation'],

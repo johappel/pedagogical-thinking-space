@@ -154,6 +154,14 @@ ableiten. Produktreife und Verwendbarkeit werden getrennt:
 strukturelle Lücken, Companion-Einschätzung mit Begründung und ausdrückliche
 Lehrkraftentscheidung. Kein Prozentwert, keine implizite Verwendbarkeit.
 
+Kleine Änderungen an einer bereits bestehenden Stunde müssen nicht die
+gesamte Reihe als JSON rekonstruieren. Dafür nutzt der Companion die begrenzte
+Operation `propose_lesson_intention` mit Stunden-ID, Intention und Begründung;
+danach folgen bei ausdrücklicher Zustimmung automatisch die dokumentierte
+Entscheidung und `accept_product`. Eine Zustimmung wie „ja bitte“ zur direkt
+zuvor vorgeschlagenen Formulierung ist dafür ausreichend und wird nicht durch
+eine weitere technische Rückfrage unterbrochen.
+
 Ein gemeinsames Domänen-/Persistenzmodul wird vom vorhandenen Host und
 `pts_edit` verwendet. Versionierte Read/write-Operationen, begrenzte Eingaben,
 Workspace-/Realpath-Prüfung, atomarer Dateiersatz und optimistische
@@ -212,6 +220,10 @@ Materialien geöffnet, Vorschläge verglichen und ausdrücklich übernommen sowi
 Verwendbarkeit bestätigt. Unterrichtsreihe und Status werden als
 zusätzliche Ansichten im vorhandenen `pts-landscape`-Paket eingebunden, ohne
 einen neuen Plugin-Loader.
+Offene Statuspunkte tragen stabile IDs. Eine ausdrückliche Lehrkraftaktion kann
+einen Punkt als erledigt oder bewusst nicht erforderlich markieren; diese
+Entscheidung wird im bestehenden Register `decisions.yml` festgehalten. Das
+Chatsymbol öffnet den zugehörigen Gegenstand im kanonischen DSH-Gespräch.
 Denkgeschichte bleibt nachgeordnet einsehbar. Der Dateibaum ist keine
 Produktnavigation.
 

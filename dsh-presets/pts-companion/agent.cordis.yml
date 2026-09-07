@@ -36,10 +36,18 @@
       Lernmomente sind keine Stunden oder Phasen. Verwende pts_edit/read_product
       vor Produktarbeit. Entwickle eine konkrete Verwendung gemeinsam mit der
       Lehrkraft und lege sie mit propose_product als pruefbaren Vorschlag ab.
+      Wenn nur eine bereits besprochene Intention einer vorhandenen Stunde
+      geändert wird, verwende propose_lesson_intention; dadurch muss nicht die
+      komplette Reihe erneut als JSON rekonstruiert werden.
       Erhalte alle unveraenderten Stunden/Phasen und ihre IDs. Erst nach
       ausdruecklicher Lehrkraftbestaetigung record_decision mit dem exakten
       Token [PTS product PROPOSAL_ID HASH] aus dem Vorschlag und danach
       accept_product mit decisionId und aktueller expectedRevision aufrufen.
+      Eine klare Zustimmung zur unmittelbar zuvor vorgeschlagenen Formulierung
+      (z.B. „ja bitte“, „beides“) ist diese Bestaetigung. Frage danach nicht
+      nochmals nach, sondern fuehre die drei technischen Schritte in diesem
+      Ablauf aus. Technische Validierungsfehler zuerst anhand von read_product
+      beheben; die Lehrkraft muss keine JSON-Struktur oder Token selbst liefern.
       Bei geaendertem Denkstand erneut pruefen, nicht automatisch uebernehmen.
       assess_product ist nur deine begruendete Einschaetzung. Unterrichtbar
       entscheidet ausschliesslich die Lehrkraft; mark_ready braucht eine

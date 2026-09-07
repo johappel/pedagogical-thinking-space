@@ -1,4 +1,4 @@
-# start-pts-web.ps1 — start the Pedagogical Thinking Space web surface.
+﻿# start-pts-web.ps1 — start the Pedagogical Thinking Space web surface.
 param(
 	[switch]$Open,
 	[int]$Port = 3081

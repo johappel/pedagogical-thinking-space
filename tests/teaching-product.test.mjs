@@ -47,12 +47,32 @@ test('3+4 tool -> proposal -> teacher decision -> product/status/snapshot; no im
   assert.equal(view.status.lessons.length, 1);
   assert.equal(view.status.lessons[0].teacherReadiness, null);
   assert.match(view.status.lessons[0].gaps.join(), /Ergebnissicherung/);
+  const gap = view.status.lessons[0].gapItems.find((item) => item.text.includes('Ergebnissicherung'));
+  assert.ok(gap?.id);
+  const resolved = await f.request('/api/pts-product', { operation: 'resolve_gap', expectedRevision: 2, gapId: gap.id, resolution: 'resolved' });
+  assert.equal(resolved.status, 200);
+  assert.doesNotMatch(resolved.body.status.lessons[0].gaps.join(), /Ergebnissicherung/);
+  assert.equal(resolved.body.status.lessons[0].gapItems.find((item) => item.id === gap.id).state, 'resolved');
+  assert.match(await readFile(path.join(f.root, 'decisions.yml'), 'utf8'), /\[PTS gap /);
   assert.match(buildSnapshot(f.root), /Vergleich uebernehmen|PTS product/);
   await f.execute({ operation: 'assess_product', expectedRevision: 2, lessonId: 'lesson-1', assessment: 'ready_candidate', note: 'Aus Companion-Sicht pruefbar' });
   const assessed = (await f.request('/api/pts-product')).body.status.lessons[0];
   assert.equal(assessed.teacherReadiness, null); assert.equal(assessed.companionAssessment.value, 'ready_candidate');
   const ready = await f.request('/api/pts-product', { operation: 'confirm_readiness', expectedRevision: 3, lessonId: 'lesson-1', ready: true, note: 'Fuer diese Lerngruppe passend' });
   assert.equal(ready.status, 200); assert.equal(ready.body.status.lessons[0].teacherReadiness.ready, true);
+});
+test('targeted lesson intention proposal preserves the rest of the product', async (t) => {
+  const f = await fixture(t);
+  const initial = await f.execute({ operation: 'propose_product', expectedRevision: 0, series: candidateSeries(), reason: 'Erste Stunde pruefen' });
+  const initialProposal = initial.result.product.proposals[0];
+  const initialDecision = await f.execute({ operation: 'record_decision', title: 'Reihe uebernehmen', decision: approvalToken(initialProposal), teacher_confirmed: true });
+  await f.execute({ operation: 'accept_product', expectedRevision: 1, proposalId: initialProposal.id, decisionId: initialDecision.id });
+  const before = (await readProduct(f.root)).series;
+  const intention = 'Lernende erkennen, dass Nachrichten eine Auswahl und kein Spiegel der Realität sind, reflektieren ihre Erwartungshaltung und üben erste kritische Medienreflexion.';
+  const result = await f.execute({ operation: 'propose_lesson_intention', expectedRevision: 2, lessonId: 'lesson-1', intention, reason: 'Intention der ersten Stunde präzisieren' });
+  const proposal = result.result.product.proposals.find((entry) => entry.status === 'pending');
+  assert.equal(proposal.series.lessons[0].intention, intention);
+  assert.equal(proposal.series.lessons[0].phases[0].activity, before.lessons[0].phases[0].activity);
 });
 test('source changes invalidate proposals, preserve adopted phases and surface gaps', async (t) => {
   const f = await fixture(t);

@@ -138,6 +138,7 @@ function addProposal(product, series, reason, thinking) {
   return proposal;
 }
 export const approvalToken = (proposal) => `[PTS product ${proposal.id} ${proposal.hash}]`;
+export const gapDecisionToken = (gapId, resolution = 'resolved') => `[PTS gap ${gapId} ${resolution}]`;
 async function decisionEvidence(root, decisionId, token) {
   id(decisionId);
   const raw = await safeRead(root, 'decisions.yml');
@@ -165,6 +166,14 @@ export async function mutateProduct(candidate, args) {
       if (args.operation === 'propose_product') {
         text(args.reason, 'reason', 2000); check(args.reason.trim(), 'proposal reason required');
         addProposal(product, args.series, args.reason, await readThinking(root));
+      } else if (args.operation === 'propose_lesson_intention') {
+        text(args.intention, 'intention', 8000); check(args.intention.trim(), 'lesson intention required');
+        text(args.reason, 'reason', 2000); check(args.reason.trim(), 'proposal reason required');
+        const series = clone(product.series);
+        const lesson = series.lessons.find((entry) => entry.id === args.lessonId);
+        check(lesson, 'unknown lesson');
+        lesson.intention = args.intention;
+        addProposal(product, series, args.reason, await readThinking(root));
       } else if (args.operation === 'accept_product' || args.operation === 'reject_product') {
         const p = product.proposals.find((p) => p.id === args.proposalId);
         check(p?.status === 'pending', 'pending proposal required');
@@ -198,29 +207,41 @@ export async function mutateProduct(candidate, args) {
   } finally { await lock.close(); await fs.unlink(lockPath); }
 }
 
-export function projectStatus(product, thinking, availableMaterials = []) {
+export function projectStatus(product, thinking, availableMaterials = [], decisionTexts = []) {
   if (!product) return { migrationRequired: true, lessons: [], nextStep: 'Vorhandene Zeitplanung sichten und Migration vorbereiten.' };
   const byId = new Map(thinking.moments.map((m) => [m.id, m]));
   const files = new Set(availableMaterials);
+  const resolvedGaps = new Set();
+  for (const decision of decisionTexts) {
+    const match = String(decision).match(/\[PTS gap ([^\s]+) resolved\]/);
+    if (match) resolvedGaps.add(match[1]);
+  }
   const lessons = product.series.lessons.map((lesson) => {
     const gaps = [];
-    if (!lesson.title.trim()) gaps.push('Stundentitel fehlt');
-    if (!lesson.intention.trim()) gaps.push('Intention der Stunde fehlt');
-    if (!lesson.phases.length) gaps.push('Verlaufsphasen fehlen');
+    const gapItems = [];
+    const addGap = (text, scope, focus) => {
+      const id = `${scope}:${digest(text).slice(0, 16)}`;
+      const state = resolvedGaps.has(id) ? 'resolved' : 'open';
+      gapItems.push({ id, text, state, focus });
+      if (state === 'open') gaps.push(text);
+    };
+    if (!lesson.title.trim()) addGap('Stundentitel fehlt', `${lesson.id}:title`, { kind: 'lesson', id: lesson.id });
+    if (!lesson.intention.trim()) addGap('Intention der Stunde fehlt', `${lesson.id}:intention`, { kind: 'lesson', id: lesson.id });
+    if (!lesson.phases.length) addGap('Verlaufsphasen fehlen', `${lesson.id}:phases`, { kind: 'lesson', id: lesson.id });
     for (const p of lesson.phases) {
-      if (!p.activity.trim()) gaps.push(`${p.title || p.id}: Lernaktivitaet fehlt`);
-      if (!p.intention.trim()) gaps.push(`${p.title || p.id}: Intention fehlt`);
-      for (const q of p.openQuestions) gaps.push(`${p.title || p.id}: ${q}`);
-      for (const ref of p.materials) if (!files.has(ref)) gaps.push(`${p.title || p.id}: Material fehlt (${ref})`);
+      if (!p.activity.trim()) addGap(`${p.title || p.id}: Lernaktivitaet fehlt`, `${lesson.id}:${p.id}:activity`, { kind: 'phase', id: p.id });
+      if (!p.intention.trim()) addGap(`${p.title || p.id}: Intention fehlt`, `${lesson.id}:${p.id}:intention`, { kind: 'phase', id: p.id });
+      for (const [index, q] of p.openQuestions.entries()) addGap(`${p.title || p.id}: ${q}`, `${lesson.id}:${p.id}:question:${index}`, { kind: 'phase', id: p.id });
+      for (const ref of p.materials) if (!files.has(ref)) addGap(`${p.title || p.id}: Material fehlt (${ref})`, `${lesson.id}:${p.id}:material:${ref}`, { kind: 'phase', id: p.id });
       for (const ref of p.momentIds) {
         const moment = byId.get(ref);
-        if (!moment) gaps.push(`${p.title || p.id}: Lernmoment fehlt (${ref})`);
-        else if (p.sourceHashes[ref] !== digest(moment)) gaps.push(`${p.title || p.id}: Lernmoment weiterentwickelt; Verwendung pruefen (${ref})`);
+        if (!moment) addGap(`${p.title || p.id}: Lernmoment fehlt (${ref})`, `${lesson.id}:${p.id}:moment:${ref}`, { kind: 'phase', id: p.id });
+        else if (p.sourceHashes[ref] !== digest(moment)) addGap(`${p.title || p.id}: Lernmoment weiterentwickelt; Verwendung pruefen (${ref})`, `${lesson.id}:${p.id}:moment:${ref}`, { kind: 'moment', id: ref });
       }
     }
     const ready = product.readiness[lesson.id];
     const assessment = product.assessments[lesson.id];
-    return { id: lesson.id, title: lesson.title, stage: lesson.phases.length ? 'developing' : 'idea', gaps,
+    return { id: lesson.id, title: lesson.title, stage: lesson.phases.length ? 'developing' : 'idea', gaps, gapItems,
       teacherReadiness: ready && ready.lessonHash === digest(lesson) ? ready : null,
       companionAssessment: assessment && assessment.lessonHash === digest(lesson) ? assessment : null };
   });
@@ -231,6 +252,13 @@ export async function productView(candidate) {
   const root = await workspaceRoot(candidate);
   const product = await readProduct(root);
   const thinking = await readThinking(root);
+  let decisionTexts = [];
+  try {
+    const parsed = parseYaml(await safeRead(root, 'decisions.yml'));
+    decisionTexts = (Array.isArray(parsed?.decisions) ? parsed.decisions : [])
+      .filter((decision) => decision?.status === 'confirmed')
+      .map((decision) => decision.decision ?? decision.statement ?? decision.title ?? '');
+  } catch { decisionTexts = []; }
   const materialRefs = new Set(product?.series.lessons.flatMap((l) => l.phases.flatMap((p) => p.materials)) || []);
   const availableMaterials = [];
   for (const ref of materialRefs) {
@@ -240,7 +268,7 @@ export async function productView(candidate) {
       if (!rel.startsWith('..') && !path.isAbsolute(rel) && (await fs.stat(real)).isFile()) availableMaterials.push(ref);
     } catch (e) { if (e.code !== 'ENOENT') throw e; }
   }
-  return { product, status: projectStatus(product, thinking, availableMaterials), migration: product ? null : await migrationPreview(root), sourceRevision: thinking.sourceRevision };
+  return { product, status: projectStatus(product, thinking, availableMaterials, decisionTexts), migration: product ? null : await migrationPreview(root), sourceRevision: thinking.sourceRevision };
 }
 export function productTemporal(product) {
   const placements = product.series.lessons.flatMap((l) => l.phases.flatMap((p) => p.momentIds.map((ref) => ({ id: `${p.id}.${ref}`, window_id: l.id, moment_id: ref, start_minute: p.startMinute, duration_minutes: p.durationMinutes, dramaturgical_role: p.role, mode: p.mode, note: p.notes, status: 'binding' }))));

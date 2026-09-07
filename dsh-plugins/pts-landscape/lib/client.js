@@ -1363,28 +1363,37 @@ window.__ModuleLoader__.load({
 				const readyCount = statusLessons.filter(function(s) { return s.teacherReadiness && s.teacherReadiness.ready === true; }).length;
 				const gapCount = statusLessons.filter(function(s) { return Array.isArray(s.gaps) && s.gaps.length > 0; }).length;
 				const openProduct = function(id) { if (typeof props.openView === "function") props.openView("teaching-product", id || ""); };
+				const firstGapLesson = statusLessons.find(function(s) { return Array.isArray(s.gaps) && s.gaps.length > 0; });
 				const stageLabel = function(stage) { return stage === "idea" ? "Idee" : stage === "developing" ? "In Ausarbeitung" : stage || "Status offen"; };
 				return h("div", { className: "pls-root pts-product pts-status-view", "data-product-revision": product.revision },
-					h("h2", null, "Product Status"),
-					h("p", null, "Überblick über Reifegrad, offene Punkte und den nächsten Arbeitsschritt."),
+					h("h2", { className: "pts-status-title" }, "Product Status"),
+					h("p", { className: "pts-status-intro" }, "Überblick über Reifegrad, offene Punkte und den nächsten Arbeitsschritt."),
 					h("div", { className: "pts-status-summary" },
 						h("div", { className: "pts-status-card" }, h("strong", null, String(product.series.lessons.length)), h("span", null, "Unterrichtsstunden")),
 						h("div", { className: "pts-status-card" }, h("strong", null, String(pending.length)), h("span", null, "Offene Vorschläge")),
 						h("div", { className: "pts-status-card" }, h("strong", null, String(readyCount)), h("span", null, "Verwendbar")),
-						h("div", { className: "pts-status-card", title: "Unterrichtsstunden mit mindestens einem offenen Produktpunkt" }, h("strong", null, String(gapCount)), h("span", null, "Stunden mit Klärungsbedarf"))),
+						h("button", { type: "button", className: "pts-status-card pts-status-card-action", disabled: !firstGapLesson, title: firstGapLesson ? "Erste Unterrichtsstunde mit Klärungsbedarf in der Unterrichtsreihe öffnen" : "Keine Unterrichtsstunde mit Klärungsbedarf", onClick: function() { if (firstGapLesson) openProduct(firstGapLesson.id); } }, h("strong", null, String(gapCount)), h("span", null, "Stunden mit Klärungsbedarf"))),
 					h("p", { className: "pts-next-step" }, "Nächster Arbeitsschritt: " + status.nextStep),
-					error ? h("p", { role: "alert" }, error) : null,
-					statusLessons.length ? h("section", null,
+					error ? h("p", { className: "pts-status-error", role: "alert" }, error) : null,
+					statusLessons.length ? h("section", { className: "pts-status-details" },
 						h("h3", null, "Unterrichtsstunden im Überblick"),
 						statusLessons.map(function(s) {
+							const openGapItems = (Array.isArray(s.gapItems) ? s.gapItems : (s.gaps || []).map(function(text, index) { return { id: s.id + ":legacy:" + index, text: text, state: "open", focus: { kind: "lesson", id: s.id } }; })).filter(function(item) { return item.state === "open"; });
 							return h("article", { key: s.id, className: "pts-status-item" },
 								h("h3", null, s.title || "Stunde ohne Titel"),
 								h("p", { className: "pts-status-meta" }, stageLabel(s.stage) + " · " + (s.teacherReadiness ? (s.teacherReadiness.ready ? "Verwendbar" : "Noch nicht verwendbar") : "Verwendbarkeit offen")),
 								s.companionAssessment ? h("p", null, "Companion-Einschätzung: " + (({ idea: "Idee", developing: "In Ausarbeitung", ready_candidate: "zur Bereitschaftsprüfung vorgeschlagen" }[s.companionAssessment.value] || s.companionAssessment.value)) + " — " + s.companionAssessment.note) : null,
-								Array.isArray(s.gaps) && s.gaps.length ? h("ul", null, s.gaps.map(function(g, i) { return h("li", { key: i }, g); })) : h("p", null, "Keine strukturellen Lücken erkannt."),
+								openGapItems.length ? h("ul", { className: "pts-gap-list" }, openGapItems.map(function(item) {
+									return h("li", { key: item.id, className: "pts-gap-item" },
+										h("span", { className: "pts-gap-actions" },
+											h("label", { className: "pts-gap-check-label", title: "Als erledigt oder bewusst nicht erforderlich markieren" },
+												h("input", { type: "checkbox", className: "pts-gap-check", checked: false, disabled: busy, "aria-label": "Erledigt oder nicht erforderlich: " + item.text, onChange: function() { mutate({ operation: "resolve_gap", gapId: item.id, resolution: "resolved" }); } })),
+											h("button", { type: "button", className: "pts-gap-chat", disabled: busy, title: "Diesen Punkt im Gespräch angehen", "aria-label": "Diesen Punkt im Gespräch angehen: " + item.text, onClick: function() { focus(item.focus.kind, item.focus.id); } }, "💬")),
+										h("span", { className: "pts-gap-text" }, item.text));
+								})) : h("p", null, "Keine offenen Klärungspunkte."),
 								button("In Unterrichtsreihe öffnen", function() { openProduct(s.id); }));
 						})) : h("p", null, "Noch keine Unterrichtsstunden übernommen. Öffne die Unterrichtsreihe, um einen Vorschlag zu prüfen."),
-					pending.length ? h("section", null,
+					pending.length ? h("section", { className: "pts-status-details" },
 						h("h3", null, "Offene Vorschläge"),
 						pending.map(function(p) { return h("p", { key: p.id }, p.reason + (p.stale ? " (veraltet — erneut prüfen)" : "") + ". Prüfung und Übernahme erfolgen in der Unterrichtsreihe."); })) : null);
 			}
@@ -1435,7 +1444,7 @@ window.__ModuleLoader__.load({
 			apply(ctx) {
 			if (!document.getElementById("pts-product-style")) {
 					const style = document.createElement("style"); style.id = "pts-product-style";
-					style.textContent = ".pts-product-phase,.pts-product-proposal{border:1px solid rgba(128,128,128,.3);border-radius:10px;padding:16px;margin:12px 0}.pts-product-phase h4{margin:0 0 10px}.pts-product-lesson{margin:20px 0}.pts-product-lesson-index{border-top:1px solid rgba(128,128,128,.25);padding:12px 0;display:flex;align-items:center;gap:8px}.pts-product .pls-btn{margin:4px}.pts-focus-banner{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:90;display:flex;gap:12px;align-items:center;max-width:70vw;padding:6px 12px;background:var(--background,#fff);color:var(--foreground,#222);border:1px solid #888;border-radius:10px;font-size:13px}.pts-focus-banner span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pts-product-proposal summary{cursor:pointer}.pts-status-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:16px 0}.pts-status-card{border:1px solid rgba(128,128,128,.3);border-radius:10px;padding:12px}.pts-status-card strong{display:block;font-size:1.45em}.pts-status-item{border-top:1px solid rgba(128,128,128,.25);padding:14px 0}.pts-status-item h3{margin:0 0 6px}.pts-status-item ul{margin:8px 0;padding-left:22px}.pts-status-meta{color:var(--muted-foreground,#666);font-size:.92em}";
+					style.textContent = ".pts-product-phase,.pts-product-proposal{border:1px solid rgba(128,128,128,.3);border-radius:10px;padding:16px;margin:12px 0}.pts-product-phase h4{margin:0 0 10px}.pts-product-lesson{margin:20px 0}.pts-product-lesson-index{border-top:1px solid rgba(128,128,128,.25);padding:12px 0;display:flex;align-items:center;gap:8px}.pts-product .pls-btn{margin:4px}.pts-focus-banner{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:90;display:flex;gap:12px;align-items:center;max-width:70vw;padding:6px 12px;background:var(--background,#fff);color:var(--foreground,#222);border:1px solid #888;border-radius:10px;font-size:13px}.pts-focus-banner span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pts-product-proposal summary{cursor:pointer}.pts-status-view{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(210px,280px);column-gap:24px;align-content:start}.pts-status-view>.pts-status-title,.pts-status-view>.pts-status-intro,.pts-status-view>.pts-status-error{grid-column:1/-1}.pts-status-view>.pts-status-summary{grid-column:2;grid-row:3/span 2;display:flex;flex-direction:column;gap:10px;margin:16px 0;position:sticky;top:8px}.pts-status-view>.pts-next-step,.pts-status-view>.pts-status-details{grid-column:1}.pts-status-card{border:1px solid rgba(128,128,128,.3);border-radius:10px;padding:12px;text-align:left;background:transparent;color:inherit;font:inherit}.pts-status-card-action{cursor:pointer}.pts-status-card-action:hover,.pts-status-card-action:focus-visible{border-color:currentColor}.pts-status-card-action:disabled{cursor:default;opacity:.7}.pts-status-card strong{display:block;font-size:1.45em}.pts-status-item{border-top:1px solid rgba(128,128,128,.25);padding:14px 0}.pts-status-item h3{margin:0 0 6px}.pts-status-item ul{margin:8px 0;padding-left:22px}.pts-gap-list{list-style:none;margin:8px 0;padding:0}.pts-gap-item{display:flex;align-items:flex-start;gap:8px;margin:8px 0}.pts-gap-text{flex:1}.pts-gap-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}.pts-gap-check-label{display:inline-flex;align-items:center;cursor:pointer}.pts-gap-check{width:17px;height:17px}.pts-gap-chat{border:0;background:transparent;color:inherit;cursor:pointer;font-size:1.15em;line-height:1;padding:2px}.pts-gap-chat:disabled{cursor:default;opacity:.55}.pts-status-meta{color:var(--muted-foreground,#666);font-size:.92em}@media(max-width:760px){.pts-status-view{grid-template-columns:1fr}.pts-status-view>.pts-status-summary{grid-column:1;grid-row:auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));position:static}.pts-status-view>.pts-next-step,.pts-status-view>.pts-status-details{grid-column:1}.pts-status-view>.pts-status-title,.pts-status-view>.pts-status-intro,.pts-status-view>.pts-status-error{grid-column:1}}";
 					document.head.appendChild(style);
 				}
 				ctx.slots.inject("conversation.view", function() {

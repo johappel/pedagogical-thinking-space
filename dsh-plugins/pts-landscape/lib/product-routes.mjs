@@ -1,4 +1,4 @@
-import { productView, mutateProduct, approvalToken, digest } from '../../../dsh-presets/pts-companion/teaching-product.mjs';
+import { productView, mutateProduct, approvalToken, digest, gapDecisionToken } from '../../../dsh-presets/pts-companion/teaching-product.mjs';
 import { focusContext } from '../../../dsh-presets/pts-companion/focus-context.mjs';
 import { applyDirectEdit } from '../../../dsh-presets/pts-companion/direct-pts-edit.mjs';
 
@@ -20,6 +20,20 @@ export function registerProductRoutes(ctx) {
         const root = session.header.cwd;
         if (route === '/api/pts-focus') return json(res, 200, { focus: await focusContext(args.sessionId, root, req.method === 'POST' ? args.focus : undefined) });
         if (req.method === 'GET') return json(res, 200, await productView(root));
+        if (args.operation === 'resolve_gap') {
+          const view = await productView(root);
+          if (view.product?.revision !== args.expectedRevision) throw new Error('product revision conflict; reload');
+          if (!['resolved'].includes(args.resolution)) throw new Error('unsupported gap resolution');
+          const gap = view.status.lessons.flatMap((lesson) => lesson.gapItems || []).find((item) => item.id === args.gapId && item.state === 'open');
+          if (!gap) throw new Error('open gap not found; reload');
+          await applyDirectEdit({ session }, {
+            operation: 'record_decision',
+            title: 'Klärung erledigt oder nicht erforderlich',
+            decision: `${gapDecisionToken(gap.id, args.resolution)} ${gap.text}`,
+            teacher_confirmed: true,
+          });
+          return json(res, 200, await productView(root));
+        }
         // Explicit UI actions record a teacher decision through the existing
         // structured writer. Tools themselves must supply a matching decision.
         if (args.operation === 'confirm_proposal' || args.operation === 'confirm_readiness') {
