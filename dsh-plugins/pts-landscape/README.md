@@ -1,9 +1,11 @@
 # pts-landscape
 
 This package owns the host routes and the canonical `Product Status` and
-`Unterrichtsreihe` views. The separate `pts-moment-workshop` plugin shadows
-only the `conversation.view` entry `landscape`; it provides the primary
-learning-moment surface as a calm board.
+`Unterrichtsreihe` views. The separate `pts-moment-workshop` plugin owns the
+single visible `conversation.view` entry `landscape` and provides the primary
+learning-moment surface as a calm board. `pts-landscape` deliberately does not
+register a second landscape tab, so both profile plugins do not duplicate the
+navigation or panel content.
 
 `learning-landscape.md` remains the Thinking Model's collection of
 independent learning moments. `teaching-product.json` is the canonical product

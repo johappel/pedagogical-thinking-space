@@ -150,9 +150,9 @@ Quellrevision, Begründung und Referenzen. Ein Vorschlag verändert die Reihe
 nicht. Übernahme benötigt eine bestätigte Entscheidung aus `decisions.yml`;
 die UI kann diese durch die explizite Übernahmehandlung protokollieren.
 Companion-Aufrufe dürfen keine Lehrkraftfreigabe aus Produktvollständigkeit
-ableiten. Produktreife und Unterrichtsbereitschaft werden getrennt:
+ableiten. Produktreife und Verwendbarkeit werden getrennt:
 strukturelle Lücken, Companion-Einschätzung mit Begründung und ausdrückliche
-Lehrkraftentscheidung. Kein Prozentwert, keine implizite Bereitschaft.
+Lehrkraftentscheidung. Kein Prozentwert, keine implizite Verwendbarkeit.
 
 Ein gemeinsames Domänen-/Persistenzmodul wird vom vorhandenen Host und
 `pts_edit` verwendet. Versionierte Read/write-Operationen, begrenzte Eingaben,
@@ -203,10 +203,15 @@ Lesender Laufzeitkontext wird über die Context Projection bereitgestellt;
 strukturierte Änderungen laufen über `pts_edit` und denselben Domain Store,
 den auch die UI verwendet.
 
-Product Status ist eine jederzeit neu berechnete Projektion: vorhandene
-Einheiten, Ideen, Ausarbeitung, offene Voraussetzungen und nächster
-Arbeitsschritt. Unterrichtsreihe und Status werden als zusätzliche Ansichten
-im vorhandenen `pts-landscape`-Paket eingebunden, ohne einen neuen Plugin-Loader.
+Product Status ist eine jederzeit neu berechnete, kompakte Projektion: vorhandene
+Unterrichtsstunden, Ideen, Ausarbeitung, offene Voraussetzungen, Verwendbarkeit
+und nächster Arbeitsschritt. Sie dient der Orientierung und enthält keine eigene
+Produktbearbeitung. Die ausführliche Arbeitsansicht bleibt die
+**Unterrichtsreihe**: Dort werden Stunden und Phasen gelesen und entwickelt,
+Materialien geöffnet, Vorschläge verglichen und ausdrücklich übernommen sowie
+Verwendbarkeit bestätigt. Unterrichtsreihe und Status werden als
+zusätzliche Ansichten im vorhandenen `pts-landscape`-Paket eingebunden, ohne
+einen neuen Plugin-Loader.
 Denkgeschichte bleibt nachgeordnet einsehbar. Der Dateibaum ist keine
 Produktnavigation.
 
@@ -262,12 +267,14 @@ Ungültige Referenzen melden einen Fehler.
 5. **Status:** gemeinsame reine Projektion mit nachvollziehbaren Lücken und
    getrennten Einschätzungen. Tests vor/nach Übernahme und Quelländerung.
 6. **Produktpanel:** lesbare Stunden/Phasen, Materialzugriff, Vorschlagsvergleich,
-   explizite Übernahme, Unterrichtsbereitschaft und Weiterdenken. UI-Flow-Tests.
+   explizite Übernahme, Verwendbarkeit und Weiterdenken. UI-Flow-Tests.
 7. **Generischer Fokus:** sessionisolierte Host-Auflösung, Prompt-Einbindung,
    Fokus beenden und Rückweg; Tests für alle Gegenstandstypen und Isolation.
 8. **Lernmoment-Werkstatt:** **umgesetzt.** Die bisherige Lernlandschaft ist
    fachlich und in der primären UI zur Lernmoment-Werkstatt weiterentwickelt;
-   Produkt- und Statusansichten bleiben erhalten.
+   Produkt- und Statusansichten bleiben erhalten. `pts-moment-workshop` ist
+   der einzige sichtbare `conversation.view`-Eintrag für Lernmomente;
+   `pts-landscape` registriert dort keinen parallelen Legacy-Tab.
 
    - Lernmomente bleiben kanonische, eigenständige Denkobjekte.
    - Der bestehende Momenteditor bleibt erhalten und wird Teil der Lernmoment-Werkstatt.

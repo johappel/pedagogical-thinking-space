@@ -13,7 +13,8 @@ window.__ModuleLoader__.load({
     function workspaceForSession(ctx, sessionId) {
       const snapshot = ctx.workspaces.list.getSnapshot();
       const items = Array.isArray(snapshot?.items) ? snapshot.items : [];
-      return items.find((item) => Array.isArray(item.sessionIds) && item.sessionIds.includes(sessionId))?.id || null;
+      const workspace = items.find((item) => Array.isArray(item.sessionIds) && item.sessionIds.includes(sessionId));
+      return workspace?.workspaceId || workspace?.id || null;
     }
     async function setFocus(sessionId, focus) {
       await request('/api/pts-focus', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId, focus: { kind: focus.kind, id: focus.id, returnView: focus.returnView || 'landscape' } }) });

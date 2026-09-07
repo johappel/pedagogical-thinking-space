@@ -225,7 +225,7 @@ export function projectStatus(product, thinking, availableMaterials = []) {
       companionAssessment: assessment && assessment.lessonHash === digest(lesson) ? assessment : null };
   });
   const pending = product.proposals.filter((p) => p.status === 'pending').map((p) => ({ id: p.id, reason: p.reason, stale: p.baseRevision !== product.revision || p.sourceRevision !== thinking.sourceRevision }));
-  return { migrationRequired: false, lessons, pending, nextStep: pending.length ? 'Produktvorschlag gemeinsam pruefen.' : lessons.find((l) => l.gaps.length)?.gaps[0] || (lessons.length ? 'Unterrichtsbereitschaft als Lehrkraft pruefen.' : 'Eine erste Stunde aus dem Denkstand vorschlagen.') };
+  return { migrationRequired: false, lessons, pending, nextStep: pending.length ? 'Produktvorschlag gemeinsam pruefen.' : lessons.find((l) => l.gaps.length)?.gaps[0] || (lessons.length ? 'Verwendbarkeit als Lehrkraft pruefen.' : 'Eine erste Stunde aus dem Denkstand vorschlagen.') };
 }
 export async function productView(candidate) {
   const root = await workspaceRoot(candidate);

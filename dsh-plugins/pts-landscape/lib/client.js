@@ -1,6 +1,9 @@
 // pts-landscape — client half (browser).
 //
-// "Lernlandschaft" tab (conversation.view, order 30), two-column layout:
+// Legacy landscape view implementation retained for compatibility with older
+// callers. The visible `conversation.view` entry is owned by
+// `pts-moment-workshop`; this package keeps the product/status views and focus
+// overlay registered below.
 //   left  = vertical list of compact moment cards (title + badges, expandable
 //           details with time estimate, material assignment);
 //   right = fixed Stunden-Zuordnung sidebar (windows as drop targets,
@@ -1338,31 +1341,66 @@ window.__ModuleLoader__.load({
 			}
 			if (!view) return h("div", { className: "pls-root", role: error ? "alert" : undefined }, error || "Unterrichtsreihe wird geladen…");
 			const product = view.product;
-			if (!product) return h("div", { className: "pls-root" },
-				h("h2", null, "Unterrichtsreihe vorbereiten"),
-				h("p", null, "Die vorhandene Zeitplanung wird als Vorschlag erhalten. Erst deine ausdrückliche Übernahme macht daraus die Unterrichtsreihe."),
-				view.migration.series.lessons.map(function(l) { return lessonBody(l, true); }),
-				view.migration.warnings.map(function(w, i) { return h("p", { key: i }, w); }),
-				button("Migration vorbereiten", function() { mutate({ operation: "migrate_product", sourceRevision: view.migration.sourceRevision }); }),
-				error ? h("p", { role: "alert" }, error) : null);
+			if (!product) {
+				if (props.statusOnly) return h("div", { className: "pls-root pts-status-view" },
+					h("h2", null, "Product Status"),
+					h("p", null, "Noch keine Unterrichtsstunden übernommen."),
+					h("p", null, "Die vorhandene Zeitplanung wartet in der Unterrichtsreihe auf Prüfung und ausdrückliche Übernahme."),
+					button("Unterrichtsreihe öffnen", function() { if (typeof props.openView === "function") props.openView("teaching-product", ""); }),
+					error ? h("p", { role: "alert" }, error) : null);
+				return h("div", { className: "pls-root" },
+					h("h2", null, "Unterrichtsreihe vorbereiten"),
+					h("p", null, "Die vorhandene Zeitplanung wird als Vorschlag erhalten. Erst deine ausdrückliche Übernahme macht daraus die Unterrichtsreihe."),
+					view.migration.series.lessons.map(function(l) { return lessonBody(l, true); }),
+					view.migration.warnings.map(function(w, i) { return h("p", { key: i }, w); }),
+					button("Migration vorbereiten", function() { mutate({ operation: "migrate_product", sourceRevision: view.migration.sourceRevision }); }),
+					error ? h("p", { role: "alert" }, error) : null);
+			}
 			const status = view.status;
+			if (props.statusOnly) {
+				const statusLessons = Array.isArray(status.lessons) ? status.lessons : [];
+				const pending = Array.isArray(status.pending) ? status.pending : [];
+				const readyCount = statusLessons.filter(function(s) { return s.teacherReadiness && s.teacherReadiness.ready === true; }).length;
+				const gapCount = statusLessons.filter(function(s) { return Array.isArray(s.gaps) && s.gaps.length > 0; }).length;
+				const openProduct = function(id) { if (typeof props.openView === "function") props.openView("teaching-product", id || ""); };
+				const stageLabel = function(stage) { return stage === "idea" ? "Idee" : stage === "developing" ? "In Ausarbeitung" : stage || "Status offen"; };
+				return h("div", { className: "pls-root pts-product pts-status-view", "data-product-revision": product.revision },
+					h("h2", null, "Product Status"),
+					h("p", null, "Überblick über Reifegrad, offene Punkte und den nächsten Arbeitsschritt."),
+					h("div", { className: "pts-status-summary" },
+						h("div", { className: "pts-status-card" }, h("strong", null, String(product.series.lessons.length)), h("span", null, "Unterrichtsstunden")),
+						h("div", { className: "pts-status-card" }, h("strong", null, String(pending.length)), h("span", null, "Offene Vorschläge")),
+						h("div", { className: "pts-status-card" }, h("strong", null, String(readyCount)), h("span", null, "Verwendbar")),
+						h("div", { className: "pts-status-card", title: "Unterrichtsstunden mit mindestens einem offenen Produktpunkt" }, h("strong", null, String(gapCount)), h("span", null, "Stunden mit Klärungsbedarf"))),
+					h("p", { className: "pts-next-step" }, "Nächster Arbeitsschritt: " + status.nextStep),
+					error ? h("p", { role: "alert" }, error) : null,
+					statusLessons.length ? h("section", null,
+						h("h3", null, "Unterrichtsstunden im Überblick"),
+						statusLessons.map(function(s) {
+							return h("article", { key: s.id, className: "pts-status-item" },
+								h("h3", null, s.title || "Stunde ohne Titel"),
+								h("p", { className: "pts-status-meta" }, stageLabel(s.stage) + " · " + (s.teacherReadiness ? (s.teacherReadiness.ready ? "Verwendbar" : "Noch nicht verwendbar") : "Verwendbarkeit offen")),
+								s.companionAssessment ? h("p", null, "Companion-Einschätzung: " + (({ idea: "Idee", developing: "In Ausarbeitung", ready_candidate: "zur Bereitschaftsprüfung vorgeschlagen" }[s.companionAssessment.value] || s.companionAssessment.value)) + " — " + s.companionAssessment.note) : null,
+								Array.isArray(s.gaps) && s.gaps.length ? h("ul", null, s.gaps.map(function(g, i) { return h("li", { key: i }, g); })) : h("p", null, "Keine strukturellen Lücken erkannt."),
+								button("In Unterrichtsreihe öffnen", function() { openProduct(s.id); }));
+						})) : h("p", null, "Noch keine Unterrichtsstunden übernommen. Öffne die Unterrichtsreihe, um einen Vorschlag zu prüfen."),
+					pending.length ? h("section", null,
+						h("h3", null, "Offene Vorschläge"),
+						pending.map(function(p) { return h("p", { key: p.id }, p.reason + (p.stale ? " (veraltet — erneut prüfen)" : "") + ". Prüfung und Übernahme erfolgen in der Unterrichtsreihe."); })) : null);
+			}
 			const lesson = product.series.lessons.find(function(l) { return l.id === selected; });
 			return h("div", { className: "pls-root pts-product", "data-product-revision": product.revision },
-				h("h2", null, props.statusOnly ? "Product Status" : product.series.title || "Unterrichtsreihe"),
+				h("h2", null, product.series.title || "Unterrichtsreihe"),
 				product.series.intention ? h("p", null, product.series.intention) : null,
 				product.series.notes ? h("p", null, product.series.notes) : null,
-				h("p", { className: "pts-next-step" }, "Nächster Arbeitsschritt: " + status.nextStep),
 				error ? h("p", { role: "alert" }, error) : null,
-				!product.series.lessons.length ? h("p", null, "Noch keine Unterrichtseinheiten übernommen. Entwickle sie mit dem Companion aus deinem Denkstand.") : null,
-				status.lessons.map(function(s) { return h("section", { key: s.id, className: "pts-product-phase" },
-					button(s.title || "Stunde ohne Titel", function() { setSelected(s.id); }, { "data-lesson": s.id }),
-					h("p", null, s.stage === "idea" ? "Idee" : "In Ausarbeitung"),
-					h("p", null, "Lehrkraft: " + (s.teacherReadiness ? (s.teacherReadiness.ready ? "als unterrichtbar bestätigt" : "noch nicht unterrichtbar") : "Unterrichtsbereitschaft noch nicht entschieden")),
-					s.companionAssessment ? h("p", null, "Companion-Einschätzung: " + ({ idea: "Idee", developing: "In Ausarbeitung", ready_candidate: "zur Bereitschaftsprüfung vorgeschlagen" }[s.companionAssessment.value]) + " — " + s.companionAssessment.note) : null,
-					s.gaps.length ? h("ul", null, s.gaps.map(function(g, i) { return h("li", { key: i }, g); })) : h("p", null, "Keine strukturellen Lücken erkannt; dies ersetzt keine Unterrichtsentscheidung.")); }),
+				!product.series.lessons.length ? h("p", null, "Noch keine Unterrichtsstunden übernommen. Entwickle sie mit dem Companion aus deinem Denkstand.") : null,
+				product.series.lessons.map(function(l) { return h("section", { key: l.id, className: "pts-product-lesson-index" },
+					button(l.title || "Stunde ohne Titel", function() { setSelected(l.id); }, { "data-lesson": l.id }),
+					l.durationMinutes !== null ? h("span", { className: "pts-status-meta" }, l.durationMinutes + " Minuten") : null); }),
 				lesson ? h("article", null, lessonBody(lesson, false),
-					button("Als unterrichtbar bestätigen", function() { mutate({ operation: "confirm_readiness", lessonId: lesson.id, ready: true, note: "Lehrkraft hat die Stunde in der Produktansicht als unterrichtbar bestaetigt." }); }),
-					button("Noch nicht unterrichtbar", function() { mutate({ operation: "confirm_readiness", lessonId: lesson.id, ready: false, note: "Lehrkraft hat weiteren Ausarbeitungsbedarf festgestellt." }); })) : null,
+					button("Als verwendbar bestätigen", function() { mutate({ operation: "confirm_readiness", lessonId: lesson.id, ready: true, note: "Lehrkraft hat die Stunde in der Produktansicht als verwendbar bestaetigt." }); }),
+					button("Noch nicht verwendbar", function() { mutate({ operation: "confirm_readiness", lessonId: lesson.id, ready: false, note: "Lehrkraft hat weiteren Ausarbeitungsbedarf festgestellt." }); })) : null,
 				product.proposals.filter(function(p) { return p.status === "pending"; }).map(function(p) {
 					const stale = status.pending.find(function(x) { return x.id === p.id; }).stale;
 					return h("details", { key: p.id, className: "pts-product-proposal" },
@@ -1393,11 +1431,11 @@ window.__ModuleLoader__.load({
 				} }, "Fokus beenden"));
 		}
 		return {
-			inject: ["slots", "sessions", "uiConversation"],
+				inject: ["slots", "sessions"],
 			apply(ctx) {
-				if (!document.getElementById("pts-product-style")) {
+			if (!document.getElementById("pts-product-style")) {
 					const style = document.createElement("style"); style.id = "pts-product-style";
-					style.textContent = ".pts-product-phase,.pts-product-proposal{border:1px solid rgba(128,128,128,.3);border-radius:10px;padding:16px;margin:12px 0}.pts-product-phase h4{margin:0 0 10px}.pts-product-lesson{margin:20px 0}.pts-product .pls-btn{margin:4px}.pts-focus-banner{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:90;display:flex;gap:12px;align-items:center;max-width:70vw;padding:6px 12px;background:var(--background,#fff);color:var(--foreground,#222);border:1px solid #888;border-radius:10px;font-size:13px}.pts-focus-banner span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pts-product-proposal summary{cursor:pointer}";
+					style.textContent = ".pts-product-phase,.pts-product-proposal{border:1px solid rgba(128,128,128,.3);border-radius:10px;padding:16px;margin:12px 0}.pts-product-phase h4{margin:0 0 10px}.pts-product-lesson{margin:20px 0}.pts-product-lesson-index{border-top:1px solid rgba(128,128,128,.25);padding:12px 0;display:flex;align-items:center;gap:8px}.pts-product .pls-btn{margin:4px}.pts-focus-banner{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:90;display:flex;gap:12px;align-items:center;max-width:70vw;padding:6px 12px;background:var(--background,#fff);color:var(--foreground,#222);border:1px solid #888;border-radius:10px;font-size:13px}.pts-focus-banner span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pts-product-proposal summary{cursor:pointer}.pts-status-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:16px 0}.pts-status-card{border:1px solid rgba(128,128,128,.3);border-radius:10px;padding:12px}.pts-status-card strong{display:block;font-size:1.45em}.pts-status-item{border-top:1px solid rgba(128,128,128,.25);padding:14px 0}.pts-status-item h3{margin:0 0 6px}.pts-status-item ul{margin:8px 0;padding-left:22px}.pts-status-meta{color:var(--muted-foreground,#666);font-size:.92em}";
 					document.head.appendChild(style);
 				}
 				ctx.slots.inject("conversation.view", function() {
@@ -1412,27 +1450,10 @@ window.__ModuleLoader__.load({
 						return React.createElement(FocusBanner, { sessionId: sessions.current });
 					});
 				});
-				const emptySnapshot = { order: [], nodes: { get: function() { return undefined; } } };
-				const emptySource = { getSnapshot: function() { return emptySnapshot; }, subscribe: function() { return function() {}; } };
-				const chatSources = new Map();
-				function chatSource(sessionId) {
-					if (typeof sessionId !== "string") return emptySource;
-					if (chatSources.has(sessionId)) return chatSources.get(sessionId);
-					try {
-						const binding = ctx.sessions.binding(sessionId);
-						if (binding === undefined) return emptySource;
-						const target = ctx.uiConversation.binding(binding).target("chat");
-						const source = { getSnapshot: function() { return target.getSnapshot() || emptySnapshot; }, subscribe: function(listener) { return target.subscribe(listener); } };
-						chatSources.set(sessionId, source);
-						return source;
-					} catch (e) { return emptySource; }
-				}
-				ctx.slots.inject("conversation.view", function() {
-					ctx.slots.register(
-						{ name: "conversation.view", id: "landscape", order: 30, label: "Lernmomente" },
-						function(props) { return React.createElement(LandscapeView, Object.assign({}, props, { chatSource: chatSource(props.sessionId) })); },
-					);
-				});
+					// The primary Lernmomente view is registered by pts-moment-workshop.
+					// Keeping a second visible landscape entry here duplicates the DSH
+					// navigation when both profile plugins are active. Product Status,
+					// Unterrichtsreihe and the Focus overlay remain owned here.
 			},
 		};
 	},

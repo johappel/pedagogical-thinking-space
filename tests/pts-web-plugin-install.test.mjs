@@ -14,3 +14,10 @@ test('profile installer covers both new DSH-native plugins idempotently', async 
   assert.match(script, /points elsewhere/);
   assert.match(script, /patch\.yml/);
 });
+
+test('moment workshop is the sole visible landscape view', async () => {
+  const landscape = await readFile(path.join(root, 'dsh-plugins/pts-landscape/lib/client.js'), 'utf8');
+  const workshop = await readFile(path.join(root, 'dsh-plugins/pts-moment-workshop/lib/client.js'), 'utf8');
+  assert.doesNotMatch(landscape, /id:\s*["']landscape["']/);
+  assert.match(workshop, /id:\s*["']landscape["']/);
+});

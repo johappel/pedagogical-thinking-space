@@ -17,7 +17,7 @@ const empty={order:[],nodes:{get:()=>undefined}}, source={getSnapshot:()=>empty,
 const listSnapshot={current:'test-session'};
 const ctx={sessions:{list:{getSnapshot:()=>listSnapshot,subscribe:()=>()=>{}},binding:()=>({})},uiConversation:{binding:()=>({target:()=>source})},slots:{inject:(name,fn)=>fn(),register:(meta,component)=>{if(meta.name==='conversation.view')views[meta.id]={meta,component};if(meta.name==='shell.overlay')overlays.push(component);return ()=>{};}}};
 window.__ModuleLoader__={load:entry=>entry.factory(name=>{if(name==='react')return React;throw Error(name)}).apply(ctx)};
-</script><script src="/client.js"></script><script>
+</script><script src="/client.js"></script><script src="/workshop.js"></script><script>
 function App(){const [view,setView]=React.useState('landscape'),[draft,setDraft]=React.useState(''),[messages,setMessages]=React.useState([]),[request,setRequest]=React.useState(null);
 const props={sessionId:'test-session',inputActions:{setDraft},openView:(v,f)=>{setView(v);setRequest({view:v,focus:f})},viewRequest:request,completeViewRequest:()=>setRequest(null)};
 async function send(){const text=draft;setDraft('');setMessages(m=>m.concat([{who:'teacher',text}]));const response=await fetch('/test/companion',{method:'POST',body:JSON.stringify({text})});const result=await response.json();setMessages(m=>m.concat([{who:'companion',text:result.text}]));window.dispatchEvent(new CustomEvent('pts:product-changed'));}
@@ -28,7 +28,7 @@ ReactDOM.createRoot(document.getElementById('app')).render(h(App));
 async function browserFixture(t, legacy = false) {
   const f = await fixture(t, { legacy });
   f.extra(async (req, res) => {
-    const files = { '/react.js': 'node_modules/react/umd/react.development.js', '/react-dom.js': 'node_modules/react-dom/umd/react-dom.development.js', '/client.js': 'dsh-plugins/pts-landscape/lib/client.js' };
+    const files = { '/react.js': 'node_modules/react/umd/react.development.js', '/react-dom.js': 'node_modules/react-dom/umd/react-dom.development.js', '/client.js': 'dsh-plugins/pts-landscape/lib/client.js', '/workshop.js': 'dsh-plugins/pts-moment-workshop/lib/client.js' };
     if (req.url === '/') { res.setHeader('content-type', 'text/html; charset=utf-8'); res.end(html); return true; }
     if (files[req.url]) { res.setHeader('content-type', 'text/javascript; charset=utf-8'); res.end(await readFile(path.join(repo, files[req.url]))); return true; }
     if (req.url === '/test/companion') {
@@ -54,25 +54,37 @@ async function browserFixture(t, legacy = false) {
 test('5-8 browser E2E: conversation -> proposal -> explicit adoption -> status -> phase -> same conversation/focus', async (t) => {
   const f = await browserFixture(t);
   const page = f.page;
+  await page.locator('.pmw-root').waitFor();
+  assert.equal(await page.locator('nav button').filter({ hasText: 'Lernmomente' }).count(), 1);
+  assert.equal(await page.locator('.pls-root').count(), 0);
   await page.getByRole('button', { name: 'Werkstatt', exact: true }).click();
+  await page.getByRole('dialog', { name: /Lernmoment .* bearbeiten/ }).waitFor();
+  await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  await page.getByRole('button', { name: 'Darüber sprechen', exact: true }).click();
   await page.getByRole('complementary', { name: 'Focus Context' }).waitFor();
   assert.match(await page.locator('.pts-focus-banner').innerText(), /Perspektiven vergleichen/);
-  await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
   assert.equal(await page.getByText('Stunden-Zuordnung', { exact: true }).count(), 0);
   await page.getByRole('textbox', { name: 'Nachricht' }).fill('Bitte sollen die Lernenden ihre Sichtweisen begründen.');
-  await page.getByRole('button', { name: '💬 Chat', exact: true }).click();
+  await page.getByRole('tab', { name: 'Thinking Space', exact: true }).click();
   await page.getByRole('region', { name: 'Gemeinsames Gespräch' }).waitFor({ state: 'attached' });
   assert.match(await page.getByRole('textbox', { name: 'Nachricht' }).inputValue(), /begründen/);
   await page.getByRole('button', { name: 'Senden', exact: true }).click();
   await page.getByText(/Der Vorschlag steht zur Prüfung bereit/).waitFor();
   await page.getByRole('tab', { name: 'Product Status', exact: true }).click();
-  await page.getByText(/Noch keine Unterrichtseinheiten/).waitFor();
+  await page.getByText(/Noch keine Unterrichtsstunden/).waitFor();
+  assert.equal(await page.locator('.pts-status-view').count(), 1);
+  assert.equal(await page.locator('.pts-status-view [data-phase]').count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Diesen Vorschlag übernehmen', exact: true }).count(), 0);
+  await page.getByRole('tab', { name: 'Unterrichtsreihe', exact: true }).click();
   await page.locator('summary').click();
   await page.getByRole('button', { name: 'Diesen Vorschlag übernehmen', exact: true }).click();
   await page.locator('[data-lesson="lesson-1"]').waitFor();
-  assert.match(await page.locator('.pts-product').innerText(), /In Ausarbeitung/);
-  assert.match(await page.locator('.pts-product').innerText(), /Unterrichtsbereitschaft noch nicht entschieden/);
+  await page.getByRole('tab', { name: 'Product Status', exact: true }).click();
+  assert.match(await page.locator('.pts-status-view').innerText(), /In Ausarbeitung/);
+  assert.match(await page.locator('.pts-status-view').innerText(), /Verwendbarkeit offen/);
+  assert.equal(await page.locator('.pts-status-view [data-phase]').count(), 0);
   await page.getByRole('tab', { name: 'Unterrichtsreihe', exact: true }).click();
+  assert.equal(await page.locator('.pts-status-item').count(), 0);
   await page.locator('[data-lesson="lesson-1"]').click();
   await page.locator('[data-phase="phase-1"]').click();
   await page.getByRole('region', { name: 'Gemeinsames Gespräch' }).waitFor();
@@ -116,7 +128,7 @@ const ctx={
    binding:(id)=>({session:{rename:async()=>{}}}),
    create:async()=>{const r=await fetch('/test/session',{method:'POST'});const id=(await r.json()).id;sessionState.sessions.push(id);return id},
    open:(id)=>{sessionState.current=id;sessionState.snapshot={current:id};notify()}},
- workspaces:{list:{getSnapshot:()=>({items:[{id:'workspace-demo',sessionIds:[...sessionState.sessions||[],'test-session']}]}),subscribe:()=>()=>{}}},
+ workspaces:{list:{getSnapshot:()=>({items:[{workspaceId:'workspace-demo',sessionIds:[...sessionState.sessions||[],'test-session']}]}),subscribe:()=>()=>{}}},
  uiConversation:{binding:()=>({target:()=>source})},effect:(fn)=>fn(),
  slots:{inject:(name,fn)=>fn(),register:(meta,component)=>{const old=views[meta.id];if(meta.name==='conversation.view'&&(!old||(meta.priority||0)<(old.meta.priority||0)))views[meta.id]={meta,component};if(meta.name==='shell.overlay')overlays.push(component);return()=>{}}}
 };

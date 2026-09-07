@@ -33,7 +33,7 @@ export function registerProductRoutes(ctx) {
           } else {
             const lesson = view.product.series.lessons.find((l) => l.id === args.lessonId);
             if (!lesson || typeof args.ready !== 'boolean') throw new Error('lesson and explicit readiness required');
-            token = `[PTS readiness ${lesson.id} ${digest(lesson)} ${args.ready}]`; title = 'Unterrichtsbereitschaft: ' + lesson.title.slice(0, 100); note = args.note;
+            token = `[PTS readiness ${lesson.id} ${digest(lesson)} ${args.ready}]`; title = 'Verwendbarkeit: ' + lesson.title.slice(0, 100); note = args.note;
           }
           const decision = await applyDirectEdit({ session }, { operation: 'record_decision', title, decision: `${token} ${String(note || '').replace(/[\r\n]/g, ' ').slice(0, 400)}`, teacher_confirmed: true });
           args.decisionId = decision.id;
