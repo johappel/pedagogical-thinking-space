@@ -27,6 +27,7 @@ test('2 migration E2E: legacy preserved, canonical file initialized, no automati
   const product = await readProduct(f.root);
   assert.equal(product.series.lessons.length, 0); assert.equal(product.proposals.length, 1);
   assert.deepEqual(product.proposals[0].series.lessons[0].phases[0].materials, ['materials/impuls.md']);
+  assert.doesNotMatch(product.proposals[0].series.lessons[0].phases[0].openQuestions.join('\n'), /teaching use needs review/);
   await f.request('/api/pts-product', args);
   assert.deepEqual(await readProduct(f.root), product);
   assert.equal(await readFile(path.join(f.root, 'temporal-plan.yml'), 'utf8'), old);
@@ -95,9 +96,11 @@ test('6 Focus E2E: generic subjects, current data, same workspace, session isola
   const proposed = await f.execute({ operation: 'propose_product', expectedRevision: 0, series: candidateSeries(), reason: 'Pruefen' });
   await f.request('/api/pts-product', { operation: 'confirm_proposal', expectedRevision: 1, proposalId: proposed.id });
   for (const [kind, id] of [['moment', 'lm-perspektive'], ['lesson', 'lesson-1'], ['phase', 'phase-1'], ['material', 'materials/impuls.md'], ['question', 'question-1']]) {
-    const response = await f.request('/api/pts-focus', { focus: { kind, id, returnView: 'teaching-product' } });
+    const response = await f.request('/api/pts-focus', { focus: { kind, id, returnView: 'teaching-product', ...(kind === 'phase' ? { question: 'Bitte klären: Welche konkrete Verwendung ist hier vorgesehen?' } : {}) } });
     assert.equal(response.status, 200, JSON.stringify(response.body)); assert.equal(response.body.focus.subject.id, id);
+    if (kind === 'phase') assert.equal(response.body.focus.question, 'Bitte klären: Welche konkrete Verwendung ist hier vorgesehen?');
     assert.match(buildSnapshot(f.root, 'test-session'), /PRIMARY FOCUS|Aktueller Focus Context/);
+    if (kind === 'phase') assert.match(buildSnapshot(f.root, 'test-session'), /activeClarification|Bitte klären/);
     assert.doesNotMatch(buildSnapshot(f.root, 'other-session'), /PRIMARY FOCUS|Aktueller Focus Context/);
   }
   assert.equal((await f.request('/api/pts-focus', { focus: { kind: 'phase', id: 'absent', returnView: 'chat' } })).status, 400);

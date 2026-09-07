@@ -13,6 +13,15 @@ export const digest = (value) => createHash('sha256').update(typeof value === 's
 const clone = (value) => structuredClone(value);
 function check(ok, message) { if (!ok) throw new Error(message); }
 function text(value, label, max = 8000) { check(typeof value === 'string' && value.length <= max, `${label}: invalid text`); }
+export function isLegacyPlacementQuestion(value) { return /^Legacy placement \([^)]*\); teaching use needs review\.?$/i.test(String(value || '').trim()); }
+export function readableOpenQuestion(value) {
+  const raw = String(value || '').trim();
+  const legacy = raw.match(/^Legacy placement \(([^)]*)\); teaching use needs review\.?$/i);
+  if (legacy) return `Aus der alten Zeitplanung übernommen (${legacy[1]}): Prüfe, ob diese Phase in dieser Stunde so eingesetzt werden soll.`;
+  const unresolved = raw.match(/^Unresolved moment:\s*(.+)$/i);
+  if (unresolved) return `Der zugehörige Lernmoment „${unresolved[1]}“ fehlt noch und muss zugeordnet oder entfernt werden.`;
+  return raw;
+}
 function id(value) { check(typeof value === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,119}$/.test(value), 'invalid id'); }
 function keys(value, allowed) { check(value && typeof value === 'object' && !Array.isArray(value), 'expected object'); check(Object.keys(value).every((key) => allowed.includes(key)), 'unknown field'); }
 export function materialPath(value) {
@@ -113,7 +122,7 @@ export async function migrationPreview(root) {
       const m = byId.get(p.moment_id);
       const materials = (m?.materials || []).filter((ref) => { try { materialPath(ref); return true; } catch { warnings.push(`Unresolved material reference ${ref} in ${p.id}`); return false; } });
       if (!m) warnings.push(`Missing moment ${p.moment_id} in ${p.id}`);
-      return { id: p.id, title: m?.title || p.id, intention: m?.function || '', activity: m?.learning_activity || '', notes: p.note || '', durationMinutes: p.duration_minutes, startMinute: p.start_minute, role: p.dramaturgical_role || '', mode: p.mode || '', momentIds: m ? [m.id] : [], materials, openQuestions: [`Legacy placement (${p.status}); teaching use needs review.`, ...(!m ? [`Unresolved moment: ${p.moment_id}`] : []), ...(m?.open_questions || [])], sourceHashes: m ? { [m.id]: digest(m) } : {} };
+      return { id: p.id, title: m?.title || p.id, intention: m?.function || '', activity: m?.learning_activity || '', notes: p.note || '', durationMinutes: p.duration_minutes, startMinute: p.start_minute, role: p.dramaturgical_role || '', mode: p.mode || '', momentIds: m ? [m.id] : [], materials, openQuestions: [...(!m ? [`Unresolved moment: ${p.moment_id}`] : []), ...(m?.open_questions || [])], sourceHashes: m ? { [m.id]: digest(m) } : {} };
     }) });
   }
   for (const p of temporal.placements) if (!temporal.windows.some((w) => w.id === p.window_id)) warnings.push(`Orphan placement ${p.id}: ${p.window_id}`);
@@ -231,7 +240,10 @@ export function projectStatus(product, thinking, availableMaterials = [], decisi
     for (const p of lesson.phases) {
       if (!p.activity.trim()) addGap(`${p.title || p.id}: Lernaktivitaet fehlt`, `${lesson.id}:${p.id}:activity`, { kind: 'phase', id: p.id });
       if (!p.intention.trim()) addGap(`${p.title || p.id}: Intention fehlt`, `${lesson.id}:${p.id}:intention`, { kind: 'phase', id: p.id });
-      for (const [index, q] of p.openQuestions.entries()) addGap(`${p.title || p.id}: ${q}`, `${lesson.id}:${p.id}:question:${index}`, { kind: 'phase', id: p.id });
+      for (const [index, q] of p.openQuestions.entries()) {
+        if (isLegacyPlacementQuestion(q)) continue;
+        addGap(`${p.title || p.id}: ${readableOpenQuestion(q)}`, `${lesson.id}:${p.id}:question:${index}`, { kind: 'phase', id: p.id });
+      }
       for (const ref of p.materials) if (!files.has(ref)) addGap(`${p.title || p.id}: Material fehlt (${ref})`, `${lesson.id}:${p.id}:material:${ref}`, { kind: 'phase', id: p.id });
       for (const ref of p.momentIds) {
         const moment = byId.get(ref);

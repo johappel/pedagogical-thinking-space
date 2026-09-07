@@ -5,7 +5,7 @@
 
 import { readFileSync, readdirSync, statSync, realpathSync, existsSync } from 'node:fs';
 import path from 'node:path';
-import { validateProduct, projectStatus, digest, PRODUCT_FILE } from './teaching-product.mjs';
+import { validateProduct, projectStatus, digest, PRODUCT_FILE, readableOpenQuestion, isLegacyPlacementQuestion } from './teaching-product.mjs';
 import { parseLandscape, parseYaml } from './workspace-parsers.mjs';
 import { getFocus, clearFocus } from './focus-context.mjs';
 import { findConversationBindingBySessionSync } from './conversation-bindings.mjs';
@@ -99,7 +99,7 @@ function describeFocus(root, focus, state) {
     const hit = relations.find(({ phase }) => phase.id === focus.id); if (!hit) throw new Error('Verlaufsphase existiert nicht mehr');
     const momentsUsed = hit.phase.momentIds.map((id) => byMoment.get(id)).filter(Boolean);
     const lessonStatus = status?.lessons?.find((l) => l.id === hit.lesson.id) || null;
-    return { ...common, primary: hit.phase, lesson: { id: hit.lesson.id, title: hit.lesson.title, intention: hit.lesson.intention, durationMinutes: hit.lesson.durationMinutes }, referencedMoments: momentsUsed.map((m) => ({ ...m, contentHash: digest(m) })), relevantMaterials: (hit.phase.materials || []).map((ref) => materialMeta(root, ref)), openQuestions: hit.phase.openQuestions || [], lessonStatus, pendingProposals: pendingFor(product, hit.phase.id), relevantDecisions: relevantByNeedle(decisions, [hit.phase.id, hit.phase.title, hit.lesson.id, hit.lesson.title]).map(decisionText).filter(Boolean) };
+    return { ...common, primary: hit.phase, lesson: { id: hit.lesson.id, title: hit.lesson.title, intention: hit.lesson.intention, durationMinutes: hit.lesson.durationMinutes }, activeClarification: focus.question ? { text: focus.question, instruction: 'Erkläre zuerst auf Deutsch, worum es bei diesem Punkt geht, und nenne danach den konkreten nächsten Entscheidungsschritt.' } : null, referencedMoments: momentsUsed.map((m) => ({ ...m, contentHash: digest(m) })), relevantMaterials: (hit.phase.materials || []).map((ref) => materialMeta(root, ref)), openQuestions: (hit.phase.openQuestions || []).filter((q) => !isLegacyPlacementQuestion(q)).map(readableOpenQuestion), lessonStatus, pendingProposals: pendingFor(product, hit.phase.id), relevantDecisions: relevantByNeedle(decisions, [hit.phase.id, hit.phase.title, hit.lesson.id, hit.lesson.title]).map(decisionText).filter(Boolean) };
   }
   if (focus.kind === 'lesson') {
     const lesson = product?.series?.lessons?.find((l) => l.id === focus.id); if (!lesson) throw new Error('Unterrichtsstunde existiert nicht mehr');

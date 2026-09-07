@@ -187,6 +187,15 @@ window.__ModuleLoader__.load({
 			return map[k] || k || "—";
 		}
 
+		function readableQuestion(value) {
+			const raw = String(value == null ? "" : value).trim();
+			const legacy = raw.match(/^Legacy placement \(([^)]*)\); teaching use needs review\.?$/i);
+			if (legacy) return "Aus der alten Zeitplanung übernommen (" + legacy[1] + "): Prüfe, ob diese Phase in dieser Stunde so eingesetzt werden soll.";
+			const unresolved = raw.match(/^Unresolved moment:\s*(.+)$/i);
+			if (unresolved) return "Der zugehörige Lernmoment „" + unresolved[1] + "“ fehlt noch und muss zugeordnet oder entfernt werden.";
+			return raw;
+		}
+
 		function transitionTypeLabel(t) {
 			const map = { required: "Reihenfolge", choice: "Wahl", parallel: "Parallel", return: "Zurück", meeting_point: "Treffpunkt", prerequisite: "Voraussetzung" };
 			return map[t] || t || "—";
@@ -1278,8 +1287,10 @@ window.__ModuleLoader__.load({
 			if (!response.ok) throw new Error(value.error || "Anfrage fehlgeschlagen");
 			return value;
 		}
-		async function enterFocus(props, kind, id, returnView, discuss) {
-			const value = await productRequest(props.sessionId, { focus: { kind: kind, id: id, returnView: returnView } }, "/api/pts-focus");
+		async function enterFocus(props, kind, id, returnView, discuss, question) {
+			const focus = { kind: kind, id: id, returnView: returnView };
+			if (typeof question === "string" && question.trim() !== "") focus.question = question.slice(0, 1200);
+			const value = await productRequest(props.sessionId, { focus: focus }, "/api/pts-focus");
 			window.dispatchEvent(new CustomEvent("pts:focus-changed"));
 			if (discuss) {
 				if (!props.inputActions || typeof props.inputActions.setDraft !== "function") throw new Error("Gesprächseingabe nicht erreichbar");
@@ -1320,7 +1331,7 @@ window.__ModuleLoader__.load({
 				} catch (e) { if (sessionRef.current === sessionId) setError(e.message); }
 				finally { if (sessionRef.current === sessionId) setBusy(false); }
 			}
-			function focus(kind, id) { enterFocus(props, kind, id, props.statusOnly ? "product-status" : "teaching-product", true).catch(function(e) { setError(e.message); }); }
+			function focus(kind, id, question) { enterFocus(props, kind, id, props.statusOnly ? "product-status" : "teaching-product", true, question).catch(function(e) { setError(e.message); }); }
 			const h = React.createElement;
 			const button = function(label, action, extra) { return h("button", Object.assign({ type: "button", className: "pls-btn", disabled: busy, onClick: action }, extra || {}), label); };
 			function lessonBody(lesson, preview) {
@@ -1335,7 +1346,7 @@ window.__ModuleLoader__.load({
 						h("p", null, phase.intention || "Intention offen"), h("p", null, phase.activity || "Lernaktivität offen"),
 						phase.durationMinutes !== null ? h("p", null, phase.durationMinutes + " Minuten") : null,
 						phase.notes ? h("p", null, phase.notes) : null,
-						phase.openQuestions.length ? h("ul", null, phase.openQuestions.map(function(q, i) { return h("li", { key: i }, q); })) : null,
+						phase.openQuestions.filter(function(q) { return !/^Legacy placement \([^)]*\); teaching use needs review\.?$/i.test(String(q || "").trim()); }).length ? h("ul", null, phase.openQuestions.filter(function(q) { return !/^Legacy placement \([^)]*\); teaching use needs review\.?$/i.test(String(q || "").trim()); }).map(function(q, i) { return h("li", { key: i }, readableQuestion(q)); })) : null,
 						phase.materials.length ? h("ul", null, phase.materials.map(function(file) { return h("li", { key: file }, h("a", { href: "/artifacts/v2/file?sessionId=" + encodeURIComponent(props.sessionId) + "&p=" + encodeURIComponent(file), target: "_blank", rel: "noopener noreferrer" }, file.split("/").pop()), !preview ? button("Material weiterdenken", function() { focus("material", file); }) : null); })) : h("p", null, "Keine Materialien zugeordnet"),
 						!preview ? button("Phase weiterdenken", function() { focus("phase", phase.id); }, { "data-phase": phase.id }) : null); }));
 			}
@@ -1388,7 +1399,7 @@ window.__ModuleLoader__.load({
 										h("span", { className: "pts-gap-actions" },
 											h("label", { className: "pts-gap-check-label", title: "Als erledigt oder bewusst nicht erforderlich markieren" },
 												h("input", { type: "checkbox", className: "pts-gap-check", checked: false, disabled: busy, "aria-label": "Erledigt oder nicht erforderlich: " + item.text, onChange: function() { mutate({ operation: "resolve_gap", gapId: item.id, resolution: "resolved" }); } })),
-											h("button", { type: "button", className: "pts-gap-chat", disabled: busy, title: "Diesen Punkt im Gespräch angehen", "aria-label": "Diesen Punkt im Gespräch angehen: " + item.text, onClick: function() { focus(item.focus.kind, item.focus.id); } }, "💬")),
+											h("button", { type: "button", className: "pts-gap-chat", disabled: busy, title: "Diesen Punkt im Gespräch angehen", "aria-label": "Diesen Punkt im Gespräch angehen: " + item.text, onClick: function() { focus(item.focus.kind, item.focus.id, item.text); } }, "💬")),
 										h("span", { className: "pts-gap-text" }, item.text));
 								})) : h("p", null, "Keine offenen Klärungspunkte."),
 								button("In Unterrichtsreihe öffnen", function() { openProduct(s.id); }));

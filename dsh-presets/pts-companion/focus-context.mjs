@@ -30,7 +30,7 @@ export async function focusContext(sessionId, candidate, next = undefined) {
   if (next === null) { clearFocus(sessionId, root); return null; }
   const focus = next === undefined ? getFocus(sessionId, root) : next;
   if (!focus) return null;
-  if (!['moment', 'lesson', 'phase', 'material', 'question'].includes(focus.kind) || typeof focus.id !== 'string' || focus.id.length > 500 || !['chat', 'landscape', 'teaching-product', 'product-status', 'denkstand'].includes(focus.returnView)) throw new Error('invalid Focus Context');
+  if (!['moment', 'lesson', 'phase', 'material', 'question'].includes(focus.kind) || typeof focus.id !== 'string' || focus.id.length > 500 || !['chat', 'landscape', 'teaching-product', 'product-status', 'denkstand'].includes(focus.returnView) || (focus.question !== undefined && (typeof focus.question !== 'string' || focus.question.length > 1200))) throw new Error('invalid Focus Context');
   const thinking = await readThinking(root);
   const product = await readProduct(root);
   const questions = parseYaml(thinking.sources['planning-board.yml']).items || [];
@@ -43,6 +43,6 @@ export async function focusContext(sessionId, candidate, next = undefined) {
     materials.push(focus.id);
   }
   const resolved = resolveFocus(focus, { ...thinking, product, questions, materials });
-  selections.set(identity(sessionId, root), { touched: Date.now(), focus: { kind: focus.kind, id: focus.id, returnView: focus.returnView } });
+  selections.set(identity(sessionId, root), { touched: Date.now(), focus: { kind: focus.kind, id: focus.id, returnView: focus.returnView, ...(focus.question ? { question: focus.question } : {}) } });
   return resolved;
 }
