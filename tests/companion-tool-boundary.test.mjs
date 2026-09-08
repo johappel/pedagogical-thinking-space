@@ -5,6 +5,7 @@ import {
 	FORBIDDEN_DIRECT_EXECUTION,
 	HIDDEN_FROM_COMPANION,
 	apply,
+	designEditBlock,
 } from '../dsh-presets/pts-companion/companion-tool-boundary.mjs';
 
 function fakeAgent(origin) {
@@ -55,4 +56,15 @@ test('delegated child keeps its role-specific toolFilter', () => {
 	assert.equal(apply({ agent }), undefined);
 	assert.deepEqual(calls.restrictions, []);
 	assert.deepEqual(calls.guards, []);
+});
+
+test('bounded Denkstand capture is allowed while unrestricted design writes stay blocked', () => {
+	assert.equal(designEditBlock({
+		name: 'pts_edit',
+		arguments: { operation: 'record_denkstand', target: 'learning-design.md', section: 'Context', content: 'Notiz' },
+	}), undefined);
+	assert.match(designEditBlock({
+		name: 'pts_edit',
+		arguments: { prompt: 'update learning-design.md completely' },
+	}), /Unrestricted pts_edit targeting/);
 });

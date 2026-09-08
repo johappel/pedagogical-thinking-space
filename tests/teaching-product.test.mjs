@@ -62,6 +62,17 @@ test('3+4 tool -> proposal -> teacher decision -> product/status/snapshot; no im
   const ready = await f.request('/api/pts-product', { operation: 'confirm_readiness', expectedRevision: 3, lessonId: 'lesson-1', ready: true, note: 'Fuer diese Lerngruppe passend' });
   assert.equal(ready.status, 200); assert.equal(ready.body.status.lessons[0].teacherReadiness.ready, true);
 });
+test('moment workshop previews product dependencies before saving a changed moment', async (t) => {
+  const f = await fixture(t);
+  const proposed = await f.execute({ operation: 'propose_product', expectedRevision: 0, series: candidateSeries(), reason: 'Abhaengigkeit pruefen' });
+  const decision = await f.execute({ operation: 'record_decision', title: 'Reihe uebernehmen', decision: approvalToken(proposed.result.product.proposals[0]), teacher_confirmed: true });
+  await f.execute({ operation: 'accept_product', expectedRevision: 1, proposalId: proposed.result.product.proposals[0].id, decisionId: decision.id });
+  const impact = await f.request('/api/pts-moment-workshop/impact', { momentId: 'lm-perspektive', fields: { learning_activity: 'Drei Aussagen vergleichen' } });
+  assert.equal(impact.status, 200);
+  assert.equal(impact.body.impact.requiresReview, true);
+  assert.deepEqual(impact.body.impact.usages.map((use) => use.phaseTitle), ['Vergleich']);
+  assert.deepEqual(impact.body.impact.changedFields.map((field) => field.id), ['learning_activity']);
+});
 test('targeted lesson intention proposal preserves the rest of the product', async (t) => {
   const f = await fixture(t);
   const initial = await f.execute({ operation: 'propose_product', expectedRevision: 0, series: candidateSeries(), reason: 'Erste Stunde pruefen' });

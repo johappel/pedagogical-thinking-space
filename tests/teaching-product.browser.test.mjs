@@ -79,6 +79,16 @@ test('5-8 browser E2E: conversation -> proposal -> explicit adoption -> status -
   await page.locator('summary').click();
   await page.getByRole('button', { name: 'Diesen Vorschlag übernehmen', exact: true }).click();
   await page.locator('[data-lesson="lesson-1"]').waitFor();
+  await page.getByRole('tab', { name: 'Lernmomente', exact: true }).click();
+  await page.getByRole('button', { name: 'Werkstatt', exact: true }).click();
+  await page.getByRole('dialog', { name: /Lernmoment .* bearbeiten/ }).waitFor();
+  await page.getByLabel('Lernaktivitaet').fill('Drei Aussagen vergleichen');
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await page.getByText('Aenderungsfolgen pruefen', { exact: true }).waitFor();
+  assert.match(await page.getByRole('alert').innerText(), /Vergleich/);
+  assert.match(await page.getByRole('alert').innerText(), /roten Faden/);
+  await page.getByRole('button', { name: 'Zurueck zur Bearbeitung', exact: true }).click();
+  await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
   await page.getByRole('tab', { name: 'Product Status', exact: true }).click();
   assert.match(await page.locator('.pts-status-view').innerText(), /In Ausarbeitung/);
   assert.match(await page.locator('.pts-status-view').innerText(), /Verwendbarkeit offen/);

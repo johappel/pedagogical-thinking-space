@@ -1,9 +1,10 @@
 // Direct, deliberately narrow PTS edit capability for the visible Companion.
 //
-// This is not a generic file writer. It exposes only two structured updates to
-// the current Denkraum: parking an open question and recording a teacher-
-// confirmed decision. The fixed filenames, PTS-root check, size limits and
-// atomic replacement are the direct path's scope/validation boundary.
+// This is not a generic file writer. It exposes only bounded structured updates
+// to the current Denkraum: parking an open question, recording a teacher-
+// confirmed decision, or replacing one explicitly named Denkstand section.
+// Fixed filenames/sections, the PTS-root check, size limits and atomic
+// replacement are the direct path's scope/validation boundary.
 
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
@@ -17,7 +18,12 @@ const MAX_TITLE = 160;
 const MAX_DECISION = 800;
 const MAX_RATIONALE = 800;
 const PRODUCT_OPERATIONS = ['read_product', 'propose_product', 'propose_lesson_intention', 'accept_product', 'reject_product', 'assess_product', 'mark_ready'];
-const OPERATIONS = Object.freeze(['add_open_question', 'record_decision', ...PRODUCT_OPERATIONS]);
+const DESIGN_OPERATIONS = ['record_denkstand', 'record_learning_journey'];
+const OPERATIONS = Object.freeze(['add_open_question', 'record_decision', ...DESIGN_OPERATIONS, ...PRODUCT_OPERATIONS]);
+const DESIGN_SECTIONS = Object.freeze({
+	'learning-design.md': new Set(['Metadata', 'Current Status', 'Short Summary', 'Context', 'Learners', 'Educational Intention', 'Learning Journey', 'Key Learning Moments', 'Design Decisions', 'Open Questions', 'Activities', 'Materials and Sources', 'Differentiation and Inclusion', 'Assessment and Evidence of Learning', 'Reflection', 'Worker Tasks', 'Rendering Targets', 'Change Log']),
+	'learning-landscape.md': new Set(['Lernmomente', 'Übergänge']),
+});
 
 function isSubagent(agent) {
 	return agent?.session?.header?.origin === 'subagent';
@@ -33,6 +39,39 @@ function asText(value, field, max) {
 
 function yamlString(value) {
 	return JSON.stringify(String(value));
+}
+
+function multilineText(value, field, max = 8000) {
+	if (typeof value !== 'string' || value.trim() === '') throw new Error(`${field} must be a non-empty string`);
+	if (value.length > max || /\0/.test(value)) throw new Error(`${field} exceeds the bounded Denkstand limit`);
+	return value.trim();
+}
+
+function replaceMarkdownSection(source, heading, content) {
+	const headingRe = new RegExp(`^##\\s+${heading.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\s*$`, 'mi');
+	const match = headingRe.exec(source);
+	if (!match) throw new Error(`section not found: ${heading}`);
+	const bodyStart = match.index + match[0].length;
+	const next = /^##\s+/mi.exec(source.slice(bodyStart));
+	const bodyEnd = next ? bodyStart + next.index : source.length;
+	return `${source.slice(0, match.index)}## ${heading}\n\n${content}\n\n${source.slice(bodyEnd).replace(/^\s+/, '')}`;
+}
+
+async function applyDenkstandRecord(root, args) {
+	const target = args.operation === 'record_learning_journey' ? 'learning-design.md' : args.target;
+	const section = args.operation === 'record_learning_journey' ? 'Learning Journey' : args.section;
+	if (!Object.hasOwn(DESIGN_SECTIONS, target) || !DESIGN_SECTIONS[target].has(section)) throw new Error('bounded Denkstand target/section required');
+	const content = multilineText(args.content, 'content');
+	const current = await fsp.readFile(path.join(root, target), 'utf8').catch((error) => { throw new Error(`${target} is not readable: ${error.message}`); });
+	const updated = replaceMarkdownSection(current, section, content);
+	await atomicWrite(root, target, updated);
+	return { ok: true, operation: args.operation, file: target, id: section, section, direct: true, childAgentStarted: false };
+}
+
+function denkstandTarget(args) {
+	if (args.operation === 'record_learning_journey') return 'learning-design.md';
+	if (!Object.hasOwn(DESIGN_SECTIONS, args.target)) throw new Error('bounded Denkstand target/section required');
+	return args.target;
 }
 
 function dateIso() {
@@ -136,6 +175,7 @@ function confirmedDecision(content, args) {
 async function applyDirectEditUnchecked(agent, args) {
 	if (!args || !OPERATIONS.includes(args.operation)) throw new Error(`unsupported direct pts_edit operation; use one of: ${OPERATIONS.join(', ')}`);
 	const root = await resolveDenkraum(agent);
+	if (DESIGN_OPERATIONS.includes(args.operation)) return applyDenkstandRecord(root, args);
 	if (PRODUCT_OPERATIONS.includes(args.operation)) {
 		const result = args.operation === 'read_product' ? await productView(root) : await mutateProduct(root, args);
 		return { ok: true, operation: args.operation, file: 'teaching-product.json', id: result.product?.proposals.at(-1)?.id || 'series', direct: true, childAgentStarted: false, result };
@@ -165,7 +205,12 @@ export async function applyDirectEdit(agent, args) {
 	try { lock = await fsp.open(lockPath, 'wx'); }
 	catch (e) { if (e.code === 'EEXIST') throw new Error('Denkstand busy; retry after current write'); throw e; }
 	try {
-		const file = path.join(root, args.operation === 'record_decision' ? 'decisions.yml' : 'planning-board.yml');
+		const fileName = args.operation === 'record_decision'
+			? 'decisions.yml'
+			: args.operation === 'add_open_question'
+				? 'planning-board.yml'
+				: denkstandTarget(args);
+		const file = path.join(root, fileName);
 		const real = await fsp.realpath(file).catch((e) => { if (e.code === 'ENOENT') return file; throw e; });
 		const relative = path.relative(await fsp.realpath(root), real);
 		if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('Denkstand file escapes workspace');
@@ -176,7 +221,7 @@ export async function applyDirectEdit(agent, args) {
 function directTool() {
 	return {
 		name: 'pts_edit',
-		description: 'Structured PTS editing. read_product returns the current product, revision, pending proposals and migration status. propose_product stores a reviewable series, never adopts it. Preserve all unchanged lessons/phases and use stable IDs. accept_product requires a matching decisions.yml confirmed decision containing the exact proposal approval token [PTS product PROPOSAL_ID HASH], recorded only after explicit teacher agreement. assess_product is a Companion opinion, never teacher readiness. mark_ready requires an explicit matching teacher readiness decision. learning-design rewrites and arbitrary paths remain worker work.',
+		description: 'Structured PTS editing. read_product returns the current product, revision, pending proposals and migration status. propose_product stores a reviewable series, never adopts it. Preserve all unchanged lessons/phases and use stable IDs. accept_product requires a matching decisions.yml confirmed decision containing the exact proposal approval token [PTS product PROPOSAL_ID HASH], recorded only after explicit teacher agreement. assess_product is a Companion opinion, never teacher readiness. record_denkstand writes a bounded, explicitly named section in learning-design.md or learning-landscape.md; arbitrary paths and unrestricted rewrites remain unavailable.',
 		parameters: {
 			type: 'object',
 			properties: {
@@ -188,7 +233,7 @@ function directTool() {
 				teacher_confirmed: { type: 'boolean', description: 'Must be true only when the teacher explicitly confirmed the decision.' },
 				expectedRevision: { type: 'integer', description: 'Current product revision from read_product; required for writes.' },
 				series: { type: 'object', description: 'Complete structured series: id,title,intention,notes,lessons[]. Lesson: id,title,intention,notes,durationMinutes(number|null),phases[]. Phase: id,title,intention,activity,notes,durationMinutes,startMinute(number|null),role,mode,momentIds[],materials[](relative materials/ or rendered/ paths),openQuestions[],sourceHashes:{} (server fills hashes). Never invent adoption of moments.' },
-				reason: { type: 'string' }, intention: { type: 'string', description: 'Complete intention text for propose_lesson_intention.' }, proposalId: { type: 'string' }, decisionId: { type: 'string' }, lessonId: { type: 'string' },
+				reason: { type: 'string' }, intention: { type: 'string', description: 'Complete intention text for propose_lesson_intention.' }, target: { type: 'string', enum: ['learning-design.md', 'learning-landscape.md'] }, section: { type: 'string', description: 'Named Markdown section in the selected Denkstand document.' }, content: { type: 'string', description: 'Bounded replacement content for record_denkstand.' }, proposalId: { type: 'string' }, decisionId: { type: 'string' }, lessonId: { type: 'string' },
 				assessment: { type: 'string', enum: ['idea', 'developing', 'ready_candidate'] }, note: { type: 'string' }, ready: { type: 'boolean' },
 			},
 			required: ['operation'],

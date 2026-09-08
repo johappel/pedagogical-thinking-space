@@ -37,10 +37,11 @@ export const FORBIDDEN_DIRECT_EXECUTION = Object.freeze(new Set([
 	'subagent',
 ]));
 
-// The Companion must NOT write or delegate the writing of the canonical design
-// during the clarifying/planning phase. The Learning Design is co-authored
-// with the teacher. Small agreed points use the structured direct edit; the
-// Documentarian is reserved for an explicit, bounded documentation check.
+// The Companion must not perform unrestricted writes or delegate a complete
+// canonical-design rewrite during the clarifying/planning phase. The Learning
+// Design is co-authored with the teacher. The bounded record_denkstand direct
+// operation is the allowed path for capturing any named Denkstand section;
+// the Documentarian is reserved for an explicit, bounded documentation check.
 const DESIGN_EDIT_TARGETS = Object.freeze([
 	'learning-design.md',
 	'learning-landscape.md',
@@ -50,6 +51,8 @@ const DESIGN_EDIT_TARGETS = Object.freeze([
 /** Block a pts_edit call that targets the canonical design files. */
 export function designEditBlock(execution) {
 	if (execution?.name !== 'pts_edit') return undefined;
+	if (execution.arguments?.operation === 'record_denkstand'
+		|| execution.arguments?.operation === 'record_learning_journey') return undefined;
 	const prompt = String(execution?.arguments?.prompt ?? '');
 	const low = prompt.toLowerCase();
 
@@ -75,7 +78,7 @@ const DESIGN_WRITE_VERBS = Object.freeze([
 ]);
 
 function designBlockMessage(target) {
-	return `pts_edit targeting ${target} is not allowed from the Companion during the clarifying/planning phase. The Learning Design is co-authored with the teacher; do not write or delegate a complete design before you have jointly shaped the intention, the journey and at least the core moments IN CONVERSATION. Keep the conversation going, park unresolved open questions in planning-board.yml via pts_edit (status: proposed, requires_teacher_approval: true), and use pts_documentarian only for an explicit, bounded documentation check after the relevant evidence exists.`;
+	return `Unrestricted pts_edit targeting ${target} is not allowed from the Companion during the clarifying/planning phase. The Learning Design is co-authored with the teacher; use the bounded record_denkstand operation for a named section, and do not write or delegate a complete design before you have jointly shaped the intention, the journey and at least the core moments IN CONVERSATION. Keep the conversation going, park unresolved open questions in planning-board.yml via pts_edit (status: proposed, requires_teacher_approval: true), and use pts_documentarian only for an explicit, bounded documentation check after the relevant evidence exists.`;
 }
 
 function isSubagent(agent) {

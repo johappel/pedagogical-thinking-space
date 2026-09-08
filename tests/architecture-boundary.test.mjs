@@ -49,6 +49,17 @@ test('preset exposes continuable specialists, the Documentarian and a legacy edi
   assert.match(preset, /includeDefaultRoots: false/);
 });
 
+test('Companion separates the learning-moment workshop from lesson production', async () => {
+  const preset = await read('dsh-presets/pts-companion/agent.cordis.yml');
+  assert.match(preset, /PHASENTRENNUNG \(PFLICHT\)/);
+  assert.match(preset, /WERKSTATT-PHASE[\s\S]*roter Faden[\s\S]*keine Unterrichtsstunden/);
+  assert.match(preset, /PRODUKTIONSPHASE[\s\S]*propose_product\/propose_lesson_intention/);
+  assert.match(preset, /Eine einzelne[\s\S]*oeffnet dieses Gate[\s\S]*nicht/);
+  assert.match(preset, /record_denkstand bleibt davon[\s\S]*unterschieden/);
+  assert.match(preset, /ABHAENGIGKEITEN VORHER SICHTBAR MACHEN \(PFLICHT\)/);
+  assert.match(preset, /Soll ich das als Idee im Denkstand notieren/);
+});
+
 test('prototype launch requires the canonical installed worker preset', async () => {
   const installer = await read('scripts/install-pts-preset.ps1');
   const launcher = await read('scripts/start-pts-web.ps1');
