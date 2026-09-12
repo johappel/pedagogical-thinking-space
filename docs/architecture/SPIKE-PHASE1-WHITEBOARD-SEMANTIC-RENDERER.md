@@ -28,7 +28,7 @@ laufzeitnahe Junction im PTS-Profil vorgenommen.
 | Asset-Resolver/Upload-Seam | kein bestehender PTS-Resolver; kein Upload gebaut | kontrollierte Read-only-Resource-Route für ausgewählte Workspace-Dateien |
 | PTS-interne URL auf Shape | vorher nicht vorhanden | `/pts-whiteboard-renderer/resource?...` für Dokument-/Materialreferenzen; lokale `file://`-Pfade werden nicht verwendet |
 | mehrere Änderungen als gemeinsamer Auftrag | vorher nein, Queue enthielt einzelne Low-Level-Kommandos | ein `whiteboard_render_plan`-Queue-Eintrag; Renderer arbeitet in einem `editor.run`-Batch |
-| Host↔Client-Seams | `/dsh-whiteboard/api`, Polling und Tool-Registry vorhanden | wiederverwendet; M1-Adapter bleibt reine Leseschicht |
+| Host↔Client-Seams | `/dsh-whiteboard/api`, Polling und Tool-Registry vorhanden | zusätzlich generisches `wb-board`/`wb-save` für dauerhafte tldraw-Snapshots; M1-Adapter bleibt reine Leseschicht |
 | intern vorhandene, nicht exponierte Fähigkeiten | Page-Store, Page-Wechsel, tldraw Assets, Rich-Text-Links, `editor.run` | als generische dsh-whiteboard-Gegenstelle exponiert; keine PTS-Semantik in dsh-whiteboard |
 
 Zusammenfassung: **vorhanden** waren die tldraw-Primitives; **vorhanden, aber
@@ -182,10 +182,15 @@ Generisch und PTS-unabhängig ergänzt wurden:
   Auftrag annimmt;
 - Client-Ausführung für `createPage`, `setCurrentPage`, Rollen-Styles,
   Rich-Text-Links, Page-Hash-Navigation, `image`-Shapes und Assets;
-- ein gemeinsamer `editor.run`-Batch und bestehende Arrow-Binding-Mechanik.
+- ein gemeinsamer `editor.run`-Batch und bestehende Arrow-Binding-Mechanik;
+- ein hostseitiger Snapshot-Store unter `$DSH_HOME/whiteboard-snapshots` mit
+  opaker, aus dem Workspace-Pfad abgeleiteter Board-ID;
+- Laden vor dem ersten Live-Snapshot, Versionsprüfung und fail-closed Verhalten
+  bei konkurrierenden Browser-Schreibvorgängen.
 
 Unverändert bleiben vorhandene neun Brainstorming-Tools, Vorschlags-/Übernahme-
-Semantik, Session-Persistence, Sidebar-Mounting und die Herkunftslogik. Es gibt
+Semantik, Sidebar-Mounting und die Herkunftslogik. Die Browser-IndexedDB bleibt
+nur lokaler Cache; der Host-Snapshot ist die gemeinsame Persistenzquelle. Es gibt
 keinen PTS-Namen, keinen LearningMoment-Begriff und keinen Domain-Schreibpfad in
 `dsh-whiteboard`.
 
@@ -247,11 +252,15 @@ ergänzt werden. Continuable-/Scheduler-/Dispatcher-Logik gehört nicht in PTS.
 
 - Browser-/visuelle Abnahme ist noch offen; tldraw-CDN, echte Asset-Dateien und
   klickbare Rich-Text-Links müssen live geprüft werden.
-- `dsh-whiteboard` kennt bisher weiterhin nur den zuletzt gepushten Snapshot;
-  der M1-Adapter erhält keine Schreib- oder Domainfunktion.
-- Renderer-Ausführung ist clientseitig persistent, aber nicht als transaktionaler
-  Rollback-Store des Hosts implementiert; deshalb erfolgt vollständige
-  Planvalidierung vor Queue-Eintrag und der Client nutzt einen Batch.
+- `dsh-whiteboard` speichert den letzten vollständigen tldraw-Snapshot jetzt
+  versioniert unter `$DSH_HOME/whiteboard-snapshots`; der M1-Adapter erhält
+  weiterhin keine Schreib- oder Domainfunktion.
+- Der Store ist kein transaktionaler Rollback-Store für Renderer-Aufträge:
+  vollständige Planvalidierung vor Queue-Eintrag und ein `editor.run`-Batch
+  bleiben deshalb erforderlich.
+- Zwei gleichzeitig schreibende Browser werden nicht live synchronisiert. Der
+  Versionskonflikt wird erkannt, der spätere Stand nicht still überschrieben;
+  ein tldraw-Sync-/WebSocket-Spike bleibt ein eigener nächster Schritt.
 - Shape-Deep-Links sind nicht als allgemeiner stabiler öffentlicher Vertrag
   festgelegt; Page-Hash-Links gelten nur für die offene Whiteboard-Instanz.
 - Der externe Materialordner ist nur als kontrollierte Referenzidee vorbereitet.
@@ -323,9 +332,9 @@ außerhalb des Workspace wird mit HTTP 400 abgewiesen. Das belegt die Host- und
 Sicherheitsgrenze, ersetzt aber nicht die noch offene sichtbare tldraw-
 Darstellung.
 
-Die Änderungen an `dsh-whiteboard` bleiben generisch: Asset-Validierung und
-lossless Toolgrenze, keine PTS-Domainbegriffe, keine neue Persistenz und keine
-Erweiterung des M1-Adapters. Die PTS-Companion-Toolgrenze blendet die
+Die Änderungen an `dsh-whiteboard` bleiben generisch: Asset-Validierung,
+lossless Toolgrenze und Whiteboard-Snapshot-Persistenz, aber keine PTS-
+Domainbegriffe und keine Erweiterung des M1-Adapters. Die PTS-Companion-Toolgrenze blendet die
 Whiteboard-Primitives einschließlich `whiteboard_render_plan` aus; sichtbar
 bleibt nur `pts_whiteboard_render`. Eine isolierte Testinstanz wurde nur zur
 Laufzeitdiagnostik verwendet und danach wieder entfernt; sie ist kein
@@ -342,9 +351,21 @@ Die generische Gegenstelle in `dsh-whiteboard/lib/client.js` wurde deshalb
 minimal korrigiert: Bild-Shape-Props enthalten jetzt die vollstaendigen
 tldraw-Defaults (`playing`, `url`, `crop`, `flipX`, `flipY`), und der Asset-
 Record erhaelt ein JSON-kompatibles `meta: {}`. Der Fix ist syntaktisch
-geprueft. Fuer den abschliessenden Browser-PASS muss DSH nach dieser externen
-generischen Clientaenderung noch einmal neu gestartet werden; ein reiner
-Browser-Reload verwendet im laufenden Host weiterhin die bereits geladene
-Client-Version. Die Material- und Klicknavigation-Abnahme bleibt bis dahin
-offen. Es wurden keine Whiteboard-Daten zurueckgesetzt und keine Test-Pages
+geprueft. Es wurden keine Whiteboard-Daten zurueckgesetzt und keine Test-Pages
 geloescht.
+
+## 19. Live-Nachtrag Snapshot-Store
+
+Der generische Host-Snapshot-Store wurde nach einem DSH-Neustart live geladen.
+Der Browser-Client migrierte den vorhandenen lokalen tldraw-Stand in den
+Host-Store; die Datei lag anschließend unter
+`F:\dsh-instances\pts\.dsh\whiteboard-snapshots\` als versionierter Snapshot
+im tldraw-Format `{ document, session }` (19 KB, Version 2). Ein anschließender
+Browser-Reload zeigte weiterhin drei Zettel und die aktive Page `LM · Danke`.
+
+Der erste Lauf hat ein Formatproblem der tldraw-API sichtbar gemacht: Die
+Validierung akzeptierte zunächst nur ein direktes `{ store }`-Format. Sie
+akzeptiert jetzt beide tldraw-Formen. Der Host-API-Test (`wb-board`/`wb-save`),
+der Versionskonflikttest und die Browser-Ladeprüfung sind bestanden. Ein echter
+gleichzeitiger Chrome-/Firefox-Live-Sync ist weiterhin nicht Teil dieses Stores;
+bei konkurrierenden Schreibvorgängen wird der spätere Stand geschützt.
