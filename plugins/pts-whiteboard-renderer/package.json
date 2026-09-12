@@ -1,0 +1,7 @@
+{
+  "name": "pts-whiteboard-renderer",
+  "private": true,
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": { ".": "./lib/index.js", "./plan": "./lib/render-plan.mjs", "./renderer": "./lib/renderer.mjs", "./package.json": "./package.json" }
+}

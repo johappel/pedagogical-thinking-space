@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pts.local/schemas/whiteboard-render-plan.schema.json",
+  "title": "PTS semantic whiteboard RenderPlan (Phase 1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["operation", "page", "layout", "elements"],
+  "properties": {
+    "operation": {
+      "type": "string",
+      "enum": ["create_learning_moment_workspace", "update_learning_moment_workspace", "materialize_selection", "compact_document_reference"]
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "title"],
+      "properties": {
+        "action": { "type": "string", "enum": ["ensure", "use_current"] },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 }
+      }
+    },
+    "heading": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text"],
+      "properties": { "text": { "type": "string", "minLength": 1, "maxLength": 600 } }
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["template"],
+      "properties": { "template": { "type": "string", "const": "learning_moment_workspace" } }
+    },
+    "elements": {
+      "type": "array",
+      "maxItems": 40,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source", "role"],
+        "properties": {
+          "source": { "type": "string", "enum": ["existing", "new", "material", "document"] },
+          "role": { "type": "string", "enum": ["learning_moment", "method_idea", "open_question", "document_reference", "material_reference", "page_reference"] },
+          "ref": { "type": "object", "additionalProperties": false, "properties": { "id": { "type": "string" }, "text": { "type": "string" } } },
+          "text": { "type": "string", "maxLength": 600 },
+          "document": { "type": "object", "additionalProperties": false, "properties": { "documentId": { "type": "string" }, "path": { "type": "string" }, "label": { "type": "string" }, "href": { "type": "string" } } },
+          "material": { "type": "object", "additionalProperties": false, "properties": { "path": { "type": "string" }, "label": { "type": "string" }, "presentation": { "type": "string", "enum": ["image", "reference"] }, "href": { "type": "string" }, "w": { "type": "number" }, "h": { "type": "number" } } }
+        }
+      }
+    },
+    "links": {
+      "type": "array",
+      "items": { "type": "object", "additionalProperties": false, "required": ["from", "to"], "properties": { "from": { "type": "string" }, "to": { "type": "string" }, "label": { "type": "string" } } }
+    },
+    "overview": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "action": { "type": "string", "enum": ["ensure_page_reference"] }, "targetPage": { "type": "string" }, "sourceRef": { "type": "string" }, "label": { "type": "string" } }
+    },
+    "detach": {
+      "type": "array",
+      "items": { "type": "object", "additionalProperties": false, "required": ["role", "match"], "properties": { "role": { "type": "string", "enum": ["method_idea", "document_reference", "material_reference", "open_question"] }, "match": { "type": "string" } } }
+    }
+  }
+}

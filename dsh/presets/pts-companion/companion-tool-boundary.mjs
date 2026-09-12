@@ -27,6 +27,19 @@ export const HIDDEN_FROM_COMPANION = Object.freeze([
 	'web_fetch',
 	'write',
 	'edit',
+	// Whiteboard primitives stay behind the semantic Phase-1 seam. The
+	// adapter may still resolve the existing definition internally; the
+	// Companion must not coordinate ids, pages or low-level commands itself.
+	'whiteboard_state',
+	'whiteboard_add_note',
+	'whiteboard_rename_cluster',
+	'whiteboard_bind_frame',
+	'whiteboard_frame_to_back',
+	'whiteboard_arrange_sequence',
+	'whiteboard_propose_clusters',
+	'whiteboard_connect_notes',
+	'whiteboard_highlight_notes',
+	'whiteboard_render_plan',
 ]);
 
 /** Denied even if a future row re-introduces them into the visible set. */

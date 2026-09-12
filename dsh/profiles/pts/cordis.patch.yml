@@ -70,6 +70,13 @@
       name: dsh-whiteboard
       inject: [webServer]
 
+    # Phase 1 spike: semantic plan validation and deterministic rendering seam.
+    # It is intentionally separate from the read-only M1 adapter and has no
+    # domain-store or LearningMoment persistence authority.
+    - id: pts-whiteboard-renderer
+      name: '@PTS_ROOT@/plugins/pts-whiteboard-renderer/lib/index.js'
+      inject: [webServer]
+
     # M1 spike — pts-whiteboard-adapter. Bridges the two rows above without
     # coupling them: it reads the EXISTING whiteboard_state definition and
     # projects a compact board context into pts-companion sessions through the
