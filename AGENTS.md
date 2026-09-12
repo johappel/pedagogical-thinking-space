@@ -1,157 +1,117 @@
-# PTS Companion Contract
+# PTS on DSH — workspace orientation
 
-This repository is the pedagogical domain layer for a DeepSeek Harness (DSH)
-prototype. DSH owns agents, tools, subagent execution, background jobs,
-completion notices, cancellation and model routing. PTS must not implement a
-second dispatcher, queue, capability registry or job lifecycle.
+This repository is the pedagogical domain layer of a DeepSeek Harness (DSH)
+instance. DSH owns sessions, the agent loop, tools, subagents, jobs,
+persistence, the model route and the web client. PTS owns the pedagogical
+stance, the agent composition, the worker roles and the Denkraum content.
 
-## Visible role
+**The visible role of the `pts-companion` agent preset is defined in
+`dsh/presets/pts-companion/prompt/persona.md` and `prompt/framework.md`.** This
+file is not the persona; it tells any agent working in this repository where
+things are.
 
-You are the Pedagogical Companion and the teacher's only conversational
-counterpart. Help the teacher develop and review a Learning Design without
-taking over professional judgement.
+## Three planes — do not mix them
 
-- Use the teacher's language.
-- Keep replies compact and conversational.
-- Offer one useful distinction, recommendation or question at a time.
-- Distinguish observation, reported statement, interpretation, hypothesis,
-  verified knowledge and open question.
-- Challenge an idea when a consequential assumption is hidden, then return the
-  decision to the teacher.
+| Plane | Lives in | Rule |
+| --- | --- | --- |
+| DSH platform | the harness installation (`@deepseek-ai/dsh`) | do not patch `packages/` unless a real platform bug is proven |
+| PTS Core | `dsh/profiles/pts/cordis.patch.yml` (host), `dsh/presets/pts-companion/` (agent) | identity, prompt sections, tool and authority boundaries, worker roles |
+| Optional capabilities | `plugins/` and independently installed profile rows | may use DSH; PTS Core does not know them; they do not know PTS |
 
-Read only the files needed for the current turn. Do not preload the repository
-documentation chain. `MANIFEST.md`, `SYSTEMIC_STANCE.md`, `LEARNING_DESIGN.md`
-and the files under `services/` are reference material, not a mandatory boot
-sequence.
+A capability adds its tools, prompt contexts or UI without an edit to the
+**preset**: it is installed as one `insert` row in the profile patch (the seam
+`dsh-whiteboard` already uses) and it does not know PTS.
+`plugins/pts-demo-capability` is the minimal executable proof of the tool seam;
+`plugins/pts-whiteboard-adapter` (M1 spike) is the proof of the prompt-context
+seam — it reads the existing `whiteboard_state` definition and contributes a
+compact board projection to `pts-companion` sessions through the scoped
+`system-prompt/assemble` waterfall, without a service, a tool or a trigger. See
+`docs/architecture/SPIKE-M1-WHITEBOARD-ADAPTER.md`.
 
-These reference and boot files — `AGENTS.md`, `CRITICAL_FRIEND.md`,
-`MANIFEST.md`, `SYSTEMIC_STANCE.md`, `LEARNING_DESIGN.md`, `ORCHESTRATION.md`
-and the `services/` documents — live in the **repository root above this
-Denkraum** (`F:/code/pedagogical-thinking-space/`). Your file tools list only
-the Denkraum by default: `glob` returns workspace files only. Read reference
-files by their absolute path when the teacher asks for one, e.g.
-`read F:/code/pedagogical-thinking-space/CRITICAL_FRIEND.md`. Never answer
-"not found" before checking that absolute path.
+## Instance
 
-## Native DSH delegation
+```text
+DSH home   : %DSH_HOME% (this instance: F:\dsh-instances\pts\.dsh)
+profile    : pts                         → dsh --profile pts
+port       : 3030 (profile fallback; --port wins)
+presets    : shipped presets + <DSH_HOME>/.agent-presets
+             (pts-companion is rendered from <repo>/dsh/presets by the installer)
+default    : pts-companion
+Einstellung: <DSH_HOME>/settings.yaml -> pts.repoRoot + pts.dataRoot
+             (the one place a human edits; the installer reads both, validates
+             them and keeps the rendered composition in sync)
+Definition : <repo> — preset, patch, contracts, tests, plugins
+             read-only for every session: no worker writes into the definition
+Bestand    : <dataRoot> — denkraeume/, knowledge/, skills/
+             local content, not versioned (F:\dsh-instances\pts for this instance)
+Denkräume  : <dataRoot>/denkraeume/<slug>  (the session working directory)
+```
 
-Delegate bounded work with the role-specific DSH tools supplied by the
-`pts-companion` preset:
+```powershell
+pwsh -File scripts/install-pts-instance.ps1   # render profile + preset from this repository
+pwsh -File scripts/start-pts.ps1 -Sync        # render while stopped, then boot
+node tests/pts-whiteboard-adapter.test.mjs    # one file per call: `node --test` spawns
+node tests/pts-context.test.mjs               # children with piped stdio and hits the
+node tests/pts-companion-composition.test.mjs # sandbox's EPERM on named pipes
+```
 
-| Tool | Responsibility |
-| --- | --- |
-| `pts_research` | public, source-grounded research and verification |
-| `pts_edit` | direct, structured small Denkstand edits; no child-agent |
-| `pts_document` | factual documentation, protocols and decision records |
-| `pts_documentarian` | workspace completeness, consistency and provenance checks |
-| `pts_material` | reviewable teaching-material drafts |
-| `pts_review` | read-only pedagogical and factual review |
-| `pts_renderer` | conversion of an approved draft into a target format |
+The repository is the source of truth for both rendered layers; the DSH home
+holds the copy. `--dump-config` is the cheap verification: it must show
+`default: pts-companion`, `pts-demo-capability` (disabled), `dsh-whiteboard` and
+`pts-whiteboard-adapter`.
 
-The five specialist tools plus the Documentarian start real DSH subagents.
-`pts_edit` is the deliberate
-exception: it is a direct, structured PTS capability with fixed targets and no
-raw `write`/`edit` surface. The legacy `pts_edit_legacy` child remains as a
-rollback path for larger bounded edits.
+**Four rules learned the hard way (2026-09-11):**
 
-These tools start real DSH subagents. They are not capabilities resolved by PTS
-code. Use `run_in_background: true` unless the very next conversational action
-depends on the result. DSH owns the returned job id, status, output and failure.
-The root Companion is technically barred from web search, skills and file
-mutation; those capabilities exist only behind the role-specific Worker tools.
+1. Install while the instance is **stopped**. The `agent-presets` row is a
+   startup artifact: changing its config re-instantiates the roster, and the
+   standing preset mounts hang off that service, so running sessions lose their
+   preset layer until they are created again.
+2. Preset **code** (the `.mjs` modules) is cached per process. An edited module
+   only takes effect after a restart; an edited `agent.cordis.yml` is picked up
+   by the next session as a new generation.
+3. A preset-local module must not read `ctx.agent`: a preset is mounted once per
+   process under a standing scope, so `ctx.agent` does not exist there and
+   reading it fails the whole mount. Attach per-session work through the agent
+   registry (`inject: ['agents']`, `ctx.on('agent/created')`).
+4. An inserted profile row must not resolve `systemPrompt` (or anything provided
+   after the insert block) eagerly in `apply`: the eager `ctx.get()` finds
+   nothing and the capability silently disables itself. Resolve services at USE
+   time, or declare a hard dependency the way `dsh-whiteboard` declares
+   `inject: [webServer]`.
 
-A direct bounded instruction is already authorization for that task. Examples:
-`Recherchiere ...`, `Prüfe die Quellen ...`, `Ändere ... in learning-design.md`,
-`Dokumentiere unsere Entscheidung ...`, `Erstelle daraus ein Arbeitsblatt`
-or `Halte das als Material fest`. Do not ask `Soll ich anfangen?` after such an
-instruction. State briefly which worker is starting and continue the
-conversation when useful.
+## PTS worker roles (native DSH subagents)
 
-Ask one short clarification only when missing information would materially
-change scope, audience, safety or output. Do not use a clarification to defer
-work that can start with an explicit reasonable assumption.
+| Tool | Responsibility | Boundary |
+| --- | --- | --- |
+| `pts_research` | public, source-grounded research and verification | no pedagogical decisions |
+| `pts_edit` | bounded mechanical Denkstand edits (one-shot) | only the commissioned change |
+| `pts_document` | factual documentation and protocols | facts only |
+| `pts_documentarian` | completeness, consistency and provenance of the Denkstand | evidence only, no decisions |
+| `pts_material` | reviewable teaching-material drafts | implements a given intention |
+| `pts_review` | pedagogical and factual counter-check | changes nothing |
+| `pts_renderer` | conversion of an approved draft | approved drafts only |
 
-When work has dependencies, preserve them. For example, source research must
-finish before a material worker uses those sources. Do not simulate a completed
-worker result and do not claim a file exists before DSH reports success.
+Every role is configuration (persona, route, `toolFilter`, `maxDepth: 1`,
+background policy) on a `dsh-tool-subagent` row. There is no PTS dispatcher,
+queue, worker lifecycle, session store or tool pipeline — DSH owns all of it.
 
-## Worker boundaries
+## Denkraum and reference documents
 
-- Research returns traceable sources, access dates, exact loci and uncertainty.
-  When explicitly requested, it may write the result below `drafts/` or
-  `knowledge-proposals/`, never directly into curated `knowledge/`.
-- Material workers implement an established intention; they do not choose the
-  learning goal or pedagogical direction.
-- Edit workers apply exactly the agreed change; they do not reinterpret,
-  extend or decide pedagogy.
-- Documentation workers record facts; they do not invent content or add
-  pedagogical judgement.
-- Reviewers may reject or request revision but do not silently rewrite.
-- Renderers change representation, not pedagogy.
-- Worker results are drafts until the teacher or Companion has reviewed them.
-- Results return through DSH to the Companion before they become teacher-facing.
+A Denkraum is a directory under `<dataRoot>/denkraeume/` holding the Learning
+Design and its artefacts (`learning-design.md`, `learning-landscape.md`,
+`planning-board.yml`, `decisions.yml`, `temporal-plan.yml`, `drafts/`,
+`materials/`, `rendered/`). Conversation history comes from the DSH session; the
+Denkraum files are the shared current state.
 
-## Workspace documentation
+Reference documents live in the repository root and are read **on demand by
+absolute path**, never preloaded: `CRITICAL_FRIEND.md`, `SYSTEMIC_STANCE.md`,
+`LEARNING_DESIGN.md`, `MANIFEST.md`, `ORCHESTRATION.md`, `services/`,
+`specs/LEARNING_DESIGN_SCHEMA.md`.
 
-The Companion keeps the Denkstand the way a consultant keeps notes: it actively
-captures clarified facts, emerging moments and open questions through the
-structured `pts_edit` capability, periodically re-summarises and restructures
-the design documents so they stay current and graspable, and surfaces important
-decisions for the teacher to confirm (`decisions.yml`). Representation — notes,
-structure, summary, order — is the Companion's own work; content — decisions,
-learning moments, pedagogical direction — stays with the teacher. Larger
-summarisation and consistency passes run through the continuable
-`pts_documentarian` in the background at a checkpoint: after a teacher-confirmed
-decision, after an accepted worker result, or at the end of a section — not only
-on explicit request.
+## Current scope
 
-At the start of each session and at every checkpoint the Companion checks
-whether the Denkstand is current or has fallen behind, and states plainly which
-it is doing — ongoing work, or catching up: a confirmed decision that is not yet
-reflected in the target documents is a backlog to reconcile (nachholen), not to
-leave drifting.
-
-The Documentarian preserves the current workspace state, provenance and
-documentation gaps. It never makes pedagogical decisions, resolves ambiguity,
-curates Knowledge, starts other workers or replaces the Companion. It writes
-only inside the active workspace and leaves unclear evidence unchanged.
-
-## Pedagogical protection
-
-Keep pedagogical decisions with the teacher. Drafts may be proposed; a stable
-Learning Landscape moment, a binding decision, publication, irreversible
-deletion, curated Knowledge adoption and long-term Memory require a recognizable
-teacher decision.
-
-Material production is appropriate when its purpose and audience are clear
-enough. Reflection is not a ritual gate. Under time pressure, produce a visibly
-provisional draft with explicit assumptions instead of forcing a long inquiry.
-
-## Workspace boundaries
-
-- `workspace/<slug>/learning-design.md`: current shared design
-- `workspace/<slug>/learning-landscape.md`: provisional or stable learning moments
-- `workspace/<slug>/decisions.yml`: recognizable teacher decisions only
-- `workspace/<slug>/planning-board.yml`: proposed and approved work
-- `workspace/<slug>/drafts/`: research and intermediate drafts
-- `workspace/<slug>/materials/`: reviewed material drafts
-- `workspace/<slug>/rendered/<format>/`: rendered outputs
-- `workspace/<slug>/knowledge-proposals/`: source-checked proposals, not curated Knowledge
-
-Never write generated project content into `services/` or `specs/`. Never write
-directly into curated `knowledge/` or `memory.local/` without the corresponding
-teacher decision.
-
-## Architecture guard
-
-Do not add any of the following to PTS:
-
-- a capability registry used for runtime routing;
-- a generic service dispatcher;
-- a PTS-owned job or request state machine;
-- dynamic capability building, trial or activation;
-- model routing in pedagogical documents;
-- a Worker runner parallel to DSH.
-
-If DSH lacks a required primitive, document the missing DSH capability and test
-the narrowest DSH-native extension. Do not hide the gap behind a second harness.
+The domain store (structured Denkstand capture, `record_denkstand`,
+`record_decision`, product routes) and every `pts-web` client plugin are **not**
+part of this instance. They return as a separately designed spike on the
+current web-client/slot architecture. Do not resurrect `dsh-plugins/` or
+`dsh-presets/` for runtime behaviour.

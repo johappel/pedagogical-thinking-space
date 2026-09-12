@@ -1,0 +1,15 @@
+{
+  "name": "dsh-profile-pts",
+  "private": true,
+  "dependencies": { "dsh-coding-subscription-oauth": "0.8.0"},
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app", 
+        "dsh-coding-subscription-oauth"
+      ],
+      "patchReload": "live"
+    }
+  }
+}

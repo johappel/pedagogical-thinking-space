@@ -218,7 +218,8 @@ export async function applyDirectEdit(agent, args) {
 	} finally { await lock.close(); await fsp.unlink(lockPath); }
 }
 
-function directTool() {
+/** Exported for output-schema regression tests; DSH validates execute() results against it. */
+export function directTool() {
 	return {
 		name: 'pts_edit',
 		description: 'Structured PTS editing. read_product returns the current product, revision, pending proposals and migration status. propose_product stores a reviewable series, never adopts it. Preserve all unchanged lessons/phases and use stable IDs. accept_product requires a matching decisions.yml confirmed decision containing the exact proposal approval token [PTS product PROPOSAL_ID HASH], recorded only after explicit teacher agreement. assess_product is a Companion opinion, never teacher readiness. record_denkstand writes a bounded, explicitly named section in learning-design.md or learning-landscape.md; arbitrary paths and unrestricted rewrites remain unavailable.',
@@ -244,6 +245,7 @@ function directTool() {
 				properties: {
 					ok: { type: 'boolean' }, operation: { type: 'string' },
 					file: { type: 'string' }, id: { type: 'string' },
+					section: { type: 'string' },
 					direct: { type: 'boolean' }, childAgentStarted: { type: 'boolean' },
 					result: { type: 'object' },
 				},

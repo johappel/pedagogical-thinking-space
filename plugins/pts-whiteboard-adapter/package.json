@@ -1,0 +1,12 @@
+{
+  "name": "pts-whiteboard-adapter",
+  "version": "0.1.0",
+  "description": "Minimale additive Adapter-Capability: projiziert den Zustand des dsh-whiteboard in den dynamischen Prompt-Kontext des Pedagogical Companion. Kennt beide Seiten, verändert keine.",
+  "private": true,
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  }
+}

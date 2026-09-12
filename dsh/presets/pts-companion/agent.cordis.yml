@@ -1,0 +1,309 @@
+# PTS Core — agent plane (Pedagogical Companion).
+#
+# This is the whole per-session composition of the PTS instance. DSH owns
+# sessions, the agent loop, tools, subagents, jobs, persistence and the web
+# client; this file contributes ONE agent's identity, prompt sections, tools
+# and delegation targets. No host service, no scheduler, no domain store.
+#
+# Plane rule: no row here publishes a service, so no `isolate` realm is needed
+# except for the compaction pair, which is scoped to this preset by design.
+# A preset-local `./module.mjs` row resolves relative to THIS file; `!!js`
+# expressions use the loader's `baseUrl` (the composition file's own URL), which
+# is correct for paths INSIDE this directory (e.g. `prompt/persona.md`). This
+# preset is rendered into the DSH home, so `baseUrl` does NOT lead back into the
+# repository: every path that must reach the repository uses the
+# installer-substituted `@PTS_ROOT@` placeholder (the same rule as the profile
+# patch), and no path climbs out of this directory with `../`.
+#
+# Layer C rule: nothing in this file knows about the whiteboard, the teaching
+# product, or any other optional capability. Capabilities arrive as separate
+# rows or profile plugins and add their tools/context without an edit here.
+
+# ── identity: stable persona ─────────────────────────────────────────────────
+# `prefix` is the CURRENT dsh-persona field (it replaces the old `text`).
+# The omitted `suffix` deliberately shadows the deployment suffix away: the
+# Denkraum path is stated by the dynamic TTS context below, in German.
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    prefix: !!js "process.getBuiltinModule('node:fs').readFileSync(process.getBuiltinModule('node:url').fileURLToPath(new URL('prompt/persona.md', baseUrl)), 'utf8').trim()"
+
+# ── PTS Core prompt seam ─────────────────────────────────────────────────────
+# Stable methodology section (`pts:framework`, order 400) + dynamic Denkraum
+# projection (`pts:denkstand`, order 200) for the root Companion; the seven
+# workers get the short `pts:arbeitsumgebung` context instead (Denkraum,
+# absolute reference root, path rule, role boundary).
+- id: pts-context
+  name: './pts-context.mjs'
+  config:
+    repoRoot: '@PTS_ROOT@'
+
+# ── tools of the visible Companion ───────────────────────────────────────────
+# These rows give the Companion its own reading/asking surface. The web, write
+# and skill tools below are mounted for the WORKERS (a subagent joins its
+# parent's composition before its toolFilter applies) and are removed from the
+# Companion's visible set by `companion-tool-boundary` at the end of this file.
+
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+
+- id: tool-web
+  name: '@deepseek-ai/dsh-tool-web'
+  config:
+    fetch: true
+    searchTimeoutMs: 60000
+
+- id: tool-jobs
+  name: '@deepseek-ai/dsh-tool-jobs'
+
+- id: tool-ask-user
+  name: '@deepseek-ai/dsh-tool-ask-user'
+
+- id: present
+  name: '@deepseek-ai/dsh-tool-present'
+
+# Native parent-to-child controls for continuable workers. DSH owns the child
+# lifecycle; these adapters add no PTS dispatcher, queue or persistence.
+- id: tool-subagent-control
+  name: '@deepseek-ai/dsh-tool-subagent-control'
+
+- id: tool-subagent-list-agents
+  name: '@deepseek-ai/dsh-tool-subagent-control/list-agents'
+
+# Workspace instructions (AGENTS.md chain) stay available: a Denkraum may carry
+# its own AGENTS.md, and the repository AGENTS.md carries the workspace
+# orientation. The Companion's identity is not read from here.
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  config:
+    maxBytes: 16384
+
+# Skills belong to the workers (`skill` is inside their toolFilter allow lists
+# where a role needs it) and are removed from the Companion's visible set.
+# Two roots, both installer-substituted: the repository ships starter skills,
+# the instance data area carries the grown ones (@PTS_DATA_ROOT@/skills). This
+# composition lives in the DSH home, so a relative climb would land in the home
+# instead of the repository (observed 2026-09-11).
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+  config:
+    customSkillDirs: ['@PTS_ROOT@/skills', '@PTS_DATA_ROOT@/skills']
+
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'
+
+# ── PTS worker roles: native DSH subagents ───────────────────────────────────
+# One `dsh-tool-subagent` instance per role: the tool name IS the role. Every
+# field is configuration — persona, route, authority (toolFilter), depth and
+# background policy. DSH owns creation, continuable sessions, settlement and
+# cancellation; PTS owns only this table.
+#
+# maxDepth MUST be 1: `resolveChildDepth` computes `parentDepth + 1` and rejects
+# `childDepth > maxDepth`, so 0 forbids the child altogether (the previous
+# preset's `pts-documentarian: maxDepth: 0` was therefore unstartable).
+# reasoningEffort is intentionally left to the route default; add it per role
+# here when a role needs a different one.
+- id: pts-workers
+  name: cordis:group
+  group: true
+  config:
+    - id: pts-research
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: pts_research
+        backgroundMode: continuable
+        enableRunInBackground: true
+        maxDepth: 1
+        agentOptions:
+          provider: openrouter
+          model: deepseek/deepseek-v4.1-flash
+          maxTokens: 16000
+        persona: >-
+          Du bist der PTS-Rechercheworker. Bearbeite ausschließlich die
+          begrenzte, öffentliche Frage, die dir der Companion übergibt. Nutze
+          möglichst primäre oder offizielle Quellen. Gib URLs, Datum, genaue
+          Fundstelle, Quellenqualität und Unsicherheit an. Triff keine
+          pädagogischen Entscheidungen und erstelle kein Unterrichtsmaterial.
+          Schreibe nur, wenn der Auftrag einen Rechercheentwurf oder einen noch
+          nicht kuratierten Vorschlag verlangt. Antworte auf Deutsch oder in der
+          Sprache des Auftrags und nenne am Ende das Ergebnis, jeden erzeugten
+          Pfad und offene Fragen.
+        toolFilter:
+          allow: [read, glob, grep, web_search, web_fetch, write, edit, skill]
+
+    - id: pts-edit
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: pts_edit
+        backgroundMode: one-shot
+        enableRunInBackground: true
+        maxDepth: 1
+        agentOptions:
+          provider: openrouter
+          model: deepseek/deepseek-v4.1-flash
+          maxTokens: 16000
+        persona: >-
+          Du bist der PTS-Änderungsworker für genau eine begrenzte, bereits
+          vereinbarte Änderung im aktuellen Denkraum (learning-design.md,
+          learning-landscape.md, decisions.yml, planning-board.yml, drafts/,
+          materials/). Lies das Ziel zuerst, ändere minimal und mechanisch und
+          interpretiere, erweitere oder entscheide nichts Pädagogisches. Wenn
+          der Companion die ausdrückliche Ablageanweisung der Lehrkraft
+          mitliefert, führe sie an der genannten Stelle aus und frage nicht
+          erneut nach einer Freigabe. Berichte die geänderten Stellen
+          (vorher/nachher), jeden geänderten Pfad und offene Fragen.
+        toolFilter:
+          allow: [read, glob, grep, write, edit]
+
+    - id: pts-document
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: pts_document
+        backgroundMode: continuable
+        enableRunInBackground: true
+        maxDepth: 1
+        agentOptions:
+          provider: openrouter
+          model: deepseek/deepseek-v4.1-flash
+          maxTokens: 16000
+        persona: >-
+          Du bist der PTS-Dokumentationsworker. Halte den übergebenen Ablauf
+          oder Befund sachlich fest: Protokolle, Sitzungsnotizen,
+          Entscheidungsvermerke, Materialdokumentation. Erfinde keine Inhalte,
+          füge keine pädagogische Bewertung hinzu und ändere keine kuratierten
+          Wissensbestände. Schreibe nur unterhalb des aktuellen Denkraums und
+          nenne am Ende jeden erzeugten Pfad und offene Fragen.
+        toolFilter:
+          allow: [read, glob, grep, write, edit]
+
+    - id: pts-documentarian
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: pts_documentarian
+        backgroundMode: continuable
+        enableRunInBackground: true
+        maxDepth: 1
+        agentOptions:
+          provider: openrouter
+          model: deepseek/deepseek-v4.1-flash
+          maxTokens: 12000
+        persona: >-
+          Du bist der PTS-Documentarian. Halte den aktuellen Denkraum
+          vollständig, widerspruchsfrei und nachvollziehbar. Dokumentiere nur
+          ausdrückliche Belege: bestätigte Entscheidungen der Lehrkraft,
+          ausdrücklich offene Fragen, übernommene Worker-Ergebnisse, den
+          aktuellen Arbeitsstand, Herkunft und eindeutige Dokumentationslücken.
+          Du darfst im aktuellen Denkraum minimal ändern, wenn der Companion
+          ausdrücklich einen Dokumentationsabgleich verlangt. Erhalte
+          epistemische Kennzeichnungen und Herkunft. Schreibe kein Design um,
+          wähle keine Pädagogik, mache aus einer Hypothese keinen Fakt, löse
+          keine Unklarheit auf, recherchiere nicht und delegiere nicht weiter.
+          Ist die Evidenz mehrdeutig, melde eine Dokumentationslücke und lass
+          die Dateien unverändert.
+        toolFilter:
+          allow: [read, glob, grep, write, edit]
+
+    - id: pts-material
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: pts_material
+        backgroundMode: continuable
+        enableRunInBackground: true
+        maxDepth: 1
+        agentOptions:
+          provider: openrouter
+          model: deepseek/deepseek-v4.1-flash
+          maxTokens: 16000
+        persona: >-
+          Du bist der PTS-Materialworker. Setze die übergebene pädagogische
+          Absicht und die Rahmenbedingungen als EINEN vollständigen,
+          prüfbaren Entwurf um. Ändere keine Ziele und erfinde keine neue
+          didaktische Richtung. Lies den relevanten Denkraum und schreibe nur
+          an den angeforderten Pfad unter drafts/ oder materials/. Nenne deine
+          Annahmen, jeden erzeugten Pfad und offene Fragen.
+        toolFilter:
+          allow: [read, glob, grep, write, edit, skill]
+
+    - id: pts-review
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: pts_review
+        backgroundMode: continuable
+        enableRunInBackground: true
+        maxDepth: 1
+        agentOptions:
+          provider: openrouter
+          model: deepseek/deepseek-v4.1-flash
+          maxTokens: 12000
+        persona: >-
+          Du bist der PTS-Gegenprüfungsworker und arbeitest nach dem
+          Rollenvertrag in CRITICAL_FRIEND.md unter der Referenzwurzel.
+          Prüfmaßstab ist der Umgang mit dem Design, nicht eine Stilcheckliste:
+          Ist etwas Entwurf oder entschieden, und wer hat es bestätigt? Sind die
+          kanonischen Denkstand-Dateien die Wahrheit? Ist die Herkunft jeder
+          Aussage belegt und Unsicherheit benannt? Dazu Auftragsdeckung,
+          Quellenstützung, verborgene Annahmen, Altersangemessenheit,
+          Zugänglichkeit und ungelöste Risiken. Ist der Denkstand noch leer,
+          sage genau das und prüfe die Hülle: trifft das Gerüst die kanonische
+          Form? Antworte knapp mit Urteil, Gründen und Änderungswünschen. Du
+          änderst keine Dateien.
+        toolFilter:
+          allow: [read, glob, grep]
+
+    - id: pts-renderer
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: pts_renderer
+        backgroundMode: continuable
+        enableRunInBackground: true
+        maxDepth: 1
+        agentOptions:
+          provider: openrouter
+          model: deepseek/deepseek-v4.1-flash
+          maxTokens: 16000
+        persona: >-
+          Du bist der PTS-Renderer. Konvertiere ausschließlich den
+          freigegebenen Ausgangsentwurf in das angeforderte Zielformat. Erhalte
+          Bedeutung, Sprache und Lernaufbau. Schreibe nur unterhalb von
+          rendered/<format>/ und nenne den erzeugten Pfad. Melde Widersprüche,
+          statt die Stunde neu zu entwerfen.
+        toolFilter:
+          allow: [read, glob, grep, write, edit]
+
+# ── compaction: owned by this preset ─────────────────────────────────────────
+# dsh-web-app disables the host rows, so an agent preset carries its own pair.
+# These rows publish services, hence the one realm in this file.
+- id: compaction
+  name: cordis:group
+  group: true
+  isolate:
+    compaction: true
+    toolResultPruner: true
+  config:
+    - id: compaction-basic
+      name: '@deepseek-ai/dsh-compaction-basic'
+    - id: tool-result-pruner
+      name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+      config:
+        thresholdChars: 4096
+        headChars: 2048
+        tailChars: 768
+
+# ── authority boundary (last row) ────────────────────────────────────────────
+# Removes web, write and skill tools from the visible Companion and guards
+# direct execution with a delegation instruction. Subagents are skipped and
+# remain governed by their own toolFilter.
+- id: companion-tool-boundary
+  name: './companion-tool-boundary.mjs'

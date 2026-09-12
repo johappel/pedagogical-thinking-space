@@ -1,0 +1,12 @@
+{
+  "name": "pts-demo-capability",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "PTS extension seam proof: one additive tool, loaded by the profile independently of PTS Core.",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  }
+}

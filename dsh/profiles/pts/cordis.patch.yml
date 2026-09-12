@@ -1,0 +1,81 @@
+# PTS instance — HOST plane. Canonical source: <repo>/dsh/profiles/pts/cordis.patch.yml
+#
+# Rendered into $DSH_HOME/profiles/pts/cordis.patch.yml by
+# scripts/install-pts-instance.ps1, which replaces two placeholders with
+# absolute paths: `@PTS_ROOT@` is this repository (the definition: preset,
+# patch, contracts) and `@PTS_DATA_ROOT@` is this instance's data area (the
+# content: Denkräume, knowledge, skills). This layer sits on top of
+# dsh-base and dsh-web-app; the profile patch wins against a bundle layer, and a
+# patch REPLACES the whole `config` of a targeted row (restate every key you
+# keep).
+#
+# What belongs here (host plane): the registry rows and anything shared across
+# sessions — the roster default, the port, the fallback workspace root, and
+# installed capabilities. What belongs in the preset
+# (<repo>/dsh/presets/pts-companion/agent.cordis.yml): everything one session
+# contributes — persona, prompt sections, tools, worker roles.
+#
+# This row is a STARTUP artifact: `agent-presets` publishes a service, and the
+# standing preset mounts hang off that service's own context. Changing the row's
+# config while an instance runs therefore re-instantiates the roster and leaves
+# every running session without its preset layer until it is created again
+# (observed 2026-09-11). The preset itself is NOT referenced from here: the
+# installer renders it into $DSH_HOME/.agent-presets, which the roster re-reads
+# on every call, so a rendered preset needs no roster change at all.
+
+# Port 3030 is this profile's fallback; the app argument --port still wins.
+- id: webserver
+  name: '@deepseek-ai/dsh-host-webserver'
+  inject: [webStartup]
+  config:
+    host: !!js ctx.webStartup.host ?? '127.0.0.1'
+    port: !!js ctx.webStartup.port ?? 3030
+
+# Fallback root for agentless calls and sessions without a cwd ("Normal agent
+# calls use their session cwd instead"). It is NOT the session workspace: a
+# Denkraum becomes the session cwd by invoking dsh from it or picking it in
+# the UI. `mode` has the fail-safe default read-only, so state it explicitly.
+#
+# The root is the INSTANCE DATA area, never the repository. PTS keeps the
+# definition (this repo: preset, patch, contracts, .git) and the content
+# (Denkräume, knowledge, skills under <dataRoot>) apart, so a worker's write can
+# reach its Denkraum but never the composition that governs it.
+- id: sandbox-policy
+  name: '@deepseek-ai/dsh-sandbox-policy'
+  config:
+    mode: !!js process.env.DSH_PERMISSION_MODE ?? 'workspace-write'
+    workspaceRoot: '@PTS_DATA_ROOT@/denkraeume'
+
+# The roster default. `default` is required and fails loud when the id is not in
+# the roster, so the preset must be rendered before the first boot. No `roots`
+# here: the rendered user root (<DSH_HOME>/.agent-presets) already carries the
+# preset, and includeShippedRoot/includeUserRoot keep their schema defaults
+# (true/true), so the shipped presets and ad-hoc local ones stay available.
+- id: agent-presets
+  name: '@deepseek-ai/dsh-agent-presets'
+  config:
+    default: pts-companion
+
+- insert:
+    # Optional capability, installed independently of PTS Core. Flip `disabled`
+    # to false to prove additivity: the Companion sees the extra tool in the
+    # next session, and PTS Core needs no change either way.
+    - id: pts-demo-capability
+      name: '@PTS_ROOT@/plugins/pts-demo-capability/lib/index.js'
+      disabled: true
+
+    # Whiteboard spike: a host-plane capability with its own tools. PTS Core
+    # does not know it; it only shares the composition.
+    - id: dsh-whiteboard
+      name: dsh-whiteboard
+      inject: [webServer]
+
+    # M1 spike — pts-whiteboard-adapter. Bridges the two rows above without
+    # coupling them: it reads the EXISTING whiteboard_state definition and
+    # projects a compact board context into pts-companion sessions through the
+    # system-prompt/assemble waterfall. It publishes no service, registers no
+    # tool and starts no turn. Deleting this row leaves PTS Core and the
+    # whiteboard untouched; `disabled: true` is the cheap off switch.
+    - id: pts-whiteboard-adapter
+      name: '@PTS_ROOT@/plugins/pts-whiteboard-adapter/lib/index.js'
+      inject: [agents]

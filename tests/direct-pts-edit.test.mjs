@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { applyDirectEdit, resolveDenkraum } from '../dsh-presets/pts-companion/direct-pts-edit.mjs';
+import { applyDirectEdit, directTool, resolveDenkraum } from '../dsh-presets/pts-companion/direct-pts-edit.mjs';
 
 async function fixture() {
 	const root = await mkdtemp(path.join(os.tmpdir(), 'pts-direct-edit-'));
@@ -78,4 +78,37 @@ test('direct pts_edit rejects outside scope and large conceptual operations', as
 	await assert.rejects(() => applyDirectEdit(f.agent, {
 		operation: 'rewrite_learning_design', content: 'rewrite everything',
 	}), /unsupported direct pts_edit operation/);
+});
+
+test('direct pts_edit results satisfy the tool output schema (additionalProperties: false)', async () => {
+	// DSH validates every execute() result against tool.output.schema with root
+	// label 'value'. A return key missing from the declared properties fails the
+	// whole tool call AFTER the write already happened. This test mirrors that
+	// top-level rule so schema drift is caught before a live run.
+	const tool = directTool();
+	const schema = tool.output.schema;
+	assert.equal(schema.additionalProperties, false);
+	const declared = new Set(Object.keys(schema.properties ?? {}));
+
+	const f = await fixture();
+	const results = [
+		await applyDirectEdit(f.agent, { operation: 'add_open_question', question: 'Weiter offen?' }),
+		await applyDirectEdit(f.agent, {
+			operation: 'record_decision', title: 'Fokus', decision: 'Die Einheit fokussiert eine Leitfrage.',
+			teacher_confirmed: true,
+		}),
+		await applyDirectEdit(f.agent, {
+			operation: 'record_denkstand', target: 'learning-design.md', section: 'Learning Journey',
+			content: 'Die Lernreise führt von Irritation zur Hoffnung.',
+		}),
+		await applyDirectEdit(f.agent, { operation: 'record_learning_journey', content: 'Zweite Etappe.' }),
+	];
+	for (const result of results) {
+		for (const key of Object.keys(result)) {
+			assert.ok(declared.has(key), `result key "${key}" is not declared in the pts_edit output schema`);
+		}
+		for (const key of schema.required ?? []) {
+			assert.ok(key in result, `required output key "${key}" is missing from the result`);
+		}
+	}
 });
