@@ -3,12 +3,70 @@ import { promises as fsp } from 'node:fs';
 import { designAndCompile, rendererCapabilities } from './renderer.mjs';
 
 export const name = 'pts-whiteboard-renderer';
-export const inject = ['webServer'];
+export const inject = ['webServer', 'agents'];
 
 const TOOL_NAME = 'pts_whiteboard_render';
 const STATE_TOOL = 'whiteboard_state';
 const LOW_LEVEL_TOOL = 'whiteboard_render_plan';
 const MAX_BODY = 256 * 1024;
+const PRESET_ID = 'pts-companion';
+const CONTEXT_NAME = 'pts:whiteboard-render-plan';
+
+export const RENDER_PLAN_GUIDANCE = `## Whiteboard-Ausfuehrung (pts_whiteboard_render)
+Wenn eine Idee aus dem Gespraech auf das Whiteboard soll, fuehre genau einen
+Aufruf von pts_whiteboard_render mit einem vollstaendigen RenderPlan aus. Nutze
+keine Whiteboard-Primitiven und erfinde keine Operationen.
+
+Erlaubte operation-Werte sind: create_learning_moment_workspace,
+update_learning_moment_workspace, materialize_selection oder
+compact_document_reference. page.action ist ensure oder use_current. Ein
+minimaler gueltiger Auftrag sieht so aus:
+{"operation":"create_learning_moment_workspace","page":{"action":"ensure","title":"Erntedank – Brainstorming"},"heading":{"text":"Erntedank – erste Ideen"},"layout":{"template":"learning_moment_workspace"},"elements":[{"key":"dankbar","source":"new","role":"open_question","text":"Wofuer sind wir dankbar?"},{"key":"feld-tisch","source":"new","role":"method_idea","text":"Vom Feld auf den Tisch"}],"links":[]}
+
+Fuer jedes neue Brainstorming-Element gilt: source="new", role="open_question"
+fuer eine Frage oder role="method_idea" fuer eine Methoden-/Ideenkarte, und
+text enthaelt den exakten Inhalt der Lehrkraft. Eine learning_moment-Karte ist
+nur der hervorgehobene Lernmoment-Anker. heading.text ist ausschliesslich der
+Frame-Titel und darf niemals den Inhalt von elements[].text ersetzen.
+
+Nicht verwenden: operation="create", type="card", body, overview.enabled oder
+Freitext anstelle des RenderPlans. overview darf nur mit
+action="ensure_page_reference" angegeben werden. Nach status="queued" darfst
+du nur von einem angenommenen Queue-Auftrag sprechen; sichtbar bestaetigt ist
+er erst, wenn der naechste Board-Zustand die neuen Zettel mit ihren exakten
+Texten zeigt.`;
+
+function isSubagent(agent) {
+	return agent?.session?.header?.origin === 'subagent';
+}
+
+function composedPreset(ctx, agent) {
+	return ctx.get('agentPresets')?.composedPreset(agent.ctx) ?? agent?.session?.header?.agentPreset;
+}
+
+function installPromptGuidance(ctx) {
+	const agents = ctx.get('agents');
+	if (!agents) return;
+	const installed = new WeakMap();
+	const reconcile = (agent) => {
+		const shouldInstall = !isSubagent(agent) && composedPreset(ctx, agent) === PRESET_ID;
+		const current = installed.get(agent);
+		if (shouldInstall && current === undefined) {
+			const stop = agent.ctx.on('system-prompt/assemble', async (assembly, _context, next) => {
+				const base = await next();
+				const contexts = Array.isArray(base?.contexts) ? base.contexts : [];
+				if (contexts.some((entry) => entry?.name === CONTEXT_NAME)) return base;
+				return { ...base, contexts: [...contexts, { name: CONTEXT_NAME, text: RENDER_PLAN_GUIDANCE }] };
+			});
+			ctx.effect(() => (typeof stop === 'function' ? stop : () => {}), `pts-whiteboard-renderer: guidance for ${String(agent?.id)}`);
+			installed.set(agent, true);
+		}
+		if (!shouldInstall && current !== undefined) installed.delete(agent);
+	};
+	for (const agent of agents.list()) reconcile(agent);
+	ctx.on('agent/created', ({ agent }) => reconcile(agent));
+	ctx.on('agent/disposed', ({ agent }) => installed.delete(agent));
+}
 
 function jsonRender(_args, value) {
 	return [{ type: 'text', text: JSON.stringify(value) }];
@@ -103,6 +161,7 @@ function decorateResourceLinks(plan, sessionId) {
 }
 
 export function apply(ctx) {
+	installPromptGuidance(ctx);
 	const webServer = ctx.get('webServer');
 	const tools = ctx.get('tools');
 	if (!webServer || !tools) {
@@ -132,8 +191,21 @@ export function apply(ctx) {
 
 	const renderTool = {
 		name: TOOL_NAME,
-		description: 'Semantic Phase-1 Whiteboard-Auftrag: interpretiert einen semantischen Auftrag, validiert einen strukturierten RenderPlan und delegiert ihn als einen gemeinsamen Auftrag an den deterministischen Whiteboard-Renderer. Keine LearningMoment-Domainpersistenz.',
-		parameters: { type: 'object', properties: { operation: { type: 'string' }, page: { type: 'object' }, heading: { type: 'object' }, layout: { type: 'object' }, elements: { type: 'array' }, links: { type: 'array' }, overview: { type: 'object' }, detach: { type: 'array' }, renderPlan: { type: 'object' } } },
+		description: 'Fuehrt genau einen vollstaendigen semantischen Phase-1-RenderPlan aus. Neue Fragen muessen role=open_question, Methoden-/Ideenkarten role=method_idea und echte Lernmomente role=learning_moment verwenden. Der Inhalt muss in elements[].text stehen; heading.text ist nur der Frame-Titel. Keine type=card/body/operation=create und keine Whiteboard-Primitiven. Keine LearningMoment-Domainpersistenz.',
+		parameters: {
+			type: 'object',
+			required: ['operation', 'page', 'layout', 'elements'],
+			properties: {
+				operation: { type: 'string', enum: ['create_learning_moment_workspace', 'update_learning_moment_workspace', 'materialize_selection', 'compact_document_reference'] },
+				page: { type: 'object', required: ['action', 'title'], properties: { action: { type: 'string', enum: ['ensure', 'use_current'] }, title: { type: 'string', minLength: 1, maxLength: 120 } } },
+				heading: { type: 'object', properties: { text: { type: 'string', minLength: 1, maxLength: 600 } } },
+				layout: { type: 'object', required: ['template'], properties: { template: { type: 'string', const: 'learning_moment_workspace' } } },
+				elements: { type: 'array', maxItems: 40, items: { type: 'object', required: ['source', 'role'], properties: { key: { type: 'string' }, source: { type: 'string', enum: ['existing', 'new', 'material', 'document'] }, role: { type: 'string', enum: ['learning_moment', 'method_idea', 'open_question', 'document_reference', 'material_reference', 'page_reference'] }, ref: { type: 'object' }, text: { type: 'string', maxLength: 600 }, document: { type: 'object' }, material: { type: 'object' } } } },
+				links: { type: 'array' },
+				overview: { type: 'object' },
+				detach: { type: 'array' },
+			},
+		},
 		output: { schema: { type: 'object', additionalProperties: true }, render: jsonRender },
 		isConcurrencySafe: () => false,
 		execute: async (request, exec) => {

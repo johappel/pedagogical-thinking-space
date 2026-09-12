@@ -9,6 +9,7 @@ import {
 	validateRenderPlan,
 } from '../plugins/pts-whiteboard-renderer/lib/render-plan.mjs';
 import { compileRenderPlan, rendererCapabilities } from '../plugins/pts-whiteboard-renderer/lib/renderer.mjs';
+import { RENDER_PLAN_GUIDANCE } from '../plugins/pts-whiteboard-renderer/lib/index.js';
 import { HIDDEN_FROM_COMPANION } from '../dsh/presets/pts-companion/companion-tool-boundary.mjs';
 
 const snapshot = {
@@ -100,4 +101,13 @@ test('the current Companion boundary hides Whiteboard primitives behind the sema
 		'whiteboard_render_plan',
 	]) assert.ok(HIDDEN_FROM_COMPANION.includes(name), `${name} must stay internal`);
 	assert.ok(!HIDDEN_FROM_COMPANION.includes('pts_whiteboard_render'));
+});
+
+test('the renderer capability gives the Companion an explicit execution contract', () => {
+	assert.match(RENDER_PLAN_GUIDANCE, /pts_whiteboard_render/);
+	assert.match(RENDER_PLAN_GUIDANCE, /role="open_question"/);
+	assert.match(RENDER_PLAN_GUIDANCE, /role="method_idea"/);
+	assert.match(RENDER_PLAN_GUIDANCE, /elements\[\]\.text/);
+	assert.match(RENDER_PLAN_GUIDANCE, /operation="create"/);
+	assert.match(RENDER_PLAN_GUIDANCE, /status="queued"/);
 });

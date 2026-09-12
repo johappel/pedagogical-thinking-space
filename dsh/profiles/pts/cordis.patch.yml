@@ -75,7 +75,7 @@
     # domain-store or LearningMoment persistence authority.
     - id: pts-whiteboard-renderer
       name: '@PTS_ROOT@/plugins/pts-whiteboard-renderer/lib/index.js'
-      inject: [webServer]
+      inject: [webServer, agents]
 
     # M1 spike — pts-whiteboard-adapter. Bridges the two rows above without
     # coupling them: it reads the EXISTING whiteboard_state definition and
