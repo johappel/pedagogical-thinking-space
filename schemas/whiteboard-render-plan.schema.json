@@ -29,7 +29,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["template"],
-      "properties": { "template": { "type": "string", "const": "learning_moment_workspace" } }
+      "properties": { "template": { "type": "string", "enum": ["learning_moment_workspace", "comparison", "pro_con", "cause_effect", "sequence", "cluster", "matrix", "timeline"] } }
     },
     "elements": {
       "type": "array",

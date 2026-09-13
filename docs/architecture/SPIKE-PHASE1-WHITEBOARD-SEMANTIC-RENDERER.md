@@ -86,7 +86,9 @@ Unterstützt werden:
 
 - `operation`: Workspace anlegen/ändern, Materialauswahl oder Dokumentkarte;
 - `page`: `ensure` oder `use_current` mit Seitentitel;
-- `heading` und Template `learning_moment_workspace`;
+- `heading` sowie die allowlisteten Templates `learning_moment_workspace`,
+  `comparison`, `pro_con`, `cause_effect`, `sequence`, `cluster`, `matrix`
+  und `timeline`; unbekannte Namen scheitern vor einer Mutation;
 - Elemente als `existing`, `new`, `material` oder `document`;
 - Rollen `learning_moment`, `method_idea`, `open_question`,
   `document_reference`, `material_reference`, `page_reference`;

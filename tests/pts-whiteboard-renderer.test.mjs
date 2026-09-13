@@ -3,11 +3,20 @@ import test from 'node:test';
 
 import {
 	DESIGNER_CAPABILITIES,
+	LAYOUT_TEMPLATES,
 	ROLE_PRESENTATION,
 	RenderPlanError,
 	designRenderPlan,
 	validateRenderPlan,
 } from '../plugins/pts-whiteboard-renderer/lib/render-plan.mjs';
+
+test('the standard layout catalog is explicit and fails closed outside its allowlist', () => {
+	assert.deepEqual(LAYOUT_TEMPLATES, ['learning_moment_workspace', 'comparison', 'pro_con', 'cause_effect', 'sequence', 'cluster', 'matrix', 'timeline']);
+	for (const template of LAYOUT_TEMPLATES) {
+		assert.equal(validateRenderPlan(request({ layout: { template } })).layout.template, template);
+	}
+	assert.throws(() => validateRenderPlan(request({ layout: { template: 'invented_board_skill' } })), (error) => error instanceof RenderPlanError && error.code === 'invalid-plan');
+});
 import { apply as applyRenderer } from '../plugins/pts-whiteboard-renderer/lib/index.js';
 import { compileRenderPlan, rendererCapabilities } from '../plugins/pts-whiteboard-renderer/lib/renderer.mjs';
 import { RENDER_PLAN_GUIDANCE } from '../plugins/pts-whiteboard-renderer/lib/index.js';

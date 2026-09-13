@@ -5,6 +5,11 @@ export const SEMANTIC_ROLES = Object.freeze([
 	'material_reference', 'page_reference',
 ]);
 
+export const LAYOUT_TEMPLATES = Object.freeze([
+	'learning_moment_workspace', 'comparison', 'pro_con', 'cause_effect',
+	'sequence', 'cluster', 'matrix', 'timeline',
+]);
+
 export const ROLE_PRESENTATION = Object.freeze({
 	note: { role: 'note', shape: 'note', color: 'yellow', emphasis: 'plain' },
 	learning_moment: { role: 'anchor', shape: 'note', color: 'light-blue', emphasis: 'anchor' },
@@ -60,7 +65,7 @@ export function validateRenderPlan(plan) {
 	if (!['ensure', 'use_current'].includes(plan.page.action)) throw new RenderPlanError('invalid-plan', 'page.action ist nicht erlaubt', { action: plan.page.action });
 	const pageTitle = text(plan.page.title, 'page.title', 120);
 	assertPlain(plan.layout, 'layout');
-	if (plan.layout.template !== 'learning_moment_workspace') throw new RenderPlanError('invalid-plan', 'layout.template ist für Phase 1 nicht erlaubt');
+	if (!LAYOUT_TEMPLATES.includes(plan.layout.template)) throw new RenderPlanError('invalid-plan', 'layout.template ist nicht verfügbar', { template: plan.layout.template, available: LAYOUT_TEMPLATES });
 	if (plan.heading !== undefined) {
 		assertPlain(plan.heading, 'heading');
 		text(plan.heading.text, 'heading.text');

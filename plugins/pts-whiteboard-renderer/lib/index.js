@@ -35,6 +35,13 @@ werden, verwende source="existing", seine exakte ref und die passende role;
 der Renderer ersetzt ausschliesslich seinen eigenen Treffer durch den Text ohne
 Praefix. Menschliche Zettel werden dabei nicht veraendert.
 
+Verfuegbare layout.template-Werte: learning_moment_workspace, comparison,
+pro_con, cause_effect, sequence, cluster, matrix und timeline. comparison,
+pro_con und cause_effect lesen die Elemente paarweise von links nach rechts;
+sequence und timeline lesen sie in zeitlicher Reihenfolge. Fuer eine gewuenschte
+Darstellung ausserhalb dieser Liste benenne die Grenze ehrlich statt einen neuen
+Board-Skill zu behaupten.
+
 Nicht verwenden: operation="create", type="card", body, overview.enabled oder
 Freitext anstelle des RenderPlans. overview darf nur mit
 action="ensure_navigation_reference" angegeben werden. status="verified" bedeutet,
