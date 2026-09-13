@@ -7,6 +7,7 @@ export const inject = ['webServer', 'agents'];
 
 const TOOL_NAME = 'pts_whiteboard_render';
 const STATE_TOOL = 'whiteboard_state';
+const OPEN_TOOL = 'whiteboard_request_open';
 const LOW_LEVEL_TOOL = 'whiteboard_render_plan';
 const MAX_BODY = 256 * 1024;
 const PRESET_ID = 'pts-companion';
@@ -101,6 +102,32 @@ function lossless(value, seen = new Set()) {
 
 function sessionIdFrom(exec) {
 	return exec?.agent?.id ? String(exec.agent.id) : null;
+}
+
+function delay(milliseconds) {
+	return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function liveSnapshotOrRequestOpen(stateTool, openTool, exec) {
+	let result = await stateTool.execute({}, exec);
+	if (result?.live === true && result?.available === true && result.snapshot) return result;
+
+	// The browser opener lives in the shell overlay, so it can only react to a
+	// host-side request. Do this before returning "not live": otherwise the
+	// Companion can never open the board that it needs for its own render.
+	if (!openTool || typeof openTool.execute !== 'function') return result;
+	await openTool.execute({}, exec);
+
+	// Opening the sidebar and posting its first snapshot are asynchronous. Wait
+	// briefly, bounded, and re-read the session-scoped state. A closed or
+	// disconnected browser still fails closed after the timeout.
+	const deadline = Date.now() + 8000;
+	do {
+		await delay(250);
+		result = await stateTool.execute({}, exec);
+		if (result?.live === true && result?.available === true && result.snapshot) return result;
+	} while (Date.now() < deadline);
+	return result;
 }
 
 function workspaceFor(ctx, sessionId) {
@@ -211,7 +238,7 @@ export function apply(ctx) {
 		execute: async (request, exec) => {
 			const stateTool = tools.get(STATE_TOOL);
 			if (!stateTool || typeof stateTool.execute !== 'function') return { ok: false, status: 'blocked', error: { code: 'whiteboard-unavailable', message: 'whiteboard_state ist nicht verfügbar' } };
-			const snapshotResult = await stateTool.execute({}, exec);
+			const snapshotResult = await liveSnapshotOrRequestOpen(stateTool, tools.get(OPEN_TOOL), exec);
 			if (snapshotResult?.live !== true || snapshotResult?.available !== true || !snapshotResult.snapshot) return { ok: false, status: 'blocked', error: { code: 'whiteboard-not-live', message: 'Whiteboard-Tab muss geöffnet sein' } };
 			const capabilities = rendererCapabilities(toolsVisible(ctx));
 			try {

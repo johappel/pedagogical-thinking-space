@@ -28,6 +28,53 @@ compact board projection to `pts-companion` sessions through the scoped
 `system-prompt/assemble` waterfall, without a service, a tool or a trigger. See
 `docs/architecture/SPIKE-M1-WHITEBOARD-ADAPTER.md`.
 
+## Regel: Neue dsh-tldraw-Fähigkeiten in PTS berücksichtigen
+
+`F:\\code\\dsh-tldraw` ist die generische technische Gegenstelle. Der Coder
+Agent darf neue tldraw-Features oder beobachtete Verhaltensänderungen nicht
+direkt als Sonderlogik in `plugins/pts-whiteboard-renderer` nachbauen. Vor
+jeder Übernahme gilt dieser Ablauf:
+
+1. **Inventarisieren:** In `dsh-tldraw` zuerst `AGENTS.md`,
+   `docs/WHITEBOARD-SPEC.md`, `docs/TESTING.md`, `docs/SPIKE-REPORT.md` und
+   bei tldraw-Fragen die versionierte Referenz
+   `docs/vendor/tldraw/llms-full.txt` lesen. Danach die installierte DSH-/
+   tldraw-Version und den tatsächlichen Host-/Client-Code prüfen.
+2. **Einordnen:** Festhalten, ob es sich um eine generische Plattform-
+   Fähigkeit, eine PTS-semantische Abbildung oder eine Domainentscheidung
+   handelt. Generische Implementierung, Persistenz, Sidebar-/Link-Verhalten
+   und tldraw-Schema gehören nach `dsh-tldraw`; Rollen, RenderPlan-
+   Validierung und PTS-Referenzauflösung gehören hierher.
+3. **Seam statt Spiegelung:** PTS darf nur einen dokumentierten, stabilen
+   generischen Seam verwenden. Keine direkten tldraw-Store-Mutationen,
+   Browser-DOM-Annahmen, privaten Client-Funktionen oder Kopien von
+   Low-Level-Whiteboard-Tools in den PTS-Renderer aufnehmen. Der Companion
+   sieht weiterhin nur `pts_whiteboard_render`.
+4. **Nachweis vor Code:** Eine neue Fähigkeit gilt erst als nutzbar, wenn sie
+   im generischen Repo implementiert oder ausdrücklich als vorhandener
+   Vertrag nachgewiesen, gegen die installierte Runtime geprüft und im
+   dsh-tldraw-Test-/E2E-Workflow abgenommen ist. Ungeprüfte Upstream-
+   Möglichkeiten bleiben Kandidaten und werden nicht still aktiviert.
+5. **PTS-Übernahme:** Erst danach die kleinste nötige Änderung an
+   `schemas/whiteboard-render-plan.schema.json`,
+   `plugins/pts-whiteboard-renderer/lib/render-plan.mjs`,
+   `renderer.mjs`, der Companion-Guidance und den fokussierten Tests planen.
+   Unbekannte oder nicht unterstützte Fähigkeiten müssen vor einer Queue-
+   Mutation fail-closed mit einem strukturierten Fehler enden.
+6. **Abnahme und Dokumentation:** Static-, Live-Boot- und Browser-E2E-
+   Nachweise getrennt ausweisen. Die PTS-Architekturdokumentation muss die
+   Capability, den verwendeten dsh-tldraw-Seam, die Runtime-Version, den
+   Fallback/Fehlerfall und die offenen Grenzen nennen. Eine erfolgreiche
+   Syntax- oder Unit-Prüfung ersetzt keine Browser- oder Sichtprüfung.
+
+Die ausführliche Checkliste und das Nachweisformat stehen in
+`docs/architecture/DSH_TLDRAW_INTEGRATION.md`. Wenn der benötigte generische
+Seam fehlt, ist zuerst ein separater dsh-tldraw-Spike mit dessen Tests und
+Dokumentation erforderlich; ein PTS-Workaround ist keine zulässige
+Ersatzimplementierung. Diese Regel ändert weder die Phase-1-Grenze noch die
+Vorgabe, keine Domainobjekte, `decisions.yml` oder bidirektionale Board-
+Synchronisierung einzuführen.
+
 ## Instance
 
 ```text

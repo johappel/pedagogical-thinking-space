@@ -8,6 +8,7 @@ import {
 	designRenderPlan,
 	validateRenderPlan,
 } from '../plugins/pts-whiteboard-renderer/lib/render-plan.mjs';
+import { apply as applyRenderer } from '../plugins/pts-whiteboard-renderer/lib/index.js';
 import { compileRenderPlan, rendererCapabilities } from '../plugins/pts-whiteboard-renderer/lib/renderer.mjs';
 import { RENDER_PLAN_GUIDANCE } from '../plugins/pts-whiteboard-renderer/lib/index.js';
 import { HIDDEN_FROM_COMPANION } from '../dsh/presets/pts-companion/companion-tool-boundary.mjs';
@@ -94,13 +95,54 @@ test('material and document roles are bounded references, not folder imports', (
 
 test('the current Companion boundary hides Whiteboard primitives behind the semantic tool', () => {
 	for (const name of [
-		'whiteboard_state', 'whiteboard_add_note', 'whiteboard_rename_cluster',
+		'whiteboard_request_open', 'whiteboard_state', 'whiteboard_add_note', 'whiteboard_rename_cluster',
 		'whiteboard_bind_frame', 'whiteboard_frame_to_back',
 		'whiteboard_arrange_sequence', 'whiteboard_propose_clusters',
 		'whiteboard_connect_notes', 'whiteboard_highlight_notes',
 		'whiteboard_render_plan',
 	]) assert.ok(HIDDEN_FROM_COMPANION.includes(name), `${name} must stay internal`);
 	assert.ok(!HIDDEN_FROM_COMPANION.includes('pts_whiteboard_render'));
+});
+
+test('the semantic renderer requests the closed board and continues after it becomes live', async () => {
+	let stateCalls = 0;
+	let openCalls = 0;
+	let renderCalls = 0;
+	const definitions = new Map();
+	const stateTool = {
+		execute: async () => {
+			stateCalls += 1;
+			return stateCalls === 1
+				? { live: false, available: false, snapshot: null }
+				: { live: true, available: true, snapshot };
+		},
+	};
+	const openTool = {
+		execute: async () => { openCalls += 1; return { accepted: true, requested: true }; },
+	};
+	const lowLevelTool = {
+		execute: async () => { renderCalls += 1; return { accepted: true, op: 'render-plan' }; },
+	};
+	definitions.set('whiteboard_state', stateTool);
+	definitions.set('whiteboard_request_open', openTool);
+	definitions.set('whiteboard_render_plan', lowLevelTool);
+	const ctx = {
+		get(name) {
+			if (name === 'webServer') return { register: () => () => {} };
+			if (name === 'tools') return {
+				get: (toolName) => definitions.get(toolName),
+				register: (definition) => { definitions.set(definition.name, definition); return () => {}; },
+			};
+			return undefined;
+		},
+		effect(effect) { effect(); },
+	};
+	applyRenderer(ctx);
+	const result = await definitions.get('pts_whiteboard_render').execute(request(), { agent: { id: 'test-session' } });
+	assert.equal(result.status, 'queued');
+	assert.equal(openCalls, 1);
+	assert.ok(stateCalls >= 2);
+	assert.equal(renderCalls, 1);
 });
 
 test('the renderer capability gives the Companion an explicit execution contract', () => {
