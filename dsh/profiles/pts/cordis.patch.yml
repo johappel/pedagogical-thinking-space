@@ -56,6 +56,15 @@
   config:
     default: pts-companion
 
+# The OAuth bundle's own patch registers this row without an injection.  In a
+# web profile that lets Cordis activate it before the `webServer` service has
+# mounted, leaving the entire profile stuck at `pending`.  Make the dependency
+# explicit in the consuming profile so every CLI and web boot has the same
+# order.
+- id: llm-grok-build-oauth
+  name: dsh-coding-subscription-oauth
+  inject: [webServer]
+
 - insert:
     # Optional capability, installed independently of PTS Core. Flip `disabled`
     # to false to prove additivity: the Companion sees the extra tool in the

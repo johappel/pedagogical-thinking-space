@@ -238,7 +238,7 @@ test('Kontext wird im Agenten-Scope registriert und am eigenen Fiber gehalten', 
 	assert.match(adapterSource, /ctx\.effect\(\(\) => \(typeof stop === 'function'/);
 	assert.match(adapterSource, /presets|agentPresets/);
 	assert.match(adapterSource, /composedPreset/);
-	assert.match(adapterSource, /definition\.execute\(\{\}\)/);
+	assert.match(adapterSource, /definition\.execute\(\{\}, \{ agent \}\)/);
 	assert.match(adapterSource, /ctx\.get\('tools'\)\?\.get\?\.\(TOOL_NAME\)/);
 });
 

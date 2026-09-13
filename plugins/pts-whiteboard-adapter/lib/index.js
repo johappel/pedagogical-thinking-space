@@ -278,19 +278,18 @@ function composedPreset(ctx, agent) {
 /**
  * Read the live board through the existing whiteboard tool definition.
  *
- * `execute` is called directly, NOT through `tools.execute(...)`, and WITHOUT an
- * execution context. Directly, because the dispatch pipeline would materialize a
- * tool call the model never made (a phantom card in the transcript); without an
- * execution context, because the whiteboard's `captureSession(exec)` would
- * otherwise overwrite the session key that binds the browser board to the
- * Companion session.
+ * `execute` is called directly, NOT through `tools.execute(...)`, so no tool call
+ * is materialized that the model never made (no phantom card in the transcript).
+ * The concrete agent is still passed as the execution context: the board is
+ * workspace-bound, and the host must resolve that workspace from this agent's
+ * actual session rather than from a previous global tool invocation.
  * The services are resolved at USE time, never at boot: `systemPrompt` is
  * provided AFTER the inserted profile rows mount, so an eager `ctx.get()` in
  * `apply` finds nothing (observed in the first boot of this row).
  * @param {import('cordis').Context} ctx - this capability's host context.
  * @returns {Promise<object|undefined>} the raw `whiteboard_state` result.
  */
-async function readBoard(ctx) {
+async function readBoard(ctx, agent) {
 	const definition = ctx.get('tools')?.get?.(TOOL_NAME);
 	if (definition === undefined || typeof definition.execute !== 'function') {
 		if (!warnedMissingTool) {
@@ -299,7 +298,7 @@ async function readBoard(ctx) {
 		}
 		return undefined;
 	}
-	return await definition.execute({});
+	return await definition.execute({}, { agent });
 }
 
 /** @param {import('cordis').Context} ctx - the host context of this capability. */
@@ -310,7 +309,7 @@ export function apply(ctx) {
 	const handlerFor = (agent) => async (assembly, _context, next) => {
 		const base = await next();
 		try {
-			const result = await readBoard(ctx);
+			const result = await readBoard(ctx, agent);
 			const live = result?.live === true;
 			const available = live && result?.available === true && result?.snapshot !== null && typeof result?.snapshot === 'object';
 			let text = available ? renderWhiteboardContext(result.snapshot, shown.get(agent)) : '';

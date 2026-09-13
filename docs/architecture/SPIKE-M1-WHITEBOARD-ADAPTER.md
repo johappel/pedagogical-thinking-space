@@ -62,11 +62,11 @@ Rückgabevertrag (`counts`, `notes[…].actor/proposal/movedBy/x/y/text`,
 `commandResults`). Die Feldnamen stammen aus der Client-Hälfte des Whiteboards
 (`lib/client.js`, `wb-snapshot`-Payload), nicht aus Vermutung.
 
-`execute` wird **direkt** und **ohne Ausführungskontext** gerufen:
-direkt, weil die Dispatch-Pipeline sonst einen Phantom-Tool-Call erzeugt; ohne
-`exec`, weil `captureSession(exec)` des Whiteboards sonst den Session-Schlüssel
-überschreibt, der das Browser-Board an die Companion-Session bindet.
-
+`execute` wird **direkt** mit dem konkreten Agenten als Ausführungskontext
+gerufen. Direkt, weil die Dispatch-Pipeline sonst einen Phantom-Tool-Call
+erzeugt; der Kontext ist nötig, damit der Host den Workspace aus der richtigen
+Companion-Session auflöst. Das Board selbst bleibt an den Workspace gebunden,
+nicht an die Session.
 Kein `whiteboard_add_note`, kein `whiteboard_propose_clusters` etc. im Adapter —
 der Adapter bleibt reine Leseschicht. In der aktuellen Phase-1-Komposition ist
 `whiteboard_state` als read-only Werkzeug sichtbar; Schreibaktionen laufen über

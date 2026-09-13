@@ -189,6 +189,9 @@ Generisch und PTS-unabhängig ergänzt wurden:
 - ein gemeinsamer `editor.run`-Batch und bestehende Arrow-Binding-Mechanik;
 - ein hostseitiger Snapshot-Store unter `$DSH_HOME/whiteboard-snapshots` mit
   opaker, aus dem Workspace-Pfad abgeleiteter Board-ID;
+- Board-Identität und tldraw-Persistence-Key sind an den Workspace gebunden;
+  die Session-ID bleibt ausschließlich Live-Kanal und Auftragsscope. Eine
+  unbekannte Session fällt nicht auf `process.cwd()` zurück;
 - Laden vor dem ersten Live-Snapshot, Versionsprüfung und fail-closed Verhalten
   bei konkurrierenden Browser-Schreibvorgängen;
 - sessiongebundene `commandId`-Bestätigung: `accepted` ist nur Annahme, ein
