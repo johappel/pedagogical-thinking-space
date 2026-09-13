@@ -24,11 +24,16 @@ compact_document_reference. page.action ist ensure oder use_current. Ein
 minimaler gueltiger Auftrag sieht so aus:
 {"operation":"create_learning_moment_workspace","page":{"action":"ensure","title":"Erntedank – Brainstorming"},"heading":{"text":"Erntedank – erste Ideen"},"layout":{"template":"learning_moment_workspace"},"elements":[{"key":"dankbar","source":"new","role":"open_question","text":"Wofuer sind wir dankbar?"},{"key":"feld-tisch","source":"new","role":"method_idea","text":"Vom Feld auf den Tisch"}],"links":[]}
 
-Fuer jedes neue Brainstorming-Element gilt: source="new", role="open_question"
-fuer eine Frage oder role="method_idea" fuer eine Methoden-/Ideenkarte, und
-text enthaelt den exakten Inhalt der Lehrkraft. Eine learning_moment-Karte ist
-nur der hervorgehobene Lernmoment-Anker. heading.text ist ausschliesslich der
-Frame-Titel und darf niemals den Inhalt von elements[].text ersetzen.
+Fuer jedes neue Brainstorming-Element gilt: source="new" und text enthaelt
+den exakten Inhalt der Lehrkraft. role ist optional: Ohne role entsteht eine
+neutrale Karte. role="open_question", role="method_idea" und
+role="learning_moment" steuern nur die Darstellung; sie duerfen weder Icon
+noch Kategorie-Text vor elements[].text setzen. heading.text ist ausschliesslich
+der Frame-Titel und darf niemals den Inhalt von elements[].text ersetzen.
+Soll ein alter Agenten-Zettel mit einem solchen Kategorie-Praefix bereinigt
+werden, verwende source="existing", seine exakte ref und die passende role;
+der Renderer ersetzt ausschliesslich seinen eigenen Treffer durch den Text ohne
+Praefix. Menschliche Zettel werden dabei nicht veraendert.
 
 Nicht verwenden: operation="create", type="card", body, overview.enabled oder
 Freitext anstelle des RenderPlans. overview darf nur mit
@@ -229,7 +234,7 @@ export function apply(ctx) {
 
 	const renderTool = {
 		name: TOOL_NAME,
-		description: 'Fuehrt genau einen vollstaendigen semantischen Phase-1-RenderPlan aus. Neue Fragen muessen role=open_question, Methoden-/Ideenkarten role=method_idea und echte Lernmomente role=learning_moment verwenden. Der Inhalt muss in elements[].text stehen; heading.text ist nur der Frame-Titel. Keine type=card/body/operation=create und keine Whiteboard-Primitiven. Keine LearningMoment-Domainpersistenz.',
+		description: 'Fuehrt genau einen vollstaendigen semantischen Phase-1-RenderPlan aus. Neue Karten duerfen ohne role als neutrale Zettel erscheinen; optionale Rollen steuern nur die Darstellung und schreiben keinen Kategorie-Praefix in elements[].text. Der Inhalt muss in elements[].text stehen; heading.text ist nur der Frame-Titel. Keine type=card/body/operation=create und keine Whiteboard-Primitiven. Keine LearningMoment-Domainpersistenz.',
 		parameters: {
 			type: 'object',
 			required: ['operation', 'page', 'layout', 'elements'],
@@ -238,7 +243,7 @@ export function apply(ctx) {
 				page: { type: 'object', required: ['action', 'title'], properties: { action: { type: 'string', enum: ['ensure', 'use_current'] }, title: { type: 'string', minLength: 1, maxLength: 120 } } },
 				heading: { type: 'object', properties: { text: { type: 'string', minLength: 1, maxLength: 600 } } },
 				layout: { type: 'object', required: ['template'], properties: { template: { type: 'string', const: 'learning_moment_workspace' } } },
-				elements: { type: 'array', maxItems: 40, items: { type: 'object', required: ['source', 'role'], properties: { key: { type: 'string' }, source: { type: 'string', enum: ['existing', 'new', 'material', 'document'] }, role: { type: 'string', enum: ['learning_moment', 'method_idea', 'open_question', 'document_reference', 'material_reference', 'page_reference'] }, ref: { type: 'object' }, text: { type: 'string', maxLength: 600 }, document: { type: 'object' }, material: { type: 'object' } } } },
+				elements: { type: 'array', maxItems: 40, items: { type: 'object', required: ['source'], properties: { key: { type: 'string' }, source: { type: 'string', enum: ['existing', 'new', 'material', 'document'] }, role: { type: 'string', enum: ['note', 'learning_moment', 'method_idea', 'open_question', 'document_reference', 'material_reference', 'page_reference'] }, ref: { type: 'object' }, text: { type: 'string', maxLength: 600 }, document: { type: 'object' }, material: { type: 'object' } } } },
 				links: { type: 'array' },
 				overview: { type: 'object' },
 				detach: { type: 'array' },

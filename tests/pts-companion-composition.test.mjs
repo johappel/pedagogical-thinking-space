@@ -139,6 +139,25 @@ test('Repo und Instanzdaten sind getrennt, beide Wurzeln sind Platzhalter', () =
 	assert.ok(!/Join-Path \$repo 'workspace'/.test(start), 'der Repo-Workspace ist kein Startort mehr');
 });
 
+test('PTS startet ohne automatischen Browser-Tab; -Open ist ausdrueckliches Opt-in', () => {
+	const start = active(read('scripts/start-pts.ps1'));
+	assert.match(start, /\[switch\]\s*\$Open/, 'der bewusste -Open-Opt-in fehlt');
+	assert.match(start, /if \(-not \$Open\) \{ \$argList \+= '--no-open' \}/, 'ohne -Open muss DSH --no-open erhalten');
+	assert.match(start, /& dsh @argList/, 'der Start muss die aufgebauten Argumente verwenden');
+});
+
+test('Restart beendet nur einen bestaetigten DSH-Prozess und erbt den no-open-Startvertrag', () => {
+	const restart = active(read('scripts/restart-pts.ps1'));
+	assert.match(restart, /SupportsShouldProcess = \$true/);
+	assert.match(restart, /Get-NetTCPConnection -State Listen -LocalPort \$Port/);
+	assert.match(restart, /@deepseek-ai\[\\\\\/\]dsh/);
+	assert.match(restart, /Stop-Process -Id \$processId -Force/);
+	assert.match(restart, /\$PSCmdlet\.ShouldProcess\("PTS auf Port \$Port", 'starten'\)/);
+	assert.match(restart, /\[switch\]\s*\$Force/);
+	assert.match(restart, /\$Force -or \$PSCmdlet\.ShouldProcess/);
+	assert.match(restart, /-Open:\$Open/);
+});
+
 test('das Installationsskript rendert das Preset in den Home', () => {
 	const script = read('scripts/install-pts-instance.ps1');
 	assert.match(script, /dsh\/presets/);

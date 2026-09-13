@@ -18,6 +18,10 @@
     powershell -File scripts/start-pts.ps1
 .EXAMPLE
     powershell -File scripts/start-pts.ps1 -Sync -Denkraum F:\dsh-instances\pts\denkraeume\ki-und-religion
+.EXAMPLE
+    powershell -File scripts/start-pts.ps1 -Open
+    Opens the local DSH URL deliberately. The default avoids a second tldraw
+    instance competing for the same browser-local board persistence.
 #>
 [CmdletBinding()]
 param(
@@ -28,7 +32,8 @@ param(
     [string] $Denkraum,
     [int] $Port = 3030,
     [switch] $Sync,
-    [switch] $ReadOnly
+    [switch] $ReadOnly,
+    [switch] $Open
 )
 
 Set-StrictMode -Version Latest
@@ -85,4 +90,7 @@ Write-Host "DSH_HOME : $DshHome" -ForegroundColor DarkGray
 Write-Host "Denkraum : $Denkraum" -ForegroundColor DarkGray
 Write-Host "Web      : http://127.0.0.1:$Port" -ForegroundColor DarkGray
 
-& dsh --profile $ProfileName --port $Port
+$argList = @('--profile', $ProfileName, '--port', "$Port")
+if (-not $Open) { $argList += '--no-open' }
+
+& dsh @argList

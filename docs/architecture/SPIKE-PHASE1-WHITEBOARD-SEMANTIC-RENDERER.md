@@ -144,12 +144,13 @@ Client:
 
 | Rolle | Darstellung |
 |---|---|
-| `learning_moment` | hervorgehobene Ankerkarte, ⚓, Label „Lernmoment“, blau |
-| `method_idea` | kleinere Ideenkarte, 💡, Label „Methodenidee“, gelb |
-| `open_question` | Fragekarte mit `?`, violetter Akzent |
-| `document_reference` | 📄-Karte mit kurzer Beschriftung und PTS-Referenz |
-| `material_reference` | 🧰-Karte oder sichtbares Bild-Asset |
-| `page_reference` | ↗/↩-Navigationskarte mit Hash-Link |
+| `note` bzw. fehlende Rolle | neutrale gelbe Karte; der Text bleibt unverändert |
+| `learning_moment` | hervorgehobene blaue Ankerkarte, ohne Präfix im Inhalt |
+| `method_idea` | gelbe Ideenkarte, ohne „💡 Methodenidee:“ im Inhalt |
+| `open_question` | violett akzentuierte Karte, ohne Kategorie-Text |
+| `document_reference` | grüne Referenzkarte; Beschriftung kommt aus dem Auftrag |
+| `material_reference` | orange Referenzkarte oder sichtbares Bild-Asset |
+| `page_reference` | blaue Navigationskarte mit Hash-Link |
 
 Semantik wird damit nicht ausschließlich durch Farbe kommuniziert. `meta.actor`
 bleibt die Herkunft des Renderer-Beitrags; bei kopierten menschlichen Karten

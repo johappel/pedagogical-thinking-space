@@ -37,10 +37,10 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["source", "role"],
+        "required": ["source"],
         "properties": {
           "source": { "type": "string", "enum": ["existing", "new", "material", "document"] },
-          "role": { "type": "string", "enum": ["learning_moment", "method_idea", "open_question", "document_reference", "material_reference", "page_reference"] },
+          "role": { "type": "string", "enum": ["note", "learning_moment", "method_idea", "open_question", "document_reference", "material_reference", "page_reference"] },
           "ref": { "type": "object", "additionalProperties": false, "properties": { "id": { "type": "string" }, "text": { "type": "string" } } },
           "text": { "type": "string", "maxLength": 600 },
           "document": { "type": "object", "additionalProperties": false, "properties": { "documentId": { "type": "string" }, "path": { "type": "string" }, "label": { "type": "string" }, "href": { "type": "string" } } },
@@ -59,7 +59,7 @@
     },
     "detach": {
       "type": "array",
-      "items": { "type": "object", "additionalProperties": false, "required": ["role", "match"], "properties": { "role": { "type": "string", "enum": ["method_idea", "document_reference", "material_reference", "open_question"] }, "match": { "type": "string" } } }
+      "items": { "type": "object", "additionalProperties": false, "required": ["role", "match"], "properties": { "role": { "type": "string", "enum": ["note", "method_idea", "document_reference", "material_reference", "open_question"] }, "match": { "type": "string" } } }
     }
   }
 }

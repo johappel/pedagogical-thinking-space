@@ -1,17 +1,30 @@
 import { readFile } from 'node:fs/promises';
 
 export const SEMANTIC_ROLES = Object.freeze([
-	'learning_moment', 'method_idea', 'open_question', 'document_reference',
+	'note', 'learning_moment', 'method_idea', 'open_question', 'document_reference',
 	'material_reference', 'page_reference',
 ]);
 
 export const ROLE_PRESENTATION = Object.freeze({
-	learning_moment: { role: 'anchor', shape: 'note', color: 'light-blue', icon: '⚓', label: 'Lernmoment', emphasis: 'anchor' },
-	method_idea: { role: 'idea', shape: 'note', color: 'yellow', icon: '💡', label: 'Methodenidee', emphasis: 'secondary' },
-	open_question: { role: 'question', shape: 'note', color: 'light-violet', icon: '?', label: 'Offene Frage', emphasis: 'question' },
-	document_reference: { role: 'reference', shape: 'note', color: 'light-green', icon: '📄', label: 'Dokument', emphasis: 'reference' },
-	material_reference: { role: 'reference', shape: 'note', color: 'orange', icon: '🧰', label: 'Material', emphasis: 'reference' },
-	page_reference: { role: 'navigation', shape: 'note', color: 'blue', icon: '↗', label: 'Denkraum', emphasis: 'navigation' },
+	note: { role: 'note', shape: 'note', color: 'yellow', emphasis: 'plain' },
+	learning_moment: { role: 'anchor', shape: 'note', color: 'light-blue', emphasis: 'anchor' },
+	method_idea: { role: 'idea', shape: 'note', color: 'yellow', emphasis: 'secondary' },
+	open_question: { role: 'question', shape: 'note', color: 'light-violet', emphasis: 'question' },
+	document_reference: { role: 'reference', shape: 'note', color: 'light-green', emphasis: 'reference' },
+	material_reference: { role: 'reference', shape: 'note', color: 'orange', emphasis: 'reference' },
+	page_reference: { role: 'navigation', shape: 'note', color: 'blue', emphasis: 'navigation' },
+});
+
+// Old Phase-1 cards stored their presentation label in the visible content.
+// This belongs to PTS, not the generic board: it is only used when a teacher
+// explicitly asks to re-render an existing PTS card.
+const LEGACY_VISIBLE_PREFIX = Object.freeze({
+	learning_moment: '⚓ Lernmoment:',
+	method_idea: '💡 Methodenidee:',
+	open_question: '? Offene Frage:',
+	document_reference: '📄 Dokument:',
+	material_reference: '🧰 Material:',
+	page_reference: '↗ Denkraum:',
 });
 
 export const DESIGNER_CAPABILITIES = Object.freeze([
@@ -57,8 +70,9 @@ export function validateRenderPlan(plan) {
 	const elements = plan.elements.map((element, index) => {
 		assertPlain(element, `elements[${index}]`);
 		if (!['existing', 'new', 'material', 'document'].includes(element.source)) throw new RenderPlanError('invalid-plan', 'Quelle nicht erlaubt', { index });
-		if (!SEMANTIC_ROLES.includes(element.role)) throw new RenderPlanError('invalid-role', `Unbekannte semantische Rolle: ${element.role}`, { index });
-		const key = element.key === undefined ? `${element.role}:${index}` : text(element.key, `elements[${index}].key`, 120);
+		const role = element.role === undefined ? 'note' : element.role;
+		if (!SEMANTIC_ROLES.includes(role)) throw new RenderPlanError('invalid-role', `Unbekannte semantische Rolle: ${role}`, { index });
+		const key = element.key === undefined ? `${role}:${index}` : text(element.key, `elements[${index}].key`, 120);
 		if (keys.has(key)) throw new RenderPlanError('ambiguous-plan', `Doppelter Element-Schlüssel: ${key}`, { key });
 		keys.add(key);
 		if (element.source === 'existing') {
@@ -74,7 +88,7 @@ export function validateRenderPlan(plan) {
 			text(element.material.path, `elements[${index}].material.path`, 500);
 			if (!['image', 'reference'].includes(element.material.presentation)) throw new RenderPlanError('invalid-plan', 'material.presentation ist erforderlich', { index });
 		}
-		return { ...element, key };
+		return { ...element, role, key };
 	});
 	if (plan.links !== undefined && !Array.isArray(plan.links)) throw new RenderPlanError('invalid-plan', 'links muss ein Array sein');
 	if (plan.overview !== undefined) {
@@ -141,14 +155,22 @@ export function designRenderPlan(request, snapshot, capabilities = DESIGNER_CAPA
 	if (plan.page.action === 'ensure' && plan.page.title !== currentPage.name && Number(currentPage.pageCount ?? 1) > 1 && !capabilities.includes('page_switch')) {
 		throw new RenderPlanError('capability-missing', 'Page-Auflösung außerhalb der aktiven Page ist nicht verfügbar', { capability: 'page_switch' });
 	}
+	const legacyDetach = [];
 	const resolved = plan.elements.map((element, index) => {
 		if (element.source !== 'existing') return element;
 		const shape = resolveShapeReference(element.ref, snapshot, index);
 		const ref = { id: shape.id };
 		if (element.ref.text !== undefined) ref.text = element.ref.text;
+		const sourceText = String(shape.text ?? '');
+		const prefix = LEGACY_VISIBLE_PREFIX[element.role];
+		if (prefix && sourceText.startsWith(prefix)) {
+			const visibleText = sourceText.slice(prefix.length).trimStart();
+			legacyDetach.push({ role: element.role, match: sourceText });
+			return { ...element, ref, text: visibleText, resolvedType: shape.type };
+		}
 		return { ...element, ref, resolvedType: shape.type };
 	});
-	return { ...plan, elements: resolved, designer: { kind: 'pts-whiteboard-designer', version: 1 } };
+	return { ...plan, elements: resolved, detach: [...(plan.detach ?? []), ...legacyDetach], designer: { kind: 'pts-whiteboard-designer', version: 1 } };
 }
 
 export async function loadSchema(schemaPath) {
