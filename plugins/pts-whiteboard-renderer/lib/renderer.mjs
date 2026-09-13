@@ -10,7 +10,25 @@ export function rendererCapabilities(toolNames = []) {
 		pages: names.has('whiteboard_render_plan'),
 		assets: names.has('whiteboard_render_plan'),
 		documentReferences: names.has('whiteboard_render_plan'),
-		roles: ROLE_PRESENTATION,
+	};
+}
+
+function toGenericPresentationPlan(plan) {
+	const styleFor = (role) => ({ ...ROLE_PRESENTATION[role] });
+	return {
+		...plan,
+		presentation: {
+			heading: styleFor('learning_moment'),
+			navigation: styleFor('page_reference'),
+		},
+		elements: plan.elements.map((element) => ({
+			...element,
+			presentation: styleFor(element.role),
+		})),
+		detach: plan.detach?.map((entry) => ({
+			...entry,
+			presentationRole: styleFor(entry.role).role,
+		})),
 	};
 }
 
@@ -25,8 +43,7 @@ export function compileRenderPlan(plan, capabilities) {
 	return {
 		op: 'render-plan',
 		version: RENDERER_VERSION,
-		plan: valid,
-		roles: ROLE_PRESENTATION,
+		plan: toGenericPresentationPlan(valid),
 		capabilities: DESIGNER_CAPABILITIES,
 	};
 }

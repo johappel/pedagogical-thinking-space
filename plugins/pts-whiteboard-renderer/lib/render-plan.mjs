@@ -6,12 +6,12 @@ export const SEMANTIC_ROLES = Object.freeze([
 ]);
 
 export const ROLE_PRESENTATION = Object.freeze({
-	learning_moment: { shape: 'note', color: 'light-blue', icon: '⚓', label: 'Lernmoment', emphasis: 'anchor' },
-	method_idea: { shape: 'note', color: 'yellow', icon: '💡', label: 'Methodenidee', emphasis: 'secondary' },
-	open_question: { shape: 'note', color: 'light-violet', icon: '?', label: 'Offene Frage', emphasis: 'question' },
-	document_reference: { shape: 'note', color: 'light-green', icon: '📄', label: 'Dokument', emphasis: 'reference' },
-	material_reference: { shape: 'note', color: 'orange', icon: '🧰', label: 'Material', emphasis: 'reference' },
-	page_reference: { shape: 'note', color: 'blue', icon: '↗', label: 'Denkraum', emphasis: 'navigation' },
+	learning_moment: { role: 'anchor', shape: 'note', color: 'light-blue', icon: '⚓', label: 'Lernmoment', emphasis: 'anchor' },
+	method_idea: { role: 'idea', shape: 'note', color: 'yellow', icon: '💡', label: 'Methodenidee', emphasis: 'secondary' },
+	open_question: { role: 'question', shape: 'note', color: 'light-violet', icon: '?', label: 'Offene Frage', emphasis: 'question' },
+	document_reference: { role: 'reference', shape: 'note', color: 'light-green', icon: '📄', label: 'Dokument', emphasis: 'reference' },
+	material_reference: { role: 'reference', shape: 'note', color: 'orange', icon: '🧰', label: 'Material', emphasis: 'reference' },
+	page_reference: { role: 'navigation', shape: 'note', color: 'blue', icon: '↗', label: 'Denkraum', emphasis: 'navigation' },
 });
 
 export const DESIGNER_CAPABILITIES = Object.freeze([
@@ -79,9 +79,16 @@ export function validateRenderPlan(plan) {
 	if (plan.links !== undefined && !Array.isArray(plan.links)) throw new RenderPlanError('invalid-plan', 'links muss ein Array sein');
 	if (plan.overview !== undefined) {
 		assertPlain(plan.overview, 'overview');
-		if (plan.overview.action !== 'ensure_page_reference') throw new RenderPlanError('invalid-plan', 'overview.action ist nicht erlaubt');
+		if (plan.overview.action !== 'ensure_navigation_reference') throw new RenderPlanError('invalid-plan', 'overview.action ist nicht erlaubt');
 	}
-	if (plan.detach !== undefined && !Array.isArray(plan.detach)) throw new RenderPlanError('invalid-plan', 'detach muss ein Array sein');
+	if (plan.detach !== undefined) {
+		if (!Array.isArray(plan.detach)) throw new RenderPlanError('invalid-plan', 'detach muss ein Array sein');
+		plan.detach.forEach((entry, index) => {
+			assertPlain(entry, `detach[${index}]`);
+			if (!SEMANTIC_ROLES.includes(entry.role)) throw new RenderPlanError('invalid-role', `Unbekannte semantische Rolle: ${entry.role}`, { index });
+			text(entry.match, `detach[${index}].match`, 600);
+		});
+	}
 	return { ...plan, page: { ...plan.page, title: pageTitle }, elements };
 }
 

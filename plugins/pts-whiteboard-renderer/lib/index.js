@@ -32,7 +32,7 @@ Frame-Titel und darf niemals den Inhalt von elements[].text ersetzen.
 
 Nicht verwenden: operation="create", type="card", body, overview.enabled oder
 Freitext anstelle des RenderPlans. overview darf nur mit
-action="ensure_page_reference" angegeben werden. Nach status="queued" darfst
+action="ensure_navigation_reference" angegeben werden. Nach status="queued" darfst
 du nur von einem angenommenen Queue-Auftrag sprechen; sichtbar bestaetigt ist
 er erst, wenn der naechste Board-Zustand die neuen Zettel mit ihren exakten
 Texten zeigt.`;

@@ -34,7 +34,7 @@ function request(overrides = {}) {
 			{ key: 'song', source: 'existing', role: 'method_idea', ref: { text: 'Lied „Danke“' } },
 			{ key: 'box', source: 'existing', role: 'method_idea', ref: { text: 'Danke-Kiste' } },
 		],
-		overview: { action: 'ensure_page_reference', targetPage: 'LM · Danke' },
+		overview: { action: 'ensure_navigation_reference', targetPage: 'LM · Danke' },
 		...overrides,
 	};
 }
@@ -72,6 +72,23 @@ test('unsupported dsh-whiteboard capabilities fail closed without a partial plan
 		assert.deepEqual(error.details.missing, ['page_create', 'page_switch', 'shape_copy_between_pages', 'shape_links', 'asset_image_shape']);
 		return true;
 	});
+});
+
+test('PTS semantics compile to generic presentation specs only at the seam', () => {
+	const compiled = compileRenderPlan(designRenderPlan(request(), snapshot), rendererCapabilities(['whiteboard_render_plan']));
+	assert.deepEqual(compiled.plan.presentation.heading.role, 'anchor');
+	assert.deepEqual(compiled.plan.presentation.navigation.role, 'navigation');
+	assert.deepEqual(compiled.plan.elements.map((element) => element.presentation.role), ['anchor', 'idea', 'idea']);
+	assert.equal(compiled.roles, undefined);
+});
+
+test('generic dsh-whiteboard does not contain PTS semantic role names', async () => {
+	const source = await import('node:fs/promises').then(({ readFile }) => readFile('F:/code/dsh-tldraw/plugin/dsh-whiteboard/lib/client.js', 'utf8'));
+	for (const role of ['learning_moment', 'method_idea', 'open_question', 'document_reference', 'material_reference', 'page_reference']) {
+		assert.doesNotMatch(source, new RegExp('\\b' + role + '\\b'));
+	}
+	assert.doesNotMatch(source, /semanticRole/);
+	assert.doesNotMatch(source, /PTS Whiteboard Renderer/);
 });
 
 test('role semantics are not origin semantics and domain writes are absent', async () => {

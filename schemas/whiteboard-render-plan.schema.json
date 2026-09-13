@@ -55,7 +55,7 @@
     "overview": {
       "type": "object",
       "additionalProperties": false,
-      "properties": { "action": { "type": "string", "enum": ["ensure_page_reference"] }, "targetPage": { "type": "string" }, "sourceRef": { "type": "string" }, "label": { "type": "string" } }
+      "properties": { "action": { "type": "string", "enum": ["ensure_navigation_reference"] }, "targetPage": { "type": "string" }, "sourceRef": { "type": "string" }, "label": { "type": "string" } }
     },
     "detach": {
       "type": "array",
