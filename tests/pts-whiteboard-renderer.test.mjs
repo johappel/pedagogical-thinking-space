@@ -92,6 +92,12 @@ test('generic renderer keeps the learning-moment element text distinct from the 
 	assert.match(source, /anchorContent[\s\S]*el\.source === 'existing'[\s\S]*el\.text/);
 });
 
+test('the root-scoped opener follows the active session for automatic opening', async () => {
+	const source = await import('node:fs/promises').then(({ readFile }) => readFile('F:/code/dsh-tldraw/plugin/dsh-whiteboard/lib/client.js', 'utf8'));
+	assert.match(source, /var rootSessionId = props && typeof props\.useSessions === 'function'[\s\S]*state && state\.current[\s\S]*var sessionId[\s\S]*rootSessionId/);
+	assert.match(source, /function retryOpen\(attempts\)[\s\S]*openBoard\(requestedSessionId\)[\s\S]*retryOpen\(\(attempts \|\| 0\) \+ 1\)/);
+});
+
 test('generic dsh-whiteboard does not contain PTS semantic role names', async () => {
 	const source = await import('node:fs/promises').then(({ readFile }) => readFile('F:/code/dsh-tldraw/plugin/dsh-whiteboard/lib/client.js', 'utf8'));
 	for (const role of ['learning_moment', 'method_idea', 'open_question', 'document_reference', 'material_reference', 'page_reference']) {
