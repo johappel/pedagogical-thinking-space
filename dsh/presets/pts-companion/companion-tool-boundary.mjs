@@ -27,11 +27,10 @@ export const HIDDEN_FROM_COMPANION = Object.freeze([
 	'web_fetch',
 	'write',
 	'edit',
-	// Whiteboard primitives stay behind the semantic Phase-1 seam. The
-	// adapter may still resolve the existing definition internally; the
-	// Companion must not coordinate ids, pages or low-level commands itself.
+	// Whiteboard mutations stay behind the semantic Phase-1 seam. The
+	// read-only state projection is visible so the Companion can verify a
+	// render and recover from a failed write.
 	'whiteboard_request_open',
-	'whiteboard_state',
 	'whiteboard_add_note',
 	'whiteboard_rename_cluster',
 	'whiteboard_bind_frame',

@@ -19,10 +19,25 @@ PTS
 ```
 
 PTS übernimmt keine private tldraw-Implementierung. Der Renderer kompiliert
-einen semantischen Plan zu einem dokumentierten generischen Auftrag. Die
-Fassade `pts_whiteboard_render` bleibt das einzige sichtbare Companion-Tool;
-`whiteboard_render_plan` und die Whiteboard-Primitiven bleiben interne
-Gegenstellen.
+einen semantischen Plan zu einem dokumentierten generischen Auftrag. Der
+Companion darf die read-only Projektion `whiteboard_state` direkt lesen und
+überprüfen; `pts_whiteboard_render` bleibt die einzige sichtbare Schreib- und
+Semantik-Fassade. `whiteboard_render_plan` und die Whiteboard-Primitiven bleiben
+interne Gegenstellen.
+
+### Ausführungsbestätigung und Nacharbeit
+
+`whiteboard_render_plan` liefert eine sessiongebundene `commandId`. Die Annahme
+des Befehls (`accepted: true`) bedeutet nur, dass der Host ihn an den
+zuständigen Browser weitergeben konnte. Erst ein Folge-Snapshot mit passendem
+`commandResults[].commandId` und `ok: true` ist `verified` und darf als sichtbar
+erledigt beschrieben werden. Der Client puffert frühe Events während des
+asynchronen tldraw-Ladens und behandelt eine bereits erfolgreiche `commandId`
+idempotent. Bei ausbleibendem oder negativem Ack wird derselbe Auftrag mit
+derselben ID genau einmal nachgeliefert; danach bleibt der Zustand `pending`
+oder `failed`. Der Companion liest dann `whiteboard_state`, vergleicht den
+beabsichtigten exakten Inhalt und berichtet bzw. korrigiert begrenzt. Es gibt
+keinen zusätzlichen PTS-Queue- oder Scheduler-Lifecycle.
 
 ## Entscheidungsablauf für eine neue Fähigkeit
 

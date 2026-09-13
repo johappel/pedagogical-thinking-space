@@ -68,7 +68,10 @@ direkt, weil die Dispatch-Pipeline sonst einen Phantom-Tool-Call erzeugt; ohne
 überschreibt, der das Browser-Board an die Companion-Session bindet.
 
 Kein `whiteboard_add_note`, kein `whiteboard_propose_clusters` etc. im Adapter —
-diese Tools benutzt ausschließlich der Companion selbst, unverändert.
+der Adapter bleibt reine Leseschicht. In der aktuellen Phase-1-Komposition ist
+`whiteboard_state` als read-only Werkzeug sichtbar; Schreibaktionen laufen über
+`pts_whiteboard_render`, während die generischen Whiteboard-Primitiven für den
+Companion verborgen bleiben.
 
 ## 4. Der tatsächlich injizierte Prompt-Kontext
 
@@ -171,11 +174,11 @@ Assembly stattfindet.
    zitiert, damit der Fokus eindeutig ist.
 5. **Wie werden Änderungen erkannt?** Vergleich des zuletzt gezeigten Snapshots
    mit dem aktuellen, ohne zusätzlichen Snapshot-Store (siehe §5).
-6. **Welche Whiteboard-Tools nutzt der Companion?** Unverändert die vorhandenen:
-   `whiteboard_state`, `whiteboard_add_note`, `whiteboard_highlight_notes`,
-   `whiteboard_propose_clusters`, `whiteboard_connect_notes`,
-   `whiteboard_arrange_sequence`, `whiteboard_bind_frame`,
-   `whiteboard_frame_to_back`, `whiteboard_rename_cluster`.
+6. **Welche Whiteboard-Tools nutzt der Companion?** In der aktuellen
+   Phase-1-Komposition liest er `whiteboard_state` und schreibt über
+   `pts_whiteboard_render`. Die neun generischen Schreib-Primitive bleiben
+   interne Gegenstellen; die frühere M1-Probe mit direkter Sichtbarkeit ist
+   durch diese engere Grenze abgelöst.
 7. **Ohne Preset-Änderung?** Ja. Der Adapter ist eine Host-Row; das Preset
    `pts-companion` wurde nicht angefasst, und die Tools sind in der Companion-
    Session bereits sichtbar (Live-Probe: 4 laufende `pts-companion`-Sessions).

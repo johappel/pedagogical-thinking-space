@@ -123,6 +123,10 @@ test('die ausgelieferten Prompt-Assets existieren und sind deutsch befuellt', ()
 	// Statisches Prompt-Asset-Budget; das separate Laufzeit-Overview-Budget bleibt 4200.
 	assert.ok(framework.length <= 6000, `Framework zu lang (${framework.length})`);
 	assert.match(framework, /pts_research/);
+	assert.match(framework, /whiteboard_state/);
+	assert.match(framework, /queued.*nur angenommen/);
+	assert.match(framework, /pending.*failed/);
+	assert.match(framework, /verified/);
 	assert.match(framework, /\| Rolle \| Zuständigkeit \| Grenze \|/);
 });
 

@@ -32,10 +32,11 @@ Frame-Titel und darf niemals den Inhalt von elements[].text ersetzen.
 
 Nicht verwenden: operation="create", type="card", body, overview.enabled oder
 Freitext anstelle des RenderPlans. overview darf nur mit
-action="ensure_navigation_reference" angegeben werden. Nach status="queued" darfst
-du nur von einem angenommenen Queue-Auftrag sprechen; sichtbar bestaetigt ist
-er erst, wenn der naechste Board-Zustand die neuen Zettel mit ihren exakten
-Texten zeigt.`;
+action="ensure_navigation_reference" angegeben werden. status="verified" bedeutet,
+dass der Browser die Command-ID bestaetigt und einen neuen Board-Snapshot geliefert
+hat. Bei status="pending" oder "failed" musst du whiteboard_state lesen, die Ursache
+pruefen und den semantischen Auftrag begrenzt erneut ausfuehren; behaupte niemals eine
+sichtbare Aenderung ohne verified.`;
 
 function isSubagent(agent) {
 	return agent?.session?.header?.origin === 'subagent';
@@ -102,6 +103,20 @@ function lossless(value, seen = new Set()) {
 
 function delay(milliseconds) {
 	return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function waitForCommandResult(stateTool, exec, commandId, timeoutMs = 6000) {
+	const deadline = Date.now() + timeoutMs;
+	let latest;
+	do {
+		latest = await stateTool.execute({}, exec);
+		const results = Array.isArray(latest?.snapshot?.commandResults) ? latest.snapshot.commandResults : [];
+		const result = results.find((entry) => entry?.commandId === commandId);
+		if (result) return { state: latest, result };
+		if (Date.now() >= deadline) break;
+		await delay(250);
+	} while (Date.now() < deadline);
+	return { state: latest, result: null };
 }
 
 async function liveSnapshotOrRequestOpen(stateTool, openTool, exec) {
@@ -243,8 +258,29 @@ export function apply(ctx) {
 				const { command } = await designAndCompile({ renderPlan: plan }, snapshotResult.snapshot, capabilities);
 				const lowLevel = tools.get(LOW_LEVEL_TOOL);
 				if (!lowLevel || typeof lowLevel.execute !== 'function') return { ok: false, status: 'blocked', plan, error: { code: 'capability-missing', message: 'Generischer dsh-whiteboard Render-Plan-Seam fehlt', capabilities } };
-				const queued = await lowLevel.execute(command, exec);
-				return lossless({ ok: true, status: 'queued', renderer: 'deterministic', designer: plan.designer, plan, queued, metrics: { visibleToolCalls: 1, stateQueries: 1, lowLevelOperations: 1, subagentTurns: 0 } });
+				let queued;
+				let verification;
+				let attempts = 0;
+				for (; attempts < 2; attempts++) {
+					queued = await lowLevel.execute(command, exec);
+					if (!queued?.accepted || !queued.commandId) {
+						return { ok: false, status: 'blocked', plan, queued, error: { code: 'command-ack-unavailable', message: 'Generischer Render-Seam liefert keine bestaetigbare Command-ID' }, metrics: { visibleToolCalls: 1, stateQueries: 1, lowLevelOperations: attempts + 1, subagentTurns: 0 } };
+					}
+					verification = await waitForCommandResult(stateTool, exec, queued.commandId);
+					if (verification.result?.ok === true) break;
+					// Re-submit the same idempotency key once. The generic client
+					// ignores a command it already applied, can execute it if the
+					// first event was lost during startup, and gets one chance to
+					// recover from a transient client-side execution failure.
+					command.commandId = queued.commandId;
+				}
+				if (verification?.result?.ok === true) {
+					return lossless({ ok: true, status: 'verified', renderer: 'deterministic', designer: plan.designer, plan, queued, verification: verification.result, metrics: { visibleToolCalls: 1, stateQueries: 1, lowLevelOperations: attempts, subagentTurns: 0 } });
+				}
+				if (verification?.result && verification.result.ok === false) {
+					return lossless({ ok: false, status: 'failed', plan, queued, error: { code: 'client-command-failed', message: verification.result.error || 'Browser konnte den Render-Auftrag nicht ausfuehren' }, metrics: { visibleToolCalls: 1, stateQueries: 1, lowLevelOperations: attempts, subagentTurns: 0 } });
+				}
+				return lossless({ ok: false, status: 'pending', plan, queued, error: { code: 'whiteboard-command-timeout', message: 'Browser-Ack und Folge-Snapshot blieben aus; der Auftrag ist nicht sichtbar bestaetigt' }, metrics: { visibleToolCalls: 1, stateQueries: 1, lowLevelOperations: attempts, subagentTurns: 0 } });
 			} catch (error) {
 				return { ok: false, status: 'rejected', error: { code: error.code ?? 'render-plan-error', message: error.message, details: error.details ?? {} }, metrics: { visibleToolCalls: 1, stateQueries: 1, lowLevelOperations: 0, subagentTurns: 0 } };
 			}

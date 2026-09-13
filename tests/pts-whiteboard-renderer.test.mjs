@@ -132,14 +132,15 @@ test('material and document roles are bounded references, not folder imports', (
 	assert.equal(plan.elements[1].document.path, 'materials-test/lied.pdf');
 });
 
-test('the current Companion boundary hides Whiteboard primitives behind the semantic tool', () => {
+test('the Companion may read the Whiteboard but cannot use its mutation primitives directly', () => {
 	for (const name of [
-		'whiteboard_request_open', 'whiteboard_state', 'whiteboard_add_note', 'whiteboard_rename_cluster',
+		'whiteboard_request_open', 'whiteboard_add_note', 'whiteboard_rename_cluster',
 		'whiteboard_bind_frame', 'whiteboard_frame_to_back',
 		'whiteboard_arrange_sequence', 'whiteboard_propose_clusters',
 		'whiteboard_connect_notes', 'whiteboard_highlight_notes',
 		'whiteboard_render_plan',
 	]) assert.ok(HIDDEN_FROM_COMPANION.includes(name), `${name} must stay internal`);
+	assert.ok(!HIDDEN_FROM_COMPANION.includes('whiteboard_state'));
 	assert.ok(!HIDDEN_FROM_COMPANION.includes('pts_whiteboard_render'));
 });
 
@@ -153,14 +154,14 @@ test('the semantic renderer requests the closed board and continues after it bec
 			stateCalls += 1;
 			return stateCalls === 1
 				? { live: false, available: false, snapshot: null }
-				: { live: true, available: true, snapshot };
+				: { live: true, available: true, snapshot: renderCalls > 0 ? { ...snapshot, commandResults: [{ commandId: 'cmd-test-1', op: 'render-plan', ok: true }] } : snapshot };
 		},
 	};
 	const openTool = {
 		execute: async () => { openCalls += 1; return { accepted: true, requested: true }; },
 	};
 	const lowLevelTool = {
-		execute: async () => { renderCalls += 1; return { accepted: true, op: 'render-plan' }; },
+		execute: async () => { renderCalls += 1; return { accepted: true, op: 'render-plan', commandId: 'cmd-test-1' }; },
 	};
 	definitions.set('whiteboard_state', stateTool);
 	definitions.set('whiteboard_request_open', openTool);
@@ -178,10 +179,90 @@ test('the semantic renderer requests the closed board and continues after it bec
 	};
 	applyRenderer(ctx);
 	const result = await definitions.get('pts_whiteboard_render').execute(request(), { agent: { id: 'test-session' } });
-	assert.equal(result.status, 'queued');
+	assert.equal(result.status, 'verified');
 	assert.equal(openCalls, 1);
 	assert.ok(stateCalls >= 2);
 	assert.equal(renderCalls, 1);
+});
+
+test('the semantic renderer retries a missing acknowledgement idempotently', async () => {
+	let stateCalls = 0;
+	let renderCalls = 0;
+	const commands = [];
+	const definitions = new Map();
+	const stateTool = {
+		execute: async () => {
+			stateCalls += 1;
+			return { live: true, available: true, snapshot: renderCalls > 1 ? { ...snapshot, commandResults: [{ commandId: 'cmd-retry-1', op: 'render-plan', ok: true }] } : snapshot };
+		},
+	};
+	const lowLevelTool = {
+		execute: async (command) => {
+			renderCalls += 1;
+			commands.push(command);
+			return { accepted: true, op: 'render-plan', commandId: command.commandId || 'cmd-retry-1' };
+		},
+	};
+	definitions.set('whiteboard_state', stateTool);
+	definitions.set('whiteboard_render_plan', lowLevelTool);
+	const ctx = {
+		get(name) {
+			if (name === 'webServer') return { register: () => () => {} };
+			if (name === 'tools') return {
+				get: (toolName) => definitions.get(toolName),
+				register: (definition) => { definitions.set(definition.name, definition); return () => {}; },
+			};
+			return undefined;
+		},
+		effect(effect) { effect(); },
+	};
+	applyRenderer(ctx);
+	const result = await definitions.get('pts_whiteboard_render').execute(request(), { agent: { id: 'retry-session' } });
+	assert.equal(result.status, 'verified');
+	assert.equal(renderCalls, 2);
+	assert.equal(commands[1].commandId, 'cmd-retry-1');
+	assert.ok(stateCalls > 2);
+});
+
+test('the semantic renderer retries one transient client failure with the same command id', async () => {
+	let stateCalls = 0;
+	let renderCalls = 0;
+	const commands = [];
+	const definitions = new Map();
+	const stateTool = {
+		execute: async () => {
+			stateCalls += 1;
+			return { live: true, available: true, snapshot: renderCalls > 1
+				? { ...snapshot, commandResults: [{ commandId: 'cmd-failure-retry', op: 'render-plan', ok: true }] }
+				: { ...snapshot, commandResults: renderCalls === 1 ? [{ commandId: 'cmd-failure-retry', op: 'render-plan', ok: false, error: 'temporärer Clientfehler' }] : snapshot.commandResults } };
+		},
+	};
+	const lowLevelTool = {
+		execute: async (command) => {
+			renderCalls += 1;
+			commands.push({ ...command });
+			return { accepted: true, op: 'render-plan', commandId: command.commandId || 'cmd-failure-retry' };
+		},
+	};
+	definitions.set('whiteboard_state', stateTool);
+	definitions.set('whiteboard_render_plan', lowLevelTool);
+	const ctx = {
+		get(name) {
+			if (name === 'webServer') return { register: () => () => {} };
+			if (name === 'tools') return {
+				get: (toolName) => definitions.get(toolName),
+				register: (definition) => { definitions.set(definition.name, definition); return () => {}; },
+			};
+			return undefined;
+		},
+		effect(effect) { effect(); },
+	};
+	applyRenderer(ctx);
+	const result = await definitions.get('pts_whiteboard_render').execute(request(), { agent: { id: 'failure-retry-session' } });
+	assert.equal(result.status, 'verified');
+	assert.equal(renderCalls, 2);
+	assert.equal(commands[1].commandId, 'cmd-failure-retry');
+	assert.ok(stateCalls >= 2);
 });
 
 test('the renderer capability gives the Companion an explicit execution contract', () => {
@@ -190,5 +271,7 @@ test('the renderer capability gives the Companion an explicit execution contract
 	assert.match(RENDER_PLAN_GUIDANCE, /role="method_idea"/);
 	assert.match(RENDER_PLAN_GUIDANCE, /elements\[\]\.text/);
 	assert.match(RENDER_PLAN_GUIDANCE, /operation="create"/);
-	assert.match(RENDER_PLAN_GUIDANCE, /status="queued"/);
+	assert.match(RENDER_PLAN_GUIDANCE, /status="verified"/);
+	assert.match(RENDER_PLAN_GUIDANCE, /whiteboard_state/);
+	assert.match(RENDER_PLAN_GUIDANCE, /pending.*failed/);
 });

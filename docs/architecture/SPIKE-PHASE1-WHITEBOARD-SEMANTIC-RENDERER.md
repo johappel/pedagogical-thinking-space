@@ -57,8 +57,9 @@ editor.run(...)              (Pages, Karten, Frames, Links, Assets)
 ```
 
 Die PTS-Schicht liegt in
-`plugins/pts-whiteboard-renderer/`. Der Companion erhält nur den semantischen
-Vertrag; Low-Level-Whiteboard-Kommandos sind kein Teil des neuen Auftrags.
+`plugins/pts-whiteboard-renderer/`. Der Companion erhält den semantischen
+Rendervertrag und darf den read-only Zustand über `whiteboard_state` prüfen;
+Low-Level-Whiteboard-Kommandos sind kein Teil des sichtbaren Auftrags.
 Der vorhandene M1-Adapter wird weder importiert noch erweitert.
 
 ## 3. Whiteboard Designer
@@ -189,7 +190,11 @@ Generisch und PTS-unabhängig ergänzt wurden:
 - ein hostseitiger Snapshot-Store unter `$DSH_HOME/whiteboard-snapshots` mit
   opaker, aus dem Workspace-Pfad abgeleiteter Board-ID;
 - Laden vor dem ersten Live-Snapshot, Versionsprüfung und fail-closed Verhalten
-  bei konkurrierenden Browser-Schreibvorgängen.
+  bei konkurrierenden Browser-Schreibvorgängen;
+- sessiongebundene `commandId`-Bestätigung: `accepted` ist nur Annahme, ein
+  passendes `commandResults[].ok: true` im Folge-Snapshot ist erst `verified`;
+  frühe Events werden gepuffert und derselbe Auftrag bei fehlendem oder
+  negativem Ack höchstens einmal idempotent nachgeliefert.
 
 Unverändert bleiben vorhandene neun Brainstorming-Tools, Vorschlags-/Übernahme-
 Semantik, Sidebar-Mounting und die Herkunftslogik. Die Browser-IndexedDB bleibt
@@ -380,7 +385,7 @@ Bericht stammen aus der Zeit vor der Browser-Abnahme.
 
 | Bereich | Status | Nachweis |
 |---|---|---|
-| Generische DSH/PTS-Grenze | **PASS** | `dsh-whiteboard` akzeptiert nur aufgeloeste `presentation`-Specs. Die Uebersetzung von PTS-Rollen zu Darstellungsrollen liegt einmalig im PTS-Renderer. Der Companion sieht nur `pts_whiteboard_render`. |
+| Generische DSH/PTS-Grenze | **PASS WITH CONDITIONS** | `dsh-whiteboard` akzeptiert nur aufgeloeste `presentation`-Specs. Die Uebersetzung von PTS-Rollen zu Darstellungsrollen liegt einmalig im PTS-Renderer. Der Companion sieht `whiteboard_state` read-only und nutzt `pts_whiteboard_render` als einzige Schreib-/Semantik-Fassade; Low-Level-Mutationen bleiben verborgen. |
 | A - Lernmoment-Arbeitsraum | **PASS** | Frischer Browserlauf im Workspace `WB-Tests`: genau ein sichtbarer semantischer Toolcall; eigene Page `Phase 1 Browser A Abschluss`, Frame, Lernmoment-Anker, zwei Methodenideen, zwei Pfeile mit vier Bindings sowie Uebersichts- und Ruecknavigation. Page-Link wechselte im selben Tab. |
 | B - Detach | **PASS** | Menschliche Ursprungskarte blieb erhalten; die Renderer-Projektion wurde mit `detach: [{ role, match }]` entfernt. Andere Karten blieben erhalten; keine Konsolenfehler. |
 | C - Dokumentreferenz | **PASS** | PDF-Karte sichtbar; `/pts-whiteboard-renderer/resource?path=...` lieferte `200 application/pdf` und 566 Bytes. `../../outside.txt` lieferte `400`; kein `file://`. Die neue URL ist nicht an eine abgelaufene Browser-Session gebunden. |
@@ -423,7 +428,8 @@ Checks und der PTS-Renderer-Test laufen gegen den aktualisierten Quellstand.
 3. **Client:** Der generische Client fuehrt den validierten Plan als einen
    deterministischen `editor.run`-Batch aus. Rich-Text-Links und Assets kommen
    nur aus den validierten Plan-Daten.
-4. **Toolvertrag:** Der Companion ruft ausschliesslich
+4. **Toolvertrag:** Der Companion liest `whiteboard_state` fuer die
+   Zustandspruefung und ruft fuer Schreibaktionen ausschliesslich
    `pts_whiteboard_render` mit `operation`, `page`, `layout`, `elements` und
    optional `links`/`overview`/`detach` auf. Der Ablauf ist:
    `pts_whiteboard_render -> validierter PTS-RenderPlan -> generischer
@@ -438,3 +444,29 @@ Ausdruecklich auf Phase 2 verschoben sind Binding-/Provenienzschema,
 Lehrkraftbestaetigung, kanonische LearningMoment-Identitaeten,
 Domainpersistenz, Auswirkungspruefung beim Aendern/Loeschen,
 Board-Domain-Projektionen und bidirektionale Synchronisierung.
+
+## 21. Nachtrag: Command-Ack und selbsttaetige Nacharbeit (2026-09-13)
+
+Der fruehere Befund hat gezeigt, dass ein Tool-Ergebnis wie "Auftrag in die
+Queue gelegt" fuer die Lehrkraft irrefuehrend ist: Die fuenf angeforderten
+Zettel waren in der betroffenen Session nicht im Snapshot angekommen. Der
+Vertrag ist deshalb jetzt explizit:
+
+- `accepted` bzw. `queued` bedeutet nur Transportannahme durch den Host;
+- `commandId` bindet Auftrag, Event und Folge-Snapshot an dieselbe Session;
+- `verified` entsteht erst bei passendem `commandResults[].commandId` mit
+  `ok: true` und einem neuen Live-Snapshot;
+- der Client puffert fruehe Events und fuehrt dieselbe ID nicht doppelt aus;
+- bei fehlendem oder negativem Ack wird derselbe Auftrag genau einmal
+  nachgeliefert; der Companion liest bei `pending`/`failed` den Zustand erneut,
+  vergleicht die exakten Inhalte und fasst begrenzt nach;
+- direkte Whiteboard-Schreib-Primitive bleiben verborgen. Sichtbares Lesen
+  (`whiteboard_state`) und die semantische Schreibfassade
+  (`pts_whiteboard_render`) sind getrennt.
+
+Static-Nachweis nach dieser Aenderung: 16/16 PTS-Renderer-Tests, 16/16
+PTS-Adapter-Tests, 3/3 dsh-tldraw-Hosttests, Syntaxpruefungen und
+`git diff --check`. Live-Boot und Browser-E2E der neuen Ack-/Retry-Kette sind
+noch offen, weil die aktive Instanz den Profil-Rewrite derzeit mit `EPERM`
+abbricht; daher ist die Laufzeitverbesserung noch nicht als Browser-abgenommen
+zu bezeichnen.
