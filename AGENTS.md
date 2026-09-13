@@ -75,6 +75,13 @@ Ersatzimplementierung. Diese Regel ändert weder die Phase-1-Grenze noch die
 Vorgabe, keine Domainobjekte, `decisions.yml` oder bidirektionale Board-
 Synchronisierung einzuführen.
 
+Konkrete Beispiele für solche Kandidaten sind die automatische Sichtführung
+auf neu gerenderte Inhalte und eine dezente visuelle Anzeige von Agenten-
+Änderungen. Beide Beispiele sind in
+`docs/architecture/DSH_TLDRAW_INTEGRATION.md` als verbindliche Anforderungen
+für einen späteren Spike beschrieben; sie gelten nicht durch diese Regel
+allein als implementiert.
+
 ## Instance
 
 ```text

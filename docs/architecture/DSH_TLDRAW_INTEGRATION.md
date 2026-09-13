@@ -57,6 +57,68 @@ Eine Fähigkeit darf nicht zweimal implementiert werden. Besonders unzulässig
 sind ein PTS-seitiger Ersatz für fehlende tldraw-Editor-Aufrufe und direkte
 Zugriffe des PTS-Renderers auf private Client- oder Store-Strukturen.
 
+## Konkrete Feature-Kandidaten
+
+Die folgenden beiden Beispiele konkretisieren, wie ein neuer Wunsch erfasst
+und zwischen den Repositories aufgeteilt wird. Sie sind Anforderungen an
+spätere Spikes, keine stillschweigend vorhandenen Funktionen.
+
+### A. Sichtführung auf neu gerenderte Inhalte
+
+Wenn ein RenderPlan mehrere neue Zettel oder Frames anlegt, soll die
+Whiteboard-Ansicht die erzeugten Inhalte unmittelbar sichtbar machen:
+
+- bei wenigen oder zusammenhängenden neuen Shapes: Kamera auf deren Bounds
+  fokussieren, mit definiertem Padding und einem sinnvollen Zoom-Limit;
+- bei vielen, stark verteilten oder zu kleinen Inhalten: begrenztes
+  `editor.zoomToFit()` für die relevante Inhaltsmenge, nicht blind für das
+  gesamte Board;
+- die relevante Inhaltsmenge muss aus dem Renderauftrag bzw. den erzeugten
+  IDs/`renderKey`s stammen, niemals aus einer geratenen Auswahl oder einem
+  globalen Board-Scan;
+- der Kamerabefehl erfolgt erst nach erfolgreicher Shape-/Frame-Erzeugung;
+  bei Teilfehlern darf die Kamera keinen unvollständigen Erfolg vortäuschen;
+- Kamera-Position und Zoom sind Ansichtszustand, keine PTS-Domainpersistenz.
+
+Die Editor-API, Bounds-Berechnung, Padding-/Zoom-Grenzen und der Zeitpunkt der
+Ausführung gehören in `dsh-tldraw`. PTS darf später lediglich einen
+dokumentierten Präsentationswunsch wie `fit_created_content` angeben. Der
+Nachweis braucht mindestens: mehrere neu erzeugte Shapes, viele bestehende
+Shapes außerhalb des Fokus, Reload-Verhalten und eine menschliche
+Sichtprüfung, dass alle neuen Inhalte erreichbar und lesbar sind.
+
+### B. Änderungen für die Lehrkraft sofort erkennbar machen
+
+Nach einer Agentenänderung soll die Lehrkraft die betroffenen Shapes ohne
+Suche erkennen können. Geeignete, zurückhaltende Mittel sind beispielsweise:
+
+- neue Shapes kurz und nicht-blockierend einfliegen oder sanft erscheinen
+  lassen;
+- editierte Shapes kurz pulsieren oder einen dezenten Fokus-Hinweis zeigen;
+- die Anzeige nur für tatsächlich geänderte Agenten-Shapes verwenden, nicht
+  für jeden Poll und nicht für unveränderte menschliche Inhalte;
+- `prefers-reduced-motion` und eine abschaltbare, zugängliche Alternative
+  (z. B. Fokusrahmen oder Änderungsmarkierung) unterstützen;
+- Animationen nicht in den tldraw-Snapshot schreiben und keine semantischen
+  Shape-Daten verändern.
+
+Die Animation, Diff-Erkennung, Dauer, Unterbrechung und Accessibility gehören
+in `dsh-tldraw`. PTS darf nur die Herkunft bzw. den Anlass eines Render-
+Auftrags liefern, sofern dies bereits Teil des dokumentierten Meta-/Seam-
+Vertrags ist. Es darf keine pädagogische Bedeutung aus einer Animation
+abgeleitet werden. Die E2E-Abnahme muss mindestens neues Shape, editierte
+Shape, reine menschliche Änderung, mehrere schnelle Agentenänderungen und
+Reduced-Motion abdecken; Ergonomie und Nicht-Störung werden zusätzlich
+menschlich bewertet.
+
+### Gemeinsame Reihenfolge
+
+Für A und B gilt dieselbe Reihenfolge: dsh-tldraw-Spike mit generischem
+Vertrag und Tests, Live-Boot, Browser-E2E und Dokumentation; erst danach ein
+kleiner PTS-Anschluss, falls der semantische RenderPlan dafür tatsächlich ein
+neues Feld benötigt. Ein `queued`-Ergebnis ohne sichtbare Abnahme darf weder
+die Kameraänderung noch die Änderungsanzeige als erledigt melden.
+
 ### 3. Generischen Vertrag nachweisen
 
 Vor der PTS-Änderung muss mindestens feststehen:
@@ -145,4 +207,3 @@ ein Browser-Reload allein lädt keinen neuen Plugin-Code.
 - eine neue Board-Funktion als Domainentscheidung oder Lernmoment-
   Persistenz ausgeben;
 - fehlende Tests durch eine bloße Dokumentationsänderung kaschieren.
-
