@@ -23,6 +23,22 @@ import {
 
 const adapterPath = fileURLToPath(new URL('../plugins/pts-whiteboard-adapter/lib/index.js', import.meta.url));
 const adapterSource = readFileSync(adapterPath, 'utf8');
+
+test('non-note shapes are projected as board elements', () => {
+	const text = renderWhiteboardContext({
+		counts: { notes: 0, human: 0, agent: 0, proposals: 0 },
+		notes: [], frames: [], selection: [],
+		elements: [
+			{ id: 'shape:heart', type: 'geo', geo: 'heart', text: 'Hoffnung', actor: 'human' },
+			{ id: 'shape:text', type: 'text', geo: null, text: 'Einfacher Text', actor: 'human' },
+		],
+		page: { id: 'page:1', name: 'Board', pageCount: 1 },
+	});
+	assert.match(text, /Weitere Board-Elemente/);
+	assert.match(text, /geo:heart/);
+	assert.match(text, /Hoffnung/);
+	assert.match(text, /Einfacher Text/);
+});
 // Structural assertions look at code, not at the prose that explains it.
 const adapterCode = adapterSource.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 const packagePath = fileURLToPath(new URL('../plugins/pts-whiteboard-adapter/package.json', import.meta.url));

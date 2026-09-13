@@ -92,6 +92,26 @@ test('generic renderer keeps the learning-moment element text distinct from the 
 	assert.match(source, /anchorContent[\s\S]*el\.source === 'existing'[\s\S]*el\.text/);
 });
 
+test('designer resolves non-note shapes from the complete snapshot element list', () => {
+	const completeSnapshot = {
+		...snapshot,
+		notes: [],
+		elements: [
+			{ id: 'shape:heart', type: 'geo', geo: 'heart', text: 'Hoffnung' },
+			{ id: 'shape:plain-text', type: 'text', text: 'Einfacher Text' },
+		],
+	};
+	const plan = designRenderPlan(request({
+		elements: [
+			{ key: 'heart', source: 'existing', role: 'method_idea', ref: { text: 'Hoffnung' } },
+			{ key: 'plain', source: 'existing', role: 'open_question', ref: { text: 'Einfacher Text' } },
+		],
+		overview: undefined,
+	}), completeSnapshot);
+	assert.deepEqual(plan.elements.map((element) => element.ref.id), ['shape:heart', 'shape:plain-text']);
+	assert.deepEqual(plan.elements.map((element) => element.resolvedType), ['geo', 'text']);
+});
+
 test('the root-scoped opener follows the active session for automatic opening', async () => {
 	const source = await import('node:fs/promises').then(({ readFile }) => readFile('F:/code/dsh-tldraw/plugin/dsh-whiteboard/lib/client.js', 'utf8'));
 	assert.match(source, /var rootSessionId = props && typeof props\.useSessions === 'function'[\s\S]*state && state\.current[\s\S]*var sessionId[\s\S]*rootSessionId/);

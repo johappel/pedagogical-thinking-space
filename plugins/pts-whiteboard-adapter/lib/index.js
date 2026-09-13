@@ -52,6 +52,7 @@ export const MAX_CHARS = 900;
 /** Bounded list sizes — the prompt gets a summary, never the tldraw state. */
 const MAX_NOTES = 12;
 const MAX_FRAMES = 4;
+const MAX_ELEMENTS = 8;
 const MAX_SELECTION = 4;
 /** Closing rule line: always present, never clipped away. */
 const RULE_LINE = '- Regel: Board = Interaktionsschicht, keine Datenquelle. Agent-Vorschläge gelten erst, wenn die Lehrkraft sie übernimmt; nichts davon ist Denkstand.';
@@ -176,10 +177,12 @@ export function renderWhiteboardContext(snapshot, previous = undefined) {
 	const counts = snapshot.counts ?? {};
 	const notes = Array.isArray(snapshot.notes) ? snapshot.notes : [];
 	const frames = Array.isArray(snapshot.frames) ? snapshot.frames : [];
+	const elements = Array.isArray(snapshot.elements) ? snapshot.elements : [];
+	const otherElements = elements.filter((element) => element?.type !== 'note' && element?.type !== 'frame');
 	const proposals = Array.isArray(snapshot.proposals) ? snapshot.proposals : [];
 	const selection = Array.isArray(snapshot.selection) ? snapshot.selection : [];
 	const page = snapshot.page !== null && typeof snapshot.page === 'object' ? snapshot.page : null;
-	if (notes.length === 0 && frames.length === 0 && selection.length === 0) return '';
+	if (notes.length === 0 && frames.length === 0 && selection.length === 0 && elements.length === 0) return '';
 
 	const lines = ['## Whiteboard (automatische Kontextprojektion)'];
 	const total = Number.isFinite(counts.notes) ? counts.notes : notes.length;
@@ -208,6 +211,15 @@ export function renderWhiteboardContext(snapshot, previous = undefined) {
 				: `„${frameName(frame)}“ (${members} Zettel)`;
 		});
 		lines.push(clip(`- Cluster/Frames: ${listed.join('; ')}${frames.length > MAX_FRAMES ? `; +${frames.length - MAX_FRAMES} weitere` : ''}`, FRAMES_MAX));
+	}
+
+	if (otherElements.length > 0) {
+		const listed = otherElements.slice(0, MAX_ELEMENTS).map((element) => {
+			const kind = element?.type === 'geo' && element?.geo ? `geo:${clip(element.geo, 24)}` : clip(element?.type ?? 'Shape', 24);
+			const content = clip(element?.text, 70);
+			return content === '' ? kind : `${kind} „${content}“`;
+		});
+		lines.push(clip(`- Weitere Board-Elemente: ${listed.join('; ')}${otherElements.length > MAX_ELEMENTS ? `; +${otherElements.length - MAX_ELEMENTS} weitere` : ''}`, 260));
 	}
 
 	// The note list is the only unbounded list, so it is filled from whatever room

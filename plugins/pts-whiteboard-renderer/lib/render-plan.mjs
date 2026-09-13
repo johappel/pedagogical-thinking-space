@@ -97,10 +97,19 @@ function normalize(value) {
 }
 
 function snapshotShapes(snapshot) {
-	return [
-		...(Array.isArray(snapshot?.notes) ? snapshot.notes.map((shape) => ({ ...shape, type: 'note' })) : []),
-		...(Array.isArray(snapshot?.frames) ? snapshot.frames.map((shape) => ({ ...shape, type: 'frame' })) : []),
-	];
+	const result = [];
+	const seen = new Set();
+	for (const shape of [
+		...(Array.isArray(snapshot?.elements) ? snapshot.elements : []),
+		...(Array.isArray(snapshot?.notes) ? snapshot.notes.map((entry) => ({ ...entry, type: 'note' })) : []),
+		...(Array.isArray(snapshot?.frames) ? snapshot.frames.map((entry) => ({ ...entry, type: 'frame' })) : []),
+	]) {
+		const id = shape?.id === undefined ? null : String(shape.id);
+		if (id !== null && seen.has(id)) continue;
+		if (id !== null) seen.add(id);
+		result.push({ ...shape, type: String(shape?.type ?? 'unknown') });
+	}
+	return result;
 }
 
 export function resolveShapeReference(ref, snapshot, index = 0) {
@@ -109,7 +118,7 @@ export function resolveShapeReference(ref, snapshot, index = 0) {
 	if (ref?.id !== undefined) matches = shapes.filter((shape) => String(shape.id) === String(ref.id));
 	if (matches.length === 0 && ref?.text !== undefined) {
 		const needle = normalize(ref.text);
-		matches = shapes.filter((shape) => normalize(shape.text ?? shape.name) === needle);
+		matches = shapes.filter((shape) => normalize(shape.text || shape.geo || shape.name) === needle);
 	}
 	if (matches.length === 0) throw new RenderPlanError('missing-reference', 'Whiteboard-Element nicht gefunden', { index, ref });
 	if (matches.length > 1) throw new RenderPlanError('ambiguous-reference', 'Whiteboard-Referenz ist nicht eindeutig', { index, ref, ids: matches.map((shape) => shape.id) });
