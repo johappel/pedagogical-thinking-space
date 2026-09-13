@@ -82,6 +82,16 @@ test('PTS semantics compile to generic presentation specs only at the seam', () 
 	assert.equal(compiled.roles, undefined);
 });
 
+test('detach is translated once from PTS semantics to a generic presentation role', () => {
+	const compiled = compileRenderPlan(designRenderPlan(request({ elements: [], detach: [{ role: 'method_idea', match: 'Menschliche Ursprungskarte' }] }), snapshot), rendererCapabilities(['whiteboard_render_plan']));
+	assert.deepEqual(compiled.plan.detach, [{ role: 'method_idea', match: 'Menschliche Ursprungskarte', presentationRole: 'idea' }]);
+});
+
+test('generic renderer keeps the learning-moment element text distinct from the heading', async () => {
+	const source = await import('node:fs/promises').then(({ readFile }) => readFile('F:/code/dsh-tldraw/plugin/dsh-whiteboard/lib/client.js', 'utf8'));
+	assert.match(source, /anchorContent[\s\S]*el\.source === 'existing'[\s\S]*el\.text/);
+});
+
 test('generic dsh-whiteboard does not contain PTS semantic role names', async () => {
 	const source = await import('node:fs/promises').then(({ readFile }) => readFile('F:/code/dsh-tldraw/plugin/dsh-whiteboard/lib/client.js', 'utf8'));
 	for (const role of ['learning_moment', 'method_idea', 'open_question', 'document_reference', 'material_reference', 'page_reference']) {
@@ -89,6 +99,12 @@ test('generic dsh-whiteboard does not contain PTS semantic role names', async ()
 	}
 	assert.doesNotMatch(source, /semanticRole/);
 	assert.doesNotMatch(source, /PTS Whiteboard Renderer/);
+});
+
+test('resource links remain valid across browser sessions', async () => {
+	const source = await import('node:fs/promises').then(({ readFile }) => readFile(new URL('../plugins/pts-whiteboard-renderer/lib/index.js', import.meta.url), 'utf8'));
+	assert.match(source, /resource\?path=/);
+	assert.doesNotMatch(source, /resource\?session=/);
 });
 
 test('role semantics are not origin semantics and domain writes are absent', async () => {

@@ -100,10 +100,6 @@ function lossless(value, seen = new Set()) {
 	return result;
 }
 
-function sessionIdFrom(exec) {
-	return exec?.agent?.id ? String(exec.agent.id) : null;
-}
-
 function delay(milliseconds) {
 	return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
@@ -172,15 +168,15 @@ function toolsVisible(ctx) {
 	return ['whiteboard_state', LOW_LEVEL_TOOL].filter((name) => tools?.get?.(name) !== undefined);
 }
 
-function decorateResourceLinks(plan, sessionId) {
+function decorateResourceLinks(plan) {
 	return {
 		...plan,
 		elements: plan.elements.map((element) => {
 			if (element.source === 'material' && element.material?.path && !element.material.href) {
-				return { ...element, material: { ...element.material, href: `/pts-whiteboard-renderer/resource?session=${encodeURIComponent(sessionId ?? '')}&path=${encodeURIComponent(element.material.path)}` } };
+				return { ...element, material: { ...element.material, href: `/pts-whiteboard-renderer/resource?path=${encodeURIComponent(element.material.path)}` } };
 			}
 			if (element.source === 'document' && element.document?.path && !element.document.href) {
-				return { ...element, document: { ...element.document, href: `/pts-whiteboard-renderer/resource?session=${encodeURIComponent(sessionId ?? '')}&path=${encodeURIComponent(element.document.path)}` } };
+				return { ...element, document: { ...element.document, href: `/pts-whiteboard-renderer/resource?path=${encodeURIComponent(element.document.path)}` } };
 			}
 			return element;
 		}),
@@ -243,7 +239,7 @@ export function apply(ctx) {
 			const capabilities = rendererCapabilities(toolsVisible(ctx));
 			try {
 				const { plan: designedPlan } = await designAndCompile(request, snapshotResult.snapshot, capabilities);
-				const plan = decorateResourceLinks(designedPlan, sessionIdFrom(exec));
+				const plan = decorateResourceLinks(designedPlan);
 				const { command } = await designAndCompile({ renderPlan: plan }, snapshotResult.snapshot, capabilities);
 				const lowLevel = tools.get(LOW_LEVEL_TOOL);
 				if (!lowLevel || typeof lowLevel.execute !== 'function') return { ok: false, status: 'blocked', plan, error: { code: 'capability-missing', message: 'Generischer dsh-whiteboard Render-Plan-Seam fehlt', capabilities } };

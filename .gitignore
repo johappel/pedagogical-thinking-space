@@ -25,6 +25,7 @@ config/models.yml
 
 .kilo/
 *.log
+.tmp-*
 tmp/
 .dsh-contract-cache/
 .dsh-vision-toolkit

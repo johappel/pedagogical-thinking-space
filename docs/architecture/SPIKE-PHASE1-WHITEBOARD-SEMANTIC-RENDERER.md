@@ -1,6 +1,9 @@
 # PTS Whiteboard Semantic Renderer Spike – Phase 1
 
-**Gesamturteil: PASS WITH CONDITIONS**
+**Gesamturteil: PASS**
+
+Der abschliessende Browserstatus und die Aufhebung der frueheren Vorbehalte
+stehen in Abschnitt 20.
 
 Der Spike zeigt einen tragfähigen Pfad von einem einzigen semantischen
 `pts_whiteboard_render`-Auftrag zu einem validierten RenderPlan und von dort zu
@@ -28,7 +31,7 @@ laufzeitnahe Junction im PTS-Profil vorgenommen.
 | Asset-Resolver/Upload-Seam | kein bestehender PTS-Resolver; kein Upload gebaut | kontrollierte Read-only-Resource-Route für ausgewählte Workspace-Dateien |
 | PTS-interne URL auf Shape | vorher nicht vorhanden | `/pts-whiteboard-renderer/resource?...` für Dokument-/Materialreferenzen; lokale `file://`-Pfade werden nicht verwendet |
 | mehrere Änderungen als gemeinsamer Auftrag | vorher nein, Queue enthielt einzelne Low-Level-Kommandos | ein `whiteboard_render_plan`-Queue-Eintrag; Renderer arbeitet in einem `editor.run`-Batch |
-| Host↔Client-Seams | `/dsh-whiteboard/api`, Polling und Tool-Registry vorhanden | zusätzlich generisches `wb-board`/`wb-save` für dauerhafte tldraw-Snapshots; M1-Adapter bleibt reine Leseschicht |
+| Host↔Client-Seams | `/dsh-whiteboard/api`, sessiongebundene Event-Streams, Store-Listener und Tool-Registry vorhanden | zusätzlich generisches `wb-board`/`wb-save` für dauerhafte tldraw-Snapshots; M1-Adapter bleibt reine Leseschicht |
 | intern vorhandene, nicht exponierte Fähigkeiten | Page-Store, Page-Wechsel, tldraw Assets, Rich-Text-Links, `editor.run` | als generische dsh-whiteboard-Gegenstelle exponiert; keine PTS-Semantik in dsh-whiteboard |
 
 Zusammenfassung: **vorhanden** waren die tldraw-Primitives; **vorhanden, aber
@@ -369,3 +372,69 @@ akzeptiert jetzt beide tldraw-Formen. Der Host-API-Test (`wb-board`/`wb-save`),
 der Versionskonflikttest und die Browser-Ladeprüfung sind bestanden. Ein echter
 gleichzeitiger Chrome-/Firefox-Live-Sync ist weiterhin nicht Teil dieses Stores;
 bei konkurrierenden Schreibvorgängen wird der spätere Stand geschützt.
+
+## 20. Phase-1-Abschlussstatus (2026-09-13)
+
+Dieser Abschnitt ist der abschliessende Status. Die frueheren Vorbehalte im
+Bericht stammen aus der Zeit vor der Browser-Abnahme.
+
+| Bereich | Status | Nachweis |
+|---|---|---|
+| Generische DSH/PTS-Grenze | **PASS** | `dsh-whiteboard` akzeptiert nur aufgeloeste `presentation`-Specs. Die Uebersetzung von PTS-Rollen zu Darstellungsrollen liegt einmalig im PTS-Renderer. Der Companion sieht nur `pts_whiteboard_render`. |
+| A - Lernmoment-Arbeitsraum | **PASS** | Frischer Browserlauf im Workspace `WB-Tests`: genau ein sichtbarer semantischer Toolcall; eigene Page `Phase 1 Browser A Abschluss`, Frame, Lernmoment-Anker, zwei Methodenideen, zwei Pfeile mit vier Bindings sowie Uebersichts- und Ruecknavigation. Page-Link wechselte im selben Tab. |
+| B - Detach | **PASS** | Menschliche Ursprungskarte blieb erhalten; die Renderer-Projektion wurde mit `detach: [{ role, match }]` entfernt. Andere Karten blieben erhalten; keine Konsolenfehler. |
+| C - Dokumentreferenz | **PASS** | PDF-Karte sichtbar; `/pts-whiteboard-renderer/resource?path=...` lieferte `200 application/pdf` und 566 Bytes. `../../outside.txt` lieferte `400`; kein `file://`. Die neue URL ist nicht an eine abgelaufene Browser-Session gebunden. |
+| D - Bild und Material | **PASS** | `bild-1.png` erschien als echter tldraw-`image`-Shape mit PNG-Asset; `lied.pdf` nur als Referenzkarte. Nicht ausgewaehlte Dateien erschienen nicht; Dateinamen, Groessen und Zeitstempel des Materialpools blieben unveraendert. |
+| Snapshot und Reload | **PASS** | Board-Aenderung, Speichern und Browser-Reload stellten Page und Shapes wieder her; die Board-Ansicht oeffnete sich erneut. |
+| Snapshot-Versionskonflikt | **PASS** | Speichern auf Version 1; veraltetes Schreiben mit Version 0 wurde als `conflict: true` abgewiesen; Schreiben mit Version 1 ergab Version 2. |
+| Performance-Referenzfall | **PASS WITH CONDITIONS** | 1 sichtbarer Companion-Toolcall, 1 Renderer-State-Abfrage, 1 interner Render-Batch, 0 Subagent-Turns; Laufkarte etwa 12 s. Exakte Millisekunden bis zum sichtbaren Shape wurden nicht separat instrumentiert. Keine Optimierung. |
+| Kamera-Fokus neuer Inhalte | **OUT OF SCOPE** | Kein `zoomToFit()`/Kamera-Fokus; technische Schuld fuer einen eigenen dsh-tldraw-Spike. |
+| Animierte Agenten-Aenderungen | **OUT OF SCOPE** | Kein Einfliegen, Erscheinen oder Pulsieren; Reduced-Motion und Accessibility gehoeren in denselben spaeteren generischen Spike. |
+| WebSocket/Multiplayer-Sync | **OUT OF SCOPE** | Der versionierte Snapshot-Store ist kein Echtzeit-Sync. |
+| LearningMoment-Domainbindung | **OUT OF SCOPE** | Kein Domainobjekt, keine kanonische Domain-ID, kein `decisions.yml`-Write und keine bidirektionale Synchronisierung. |
+
+### Technische Pruefungen
+
+Bestanden: `node --test --test-isolation=none tests/pts-whiteboard-renderer.test.mjs`
+(14/14), alle drei PTS-`node --check`-Aufrufe, beide dsh-tldraw-Checks und
+`git diff --check`.
+
+Die Browserabnahmen liefen nach Neustart gegen DSH `0.1.5-rc.2`, Node
+`v24.19.0`, tldraw `3.15.6` und Headless Chromium auf `127.0.0.1:3030`.
+Der Workspace war `WB-Tests`. Das Board enthielt bereits Testartefakte aus
+frueheren Laeufen; sie wurden nicht geloescht oder migriert.
+
+**Runtime-Nachtrag 2026-09-13:** Der generische Client zielt jetzt auf
+tldraw `5.4.2`. Die oben genannten Browserergebnisse bleiben der Nachweis für
+`3.15.6`; nach diesem Versionssprung ist die Browser-E2E-Abnahme (einschließlich
+Seiten-Löschung und Snapshot-Netzwerkverhalten) erneut auszuführen. Static-
+Checks und der PTS-Renderer-Test laufen gegen den aktualisierten Quellstand.
+
+### Endgueltige Host/PTS/Client-Grenze
+
+1. **Host:** `dsh-tldraw/plugin/dsh-whiteboard` besitzt tldraw-Schema,
+   Pages/Shapes/Bindings, Browser-Mounting, same-tab Page-Links und den
+   versionierten workspacegebundenen Snapshot-Store. Es kennt keine
+   PTS-Domainrollen.
+2. **PTS:** `plugins/pts-whiteboard-renderer` validiert den semantischen
+   Auftrag, loest Referenzen auf und uebersetzt jede PTS-Rolle genau einmal in
+   eine generische `presentation`-Spezifikation. Es schreibt keine
+   Domainartefakte.
+3. **Client:** Der generische Client fuehrt den validierten Plan als einen
+   deterministischen `editor.run`-Batch aus. Rich-Text-Links und Assets kommen
+   nur aus den validierten Plan-Daten.
+4. **Toolvertrag:** Der Companion ruft ausschliesslich
+   `pts_whiteboard_render` mit `operation`, `page`, `layout`, `elements` und
+   optional `links`/`overview`/`detach` auf. Der Ablauf ist:
+   `pts_whiteboard_render -> validierter PTS-RenderPlan -> generischer
+   presentation-RenderPlan -> ein deterministischer Batch`.
+
+Verbleibende technische Schulden sind Kamera-Sichtfuehrung, dezente und
+zugangliche Agenten-Aenderungsanzeige sowie Millisekunden-Telemetrie. Alte,
+persistierte Testkarten koennen historische Metadaten oder alte
+sessiongebundene Links tragen; eine Datenmigration war nicht Teil von Phase 1.
+
+Ausdruecklich auf Phase 2 verschoben sind Binding-/Provenienzschema,
+Lehrkraftbestaetigung, kanonische LearningMoment-Identitaeten,
+Domainpersistenz, Auswirkungspruefung beim Aendern/Loeschen,
+Board-Domain-Projektionen und bidirektionale Synchronisierung.
