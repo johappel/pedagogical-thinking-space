@@ -26,6 +26,7 @@ config/models.yml
 .kilo/
 *.log
 .tmp-*
+tmp-*
 tmp/
 .dsh-contract-cache/
 .dsh-vision-toolkit
@@ -33,3 +34,4 @@ tmp/
 node_modules/
 test-results/
 playwright-report/
+tmp-chrome-profile/

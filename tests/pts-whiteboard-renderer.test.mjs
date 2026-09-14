@@ -368,4 +368,6 @@ test('the renderer capability gives the Companion an explicit execution contract
 	assert.match(RENDER_PLAN_GUIDANCE, /status="verified"/);
 	assert.match(RENDER_PLAN_GUIDANCE, /whiteboard_state/);
 	assert.match(RENDER_PLAN_GUIDANCE, /pending.*failed/);
+	assert.match(RENDER_PLAN_GUIDANCE, /Erweitern statt ersetzen/);
+	assert.match(RENDER_PLAN_GUIDANCE, /neuer\s+Titel = daneben erweitern/);
 });

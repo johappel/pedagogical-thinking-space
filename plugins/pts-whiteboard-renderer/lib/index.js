@@ -24,6 +24,22 @@ compact_document_reference. page.action ist ensure oder use_current. Ein
 minimaler gueltiger Auftrag sieht so aus:
 {"operation":"create_learning_moment_workspace","page":{"action":"ensure","title":"Erntedank – Brainstorming"},"heading":{"text":"Erntedank – erste Ideen"},"layout":{"template":"learning_moment_workspace"},"elements":[{"key":"dankbar","source":"new","role":"open_question","text":"Wofuer sind wir dankbar?"},{"key":"feld-tisch","source":"new","role":"method_idea","text":"Vom Feld auf den Tisch"}],"links":[]}
 
+Erweitern statt ersetzen: Ein Plan mit page.action="use_current" und demselben
+heading.text wie ein bereits vorhandener Rahmen ersetzt genau diesen Arbeitsraum
+(Aktualisierung). Ein NEUER heading.text auf derselben Seite legt einen ZWEITEN
+Rahmen unter dem bestehenden an und laesst vorhandene Inhalte, menschliche Zettel
+und Pfeile unangetastet. Fuer einen ganz neuen Ort nutze page.action="ensure" mit
+neuem title (neue Seite). Waehle bewusst: gleicher Titel = aktualisieren; neuer
+Titel = daneben erweitern; ensure = neue Seite. Willst du neuen Inhalt mit einem
+vorhandenen Zettel verknuepfen, nimm diesen Zettel als source="existing" mit
+seiner ref in denselben Plan und setze einen links-Eintrag zwischen den keys.
+
+Operationen: create_learning_moment_workspace fuer einen neuen Arbeitsraum,
+update_learning_moment_workspace fuer das Aktualisieren desselben (gleicher
+Titel), materialize_selection um eine bestehende Auswahl in einen neuen
+Arbeitsraum zu ueberfuehren (das Original bleibt erhalten),
+compact_document_reference fuer eine kompakte Dokumentkarte.
+
 Fuer jedes neue Brainstorming-Element gilt: source="new" und text enthaelt
 den exakten Inhalt der Lehrkraft. role ist optional: Ohne role entsteht eine
 neutrale Karte. role="open_question", role="method_idea" und
@@ -248,7 +264,7 @@ export function apply(ctx) {
 
 	const renderTool = {
 		name: TOOL_NAME,
-		description: 'Fuehrt genau einen vollstaendigen semantischen Phase-1-RenderPlan aus. Neue Karten duerfen ohne role als neutrale Zettel erscheinen; optionale Rollen steuern nur die Darstellung und schreiben keinen Kategorie-Praefix in elements[].text. Der Inhalt muss in elements[].text stehen; heading.text ist nur der Frame-Titel. Keine type=card/body/operation=create und keine Whiteboard-Primitiven. Keine LearningMoment-Domainpersistenz.',
+		description: 'Fuehrt genau einen vollstaendigen semantischen Phase-1-RenderPlan aus. Uebergib operation, page, layout und elements direkt als Felder (kein description/prompt). Ein neuer heading.text auf derselben Seite erweitert das Board um einen zweiten Rahmen; derselbe Titel ersetzt den vorhandenen Arbeitsraum. Neue Karten duerfen ohne role als neutrale Zettel erscheinen; optionale Rollen steuern nur die Darstellung und schreiben keinen Kategorie-Praefix in elements[].text. Der Inhalt muss in elements[].text stehen; heading.text ist nur der Frame-Titel. Keine type=card/body/operation=create und keine Whiteboard-Primitiven. Keine LearningMoment-Domainpersistenz.',
 		parameters: {
 			type: 'object',
 			required: ['operation', 'page', 'layout', 'elements'],
@@ -301,7 +317,7 @@ export function apply(ctx) {
 				}
 				return lossless({ ok: false, status: 'pending', plan, queued, error: { code: 'whiteboard-command-timeout', message: 'Browser-Ack und Folge-Snapshot blieben aus; der Auftrag ist nicht sichtbar bestaetigt' }, metrics: { visibleToolCalls: 1, stateQueries: 1, lowLevelOperations: attempts, subagentTurns: 0 } });
 			} catch (error) {
-				return { ok: false, status: 'rejected', error: { code: error.code ?? 'render-plan-error', message: error.message, details: error.details ?? {} }, metrics: { visibleToolCalls: 1, stateQueries: 1, lowLevelOperations: 0, subagentTurns: 0 } };
+				return lossless({ ok: false, status: 'rejected', error: { code: error.code ?? 'render-plan-error', message: String(error?.message ?? error ?? 'Render-Plan abgelehnt'), details: error.details ?? {} }, metrics: { visibleToolCalls: 1, stateQueries: 1, lowLevelOperations: 0, subagentTurns: 0 } });
 			}
 		},
 	};
