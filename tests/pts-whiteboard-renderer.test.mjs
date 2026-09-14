@@ -52,7 +52,7 @@ test('RenderPlan validates the semantic language and role mapping', () => {
 	const plan = validateRenderPlan(request());
 	assert.equal(plan.layout.template, 'learning_moment_workspace');
 	assert.deepEqual(Object.keys(ROLE_PRESENTATION), [
-		'note', 'learning_moment', 'method_idea', 'open_question', 'document_reference', 'material_reference', 'page_reference',
+		'note', 'learning_moment', 'method_idea', 'open_question', 'document_reference', 'material_reference', 'page_reference', 'free_text',
 	]);
 	assert.equal(ROLE_PRESENTATION.learning_moment.shape, 'note');
 	assert.notEqual(ROLE_PRESENTATION.learning_moment.color, ROLE_PRESENTATION.method_idea.color);
@@ -60,6 +60,22 @@ test('RenderPlan validates the semantic language and role mapping', () => {
 		'black', 'grey', 'light-violet', 'violet', 'blue', 'light-blue',
 		'yellow', 'orange', 'green', 'light-green', 'light-red', 'red', 'white',
 	].includes(role.color)));
+});
+
+test('free text is a bounded new-text annotation rather than a card or a converted source', () => {
+	const plan = validateRenderPlan(request({
+		elements: [{ key: 'axis', source: 'new', role: 'free_text', text: 'Wirkung' }],
+		overview: undefined,
+	}));
+	assert.equal(plan.elements[0].role, 'free_text');
+	const compiled = compileRenderPlan(plan, rendererCapabilities(['whiteboard_render_plan']));
+	assert.deepEqual(compiled.plan.elements[0].presentation, {
+		role: 'annotation', shape: 'text', color: 'black', size: 'm', emphasis: 'plain',
+	});
+	assert.throws(() => validateRenderPlan(request({
+		elements: [{ key: 'not-a-card', source: 'existing', role: 'free_text', ref: { id: 'shape:moment' } }],
+		overview: undefined,
+	})), (error) => error instanceof RenderPlanError && error.code === 'invalid-plan');
 });
 
 test('a new card needs no category and its visible content receives no presentation prefix', async () => {
@@ -346,6 +362,7 @@ test('the renderer capability gives the Companion an explicit execution contract
 	assert.match(RENDER_PLAN_GUIDANCE, /pts_whiteboard_render/);
 	assert.match(RENDER_PLAN_GUIDANCE, /role="open_question"/);
 	assert.match(RENDER_PLAN_GUIDANCE, /role="method_idea"/);
+	assert.match(RENDER_PLAN_GUIDANCE, /role="free_text"/);
 	assert.match(RENDER_PLAN_GUIDANCE, /elements\[\]\.text/);
 	assert.match(RENDER_PLAN_GUIDANCE, /operation="create"/);
 	assert.match(RENDER_PLAN_GUIDANCE, /status="verified"/);

@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 
 export const SEMANTIC_ROLES = Object.freeze([
 	'note', 'learning_moment', 'method_idea', 'open_question', 'document_reference',
-	'material_reference', 'page_reference',
+	'material_reference', 'page_reference', 'free_text',
 ]);
 
 export const LAYOUT_TEMPLATES = Object.freeze([
@@ -18,6 +18,10 @@ export const ROLE_PRESENTATION = Object.freeze({
 	document_reference: { role: 'reference', shape: 'note', color: 'light-green', emphasis: 'reference' },
 	material_reference: { role: 'reference', shape: 'note', color: 'orange', emphasis: 'reference' },
 	page_reference: { role: 'navigation', shape: 'note', color: 'blue', emphasis: 'navigation' },
+	// A generic annotation presentation: this is a tldraw text shape, never a
+	// card. Keep the generic name at the PTS-to-renderer seam so dsh-whiteboard
+	// does not acquire PTS role vocabulary.
+	free_text: { role: 'annotation', shape: 'text', color: 'black', size: 'm', emphasis: 'plain' },
 });
 
 // Old Phase-1 cards stored their presentation label in the visible content.
@@ -80,7 +84,10 @@ export function validateRenderPlan(plan) {
 		const key = element.key === undefined ? `${role}:${index}` : text(element.key, `elements[${index}].key`, 120);
 		if (keys.has(key)) throw new RenderPlanError('ambiguous-plan', `Doppelter Element-Schlüssel: ${key}`, { key });
 		keys.add(key);
-		if (element.source === 'existing') {
+		if (role === 'free_text') {
+			if (element.source !== 'new') throw new RenderPlanError('invalid-plan', 'free_text darf nur neuer Text sein', { index });
+			text(element.text, `elements[${index}].text`, 300);
+		} else if (element.source === 'existing') {
 			assertPlain(element.ref, `elements[${index}].ref`);
 			if (element.ref.id === undefined && element.ref.text === undefined) throw new RenderPlanError('invalid-plan', 'existing benötigt ref.id oder ref.text', { index });
 		} else if (element.source === 'new') {

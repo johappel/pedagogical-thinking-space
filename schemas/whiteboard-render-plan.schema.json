@@ -40,7 +40,7 @@
         "required": ["source"],
         "properties": {
           "source": { "type": "string", "enum": ["existing", "new", "material", "document"] },
-          "role": { "type": "string", "enum": ["note", "learning_moment", "method_idea", "open_question", "document_reference", "material_reference", "page_reference"] },
+          "role": { "type": "string", "enum": ["note", "learning_moment", "method_idea", "open_question", "document_reference", "material_reference", "page_reference", "free_text"] },
           "ref": { "type": "object", "additionalProperties": false, "properties": { "id": { "type": "string" }, "text": { "type": "string" } } },
           "text": { "type": "string", "maxLength": 600 },
           "document": { "type": "object", "additionalProperties": false, "properties": { "documentId": { "type": "string" }, "path": { "type": "string" }, "label": { "type": "string" }, "href": { "type": "string" } } },

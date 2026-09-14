@@ -35,6 +35,12 @@ werden, verwende source="existing", seine exakte ref und die passende role;
 der Renderer ersetzt ausschliesslich seinen eigenen Treffer durch den Text ohne
 Praefix. Menschliche Zettel werden dabei nicht veraendert.
 
+Freitext ohne Zettel wird ausschliesslich als source="new",
+role="free_text" und text verwendet. Er ist fuer kurze Ueberschriften,
+Achsenbeschriftungen oder Erlaeuterungen gedacht und wird als neutrale
+Text-Shape gerendert; bestehende Zettel, Materialien und Dokumente duerfen
+nicht als Freitext umgedeutet werden.
+
 Verfuegbare layout.template-Werte: learning_moment_workspace, comparison,
 pro_con, cause_effect, sequence, cluster, matrix und timeline. comparison,
 pro_con und cause_effect lesen die Elemente paarweise von links nach rechts;
@@ -42,8 +48,9 @@ sequence und timeline lesen sie in zeitlicher Reihenfolge. Fuer eine gewuenschte
 Darstellung ausserhalb dieser Liste benenne die Grenze ehrlich statt einen neuen
 Board-Skill zu behaupten.
 
-Nicht verwenden: operation="create", type="card", body, overview.enabled oder
-Freitext anstelle des RenderPlans. overview darf nur mit
+Nicht verwenden: operation="create", type="card", body oder overview.enabled.
+Freitext ist nur als role="free_text" innerhalb eines vollstaendigen
+RenderPlans erlaubt. overview darf nur mit
 action="ensure_navigation_reference" angegeben werden. status="verified" bedeutet,
 dass der Browser die Command-ID bestaetigt und einen neuen Board-Snapshot geliefert
 hat. Bei status="pending" oder "failed" musst du whiteboard_state lesen, die Ursache
@@ -249,8 +256,8 @@ export function apply(ctx) {
 				operation: { type: 'string', enum: ['create_learning_moment_workspace', 'update_learning_moment_workspace', 'materialize_selection', 'compact_document_reference'] },
 				page: { type: 'object', required: ['action', 'title'], properties: { action: { type: 'string', enum: ['ensure', 'use_current'] }, title: { type: 'string', minLength: 1, maxLength: 120 } } },
 				heading: { type: 'object', properties: { text: { type: 'string', minLength: 1, maxLength: 600 } } },
-				layout: { type: 'object', required: ['template'], properties: { template: { type: 'string', const: 'learning_moment_workspace' } } },
-				elements: { type: 'array', maxItems: 40, items: { type: 'object', required: ['source'], properties: { key: { type: 'string' }, source: { type: 'string', enum: ['existing', 'new', 'material', 'document'] }, role: { type: 'string', enum: ['note', 'learning_moment', 'method_idea', 'open_question', 'document_reference', 'material_reference', 'page_reference'] }, ref: { type: 'object' }, text: { type: 'string', maxLength: 600 }, document: { type: 'object' }, material: { type: 'object' } } } },
+				layout: { type: 'object', required: ['template'], properties: { template: { type: 'string', enum: ['learning_moment_workspace', 'comparison', 'pro_con', 'cause_effect', 'sequence', 'cluster', 'matrix', 'timeline'] } } },
+				elements: { type: 'array', maxItems: 40, items: { type: 'object', required: ['source'], properties: { key: { type: 'string' }, source: { type: 'string', enum: ['existing', 'new', 'material', 'document'] }, role: { type: 'string', enum: ['note', 'learning_moment', 'method_idea', 'open_question', 'document_reference', 'material_reference', 'page_reference', 'free_text'] }, ref: { type: 'object' }, text: { type: 'string', maxLength: 600 }, document: { type: 'object' }, material: { type: 'object' } } } },
 				links: { type: 'array' },
 				overview: { type: 'object' },
 				detach: { type: 'array' },

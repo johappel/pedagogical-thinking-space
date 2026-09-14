@@ -26,7 +26,7 @@ laufzeitnahe Junction im PTS-Profil vorgenommen.
 | Deep Links auf Pages/Shapes | Page-Deep-Link jetzt als kontrollierter Hash zur aktiven Whiteboard-Instanz | `#dsh-whiteboard-page=<pageId>` plus `hashchange`; Shape-Deep-Link bleibt bewusst nicht als allgemeiner URL-Vertrag definiert |
 | Styles vorhandener Shapes | vorhanden | tldraw-Shape-Props; Renderer verwendet zentrale Rollen-Zuordnung |
 | Hintergrund/Füllung/Rahmen/Textfarbe | vorhanden für die verwendeten Note-/Frame-Props | nicht nur Farbe: Icon, Label, Shape und `meta.semanticRole` unterscheiden Rollen |
-| Shape-Typen | bestehend: `note`, `frame`, `arrow`; tldraw zusätzlich für `image` verwendet | keine neuen PTS-Shape-Typen |
+| Shape-Typen | bestehend: `note`, `frame`, `arrow`; tldraw zusätzlich für `image` und `text` verwendet | PTS ordnet den begrenzten semantischen Typ `free_text` der generischen `text`-Presentation zu |
 | Bilder/Assets | tldraw `asset` + `image` vorhanden, vorher nicht exponiert | generischer Seam legt Asset und sichtbares Image-Shape an |
 | Asset-Resolver/Upload-Seam | kein bestehender PTS-Resolver; kein Upload gebaut | kontrollierte Read-only-Resource-Route für ausgewählte Workspace-Dateien |
 | PTS-interne URL auf Shape | vorher nicht vorhanden | `/pts-whiteboard-renderer/resource?...` für Dokument-/Materialreferenzen; lokale `file://`-Pfade werden nicht verwendet |
@@ -91,7 +91,9 @@ Unterstützt werden:
   und `timeline`; unbekannte Namen scheitern vor einer Mutation;
 - Elemente als `existing`, `new`, `material` oder `document`;
 - Rollen `learning_moment`, `method_idea`, `open_question`,
-  `document_reference`, `material_reference`, `page_reference`;
+  `document_reference`, `material_reference`, `page_reference`, `free_text`;
+- `free_text` nur als neues, kurzes Element: ohne Zettel für Überschriften,
+  Achsenbeschriftungen und Erläuterungen; bestehende Shapes bleiben unverändert;
 - optionale Links, Übersicht-Referenz und kontrolliertes Detach einzelner
   Renderer-Projektionen.
 
