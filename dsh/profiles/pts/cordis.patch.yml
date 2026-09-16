@@ -86,6 +86,15 @@
       name: '@PTS_ROOT@/plugins/pts-whiteboard-renderer/lib/index.js'
       inject: [webServer, agents]
 
+    # Phase 2 — LearningMoment domain binding. The single domain write-seam:
+    # capture/bind/move/detach/update over the canonical landscape moment plus
+    # the projection ledger. It exposes the semantic Companion façade
+    # pts_learning_moment and drives the GENERIC dsh-whiteboard move seam; it
+    # holds the domain authority the renderer deliberately does not.
+    - id: pts-learning-moment-binding
+      name: '@PTS_ROOT@/plugins/pts-learning-moment-binding/lib/index.js'
+      inject: [webServer, sessions, agents]
+
     # M1 spike — pts-whiteboard-adapter. Bridges the two rows above without
     # coupling them: it reads the EXISTING whiteboard_state definition and
     # projects a compact board context into pts-companion sessions through the

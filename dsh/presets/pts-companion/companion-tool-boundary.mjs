@@ -40,6 +40,9 @@ export const HIDDEN_FROM_COMPANION = Object.freeze([
 	'whiteboard_connect_notes',
 	'whiteboard_highlight_notes',
 	'whiteboard_render_plan',
+	// The generic real move seam stays behind the semantic domain façade
+	// (pts_learning_moment); the Companion moves a projection, not a raw shape.
+	'whiteboard_move_shape',
 ]);
 
 /** Denied even if a future row re-introduces them into the visible set. */

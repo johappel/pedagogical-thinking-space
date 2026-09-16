@@ -57,6 +57,9 @@ export function parseLedger(text) {
 			projections: Array.isArray(m.projections) ? m.projections.filter((p) => typeof p?.projectionId === 'string').map((p) => ({
 				projectionId: p.projectionId,
 				projectionType: typeof p.projectionType === 'string' ? p.projectionType : 'whiteboard',
+				// The generic board handle (tldraw shape id) this projection renders as.
+				// Opaque to the domain; used only to drive the generic move/detach seam.
+				shapeId: typeof p.shapeId === 'string' ? p.shapeId : null,
 				page: typeof p.page === 'string' ? p.page : null,
 				boundVersion: Number.isInteger(p.boundVersion) && p.boundVersion >= 1 ? p.boundVersion : 1,
 			})) : [],
@@ -95,7 +98,7 @@ export function serializeLedger(ledger) {
 				},
 				projections: [...(m.projections ?? [])]
 					.sort((a, b) => a.projectionId.localeCompare(b.projectionId))
-					.map((p) => ({ projectionId: p.projectionId, projectionType: p.projectionType, page: p.page ?? null, boundVersion: p.boundVersion })),
+					.map((p) => ({ projectionId: p.projectionId, projectionType: p.projectionType, shapeId: p.shapeId ?? null, page: p.page ?? null, boundVersion: p.boundVersion })),
 			})),
 	};
 	return JSON.stringify(normalized, null, 2) + '\n';

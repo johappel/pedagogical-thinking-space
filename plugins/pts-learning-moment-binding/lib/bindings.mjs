@@ -42,11 +42,11 @@ export function findProjection(ledger, projectionId) {
  * projectionId can never point at two objects.
  */
 export function bindProjection(ledger, input = {}) {
-	const { domainId, projectionId, projectionType = 'whiteboard', page = null } = input;
+	const { domainId, projectionId, projectionType = 'whiteboard', shapeId = null, page = null } = input;
 	const moment = requireMoment(ledger, domainId);
 	if (typeof projectionId !== 'string' || projectionId.trim() === '') throw new DomainError('invalid-projection-id', 'projectionId fehlt');
 	if (findProjection(ledger, projectionId).length > 0) throw new DomainError('duplicate-projection', 'projectionId ist bereits gebunden', { projectionId });
-	const projection = { projectionId, projectionType, page, boundVersion: moment.version };
+	const projection = { projectionId, projectionType, shapeId: typeof shapeId === 'string' ? shapeId : null, page, boundVersion: moment.version };
 	return { ok: true, ledger: replaceMoment(ledger, { ...moment, projections: [...moment.projections, projection] }), projection };
 }
 
