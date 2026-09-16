@@ -580,15 +580,60 @@ Es gibt keinen zusätzlichen PTS-Settlement-Pfad.
   Reporter-Follow-up, `toolFilter` via `childCtx.tools.restrict`,
   Child-Header `origin: 'subagent'`.
 
-### Offen (Browser-Abnahme)
+### Live-Browser-E2E (2026-09-16) — Mechanik PASS, Renderpfad blockiert
 
-Die Live-LLM-Abnahme — Companion delegiert bei sechs bis acht Karten genau
-einen `pts_whiteboard`-Hintergrundauftrag, beantwortet unmittelbar eine zweite
-Lehrkraftnachricht, während der Worker im Hintergrund rendert, danach liegt die
-Struktur vor und bleibt nach Reload erhalten, ohne doppelte oder verlorene
-menschliche Karten — ist der verbleibende manuelle Abnahmeschritt. Ablauf:
-Instanz gestoppt neu rendern (`pwsh -File scripts/install-pts-instance.ps1`),
-`pwsh -File scripts/start-pts.ps1 -Open`, einen Denkraum mit sechs bis acht
-Karten öffnen, den Ordnungsauftrag geben und sofort eine zweite Nachricht
-senden. Die deterministische Renderkette selbst ist in Phase 1 bereits
-Browser-abgenommen.
+Durchgeführt in der laufenden Instanz (Port 3030, Denkraum `DSH-Witeboard`,
+Session mit acht Agenten-Zetteln). Companion-Modell `b.ai qwen3.8-flash`,
+Worker-Route `openrouter deepseek/deepseek-v4.1-flash`. Auftrag an den
+Companion: „Ordne die acht vorhandenen Zettel in drei thematische Gruppen und
+lege für jede Gruppe einen eigenen Bereich an … lass sie im Hintergrund
+erledigen und sprich mit mir weiter."
+
+Bestätigt (Phase-1b-Mechanik):
+
+- Der Companion erkennt umfangreiche Board-Arbeit und delegiert an
+  `pts_whiteboard` als **nativen DSH-Background-Subagenten** (Denkweise wörtlich:
+  „Extensive board work → delegate to pts_whiteboard in background, one bounded
+  order, and keep talking."). Die Session-Leiste zeigt `1 subagent` /
+  `1 background job`, im weiteren Verlauf `2 subagents` / `2 background jobs`.
+- **Non-Blocking:** Der Companion gibt den Turn nach der Delegation frei (58 s
+  statt der sonst 1–2 min für einen Inline-Render), beschreibt den Stand
+  („läuft im Hintergrund"), bewahrt menschliche Inhalte ausdrücklich („Nichts
+  umtextet, nichts gelöscht … deine Rechtecke, PRO/CONTRA und die Pfeile
+  ebenfalls") und bleibt gesprächsbereit.
+- **Settlement:** Der one-shot-owned-Job liefert dem Companion die Benachrichtigung
+  `tool-jobs subagent … [status: completed]`; der Companion holt sich das
+  Ergebnis über `job_output`.
+- **Fail-closed / accepted ≠ verified:** Der Worker-Render wurde blockiert; der
+  Companion behauptet **keinen** Erfolg („I need to honestly report: nothing
+  changed"), verifiziert mit `whiteboard_state` und meldet der Lehrkraft ehrlich
+  „es hat sich nichts bewegt, alle acht Zettel liegen noch wie vorher". Das Board
+  bleibt unverändert (8 Zettel, keine Duplikate, keine verlorene Karte).
+
+Blocker (neuer Befund, Grund für die Blockade):
+
+`whiteboard_state` und `pts_whiteboard_render` sind **session-scoped**
+(`exec.agent.id`) und an den **Browser-Tab der Root-Session** gebunden. Ein
+Background-Subagent läuft in einer **Child-Session ohne eigenen lebendigen
+Whiteboard-Tab**; `liveSnapshotOrRequestOpen` erhält dort dauerhaft
+`live=false` (der Opener folgt der aktiven Root-Session, nicht der Child-ID),
+und der Render endet fail-closed mit `whiteboard-not-live`. Beide
+Hintergrund-Worker wurden deterministisch so blockiert. Direkte Renders des
+Companion (Root-Session) funktionieren dagegen weiter (Phase-1-Kette
+unverändert).
+
+Konsequenz: Die Phase-1b-**Entkopplung** (Delegation, Background-Lauf,
+Settlement, Non-Blocking, ehrliches Fail-closed) ist live nachgewiesen. Der
+**Board-Render aus dem Hintergrund** ist damit aber noch nicht durchführbar,
+weil der Render-Seam an die Live-Tab-Session gebunden ist. Das Schließen dieser
+Lücke ist ein **generischer dsh-tldraw-Seam** (eine Background-/Child-Session
+muss das workspace-/parent-gebundene Board erreichen können) und gehört nach
+`docs/architecture/DSH_TLDRAW_INTEGRATION.md` in einen separaten
+dsh-tldraw-Spike; ein PTS-seitiger Workaround (Spoofen der Session, direkter
+Zugriff auf private Client-/Store-Bindung) ist ausdrücklich unzulässig.
+
+Zweitbefund (Phase-1-Renderer, nicht Phase 1b): Die Render-Operationen
+**kopieren** Karten (`materialize_selection`/`shape_copy_between_pages`) statt
+sie zu verschieben; eine duplikatfreie Umordnung „acht Karten neu gruppieren"
+ist damit nicht ausdrückbar. Der Companion hat das korrekt erkannt und keinen
+nicht existierenden Board-Skill behauptet.
