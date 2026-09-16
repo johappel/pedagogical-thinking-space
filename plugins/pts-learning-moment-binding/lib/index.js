@@ -55,10 +55,21 @@ async function landscapeMoment(root, domainId) {
 	}
 }
 
+// The Denkraum root is the session working directory. Prefer the strict
+// scaffolded `<base>/workspace/<name>` layout (repo Denkräume) for its realpath
+// escape checks; fall back to the live Denkraum cwd itself, which is how the
+// Companion and pts_edit already operate on real Denkräume. This does NOT relax
+// the domain contract: learning-landscape.md stays required and fail-closed.
+async function resolveDenkraumRoot(cwd) {
+	if (typeof cwd !== 'string' || !path.isAbsolute(cwd)) return null;
+	try { return await workspaceRoot(cwd); } catch { /* not a scaffolded workspace/ layout */ }
+	try { return await fs.realpath(path.resolve(cwd)); } catch { return null; }
+}
+
 async function rootFor(ctx, sessionId) {
 	const session = ctx.get('sessions')?.get?.(sessionId);
 	if (!session?.header?.cwd) return null;
-	return await workspaceRoot(session.header.cwd);
+	return await resolveDenkraumRoot(session.header.cwd);
 }
 
 // Domain-Write-Seam: every mutation goes through one of these handlers. The
@@ -212,12 +223,12 @@ function installDomainGuidance(ctx) {
 	ctx.on('agent/disposed', ({ agent }) => installed.delete(agent));
 }
 
-function rootForExec(ctx, exec) {
+async function rootForExec(ctx, exec) {
 	const session = exec?.agent?.session;
-	if (session?.header?.cwd) return workspaceRoot(session.header.cwd);
+	if (session?.header?.cwd) return resolveDenkraumRoot(session.header.cwd);
 	const sessionId = session?.id ?? exec?.agent?.id;
 	const resolved = sessionId ? ctx.get('sessions')?.get?.(sessionId) : undefined;
-	return resolved?.header?.cwd ? workspaceRoot(resolved.header.cwd) : null;
+	return resolved?.header?.cwd ? resolveDenkraumRoot(resolved.header.cwd) : null;
 }
 
 /** A stable, board-independent projection id: wb-<domainId>-<n>. */
@@ -292,8 +303,7 @@ function registerDomainTool(ctx) {
 		isConcurrencySafe: () => false,
 		execute: async (args, exec) => {
 			try {
-				const rootPromise = rootForExec(ctx, exec);
-				const root = rootPromise ? await rootPromise : null;
+				const root = await rootForExec(ctx, exec);
 				if (!root) return { ok: false, status: 'blocked', error: { code: 'session-workspace-unavailable' } };
 				const result = await runDomainOperation(ctx, tools, root, args, exec);
 				return projectResult(result);

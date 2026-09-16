@@ -277,11 +277,34 @@ kennt weiterhin **keine** PTS-Domainbegriffe (durch Test abgesichert).
 
 ## Bekannte Grenzen (nur tatsächlich gefunden — nicht Phase 3)
 
-- **Browser-E2E ausstehend:** Die Szenarien Bind → zweite Projektion → echter
-  Move → automatic/confirm/clarify → Detach → Reload sind statisch/contract-
-  getestet, aber noch **nicht** live im Browser nachgewiesen. Bis dahin gilt
-  Phase 2b **nicht** als PASS. Ein Lauf braucht die Live-Instanz (Port 3030) mit
-  einem Denkraum, der einen Landscape-Lernmoment und eine ungebundene Karte hat.
+- **Browser-E2E: LIVE PASS (2026-09-16).** In einer echten `pts-companion`-Session
+  (Denkraum `DSH-Witeboard`, Board live, Fixture-Lernmoment `lm-anerkennung` in
+  `learning-landscape.md`) hat der Companion selbst:
+  1. mit `pts_whiteboard_render` eine Lernmoment-Karte auf einer neuen Seite
+     „E2E Bind" erzeugt (verified);
+  2. mit `pts_learning_moment` (bind) die Karte an den **bereits vorhandenen**
+     `lm-anerkennung` gebunden — Ledger geschrieben
+     (`learning-moment-bindings.json`: Projektion `wb-lm-anerkennung-1`,
+     `shapeId shape:KaPTsX6…`, `page "E2E Bind"`, `confirmedBy: teacher`), **kein**
+     neuer Lernmoment, `learning-landscape.md` unverändert;
+  3. mit `pts_learning_moment` (move_projection, `toPage="Sortierte Gruppen"`) die
+     Darstellung **wirklich verschoben** — der Ledger wechselte die Page erst
+     **nach `verified`** von „E2E Bind" auf „Sortierte Gruppen", bei **gleicher**
+     `projectionId` und **gleicher** `shapeId`. Companion wörtlich: „Die Karte ist
+     gewandert, nicht kopiert … auf ‚E2E Bind' steht damit kein Lernmoment mehr."
+  Teacher-facing Sprache ohne `domainId`/`projectionId`-Jargon; die
+  confirm/clarify-Abhängigkeit wurde vom Companion benannt.
+
+  **Notwendige Korrektur für die Live-Nutzbarkeit** (separat von der bewusst
+  beibehaltenen Landscape-Kopplung): Die Fassade löste den Denkraum-Root zuvor
+  ausschließlich über die strenge `workspaceRoot()`-Schranke auf, die ein
+  `…/workspace/<name>`-Layout verlangt — das **kein** Live-Denkraum der Instanz
+  erfüllt (sie liegen als rohe Ordner, in denen der Companion/`pts_edit` direkt
+  schreiben). `resolveDenkraumRoot()` bevorzugt jetzt weiterhin das strenge
+  Layout und fällt sonst auf den realen Session-`cwd` zurück. `pts-moment-workshop`
+  und `pts-landscape` teilen dieselbe strenge Schranke und dürften dieselbe
+  Live-Inkompatibilität haben (eigener Folgepunkt). `landscape-moment-required`
+  bleibt unverändert fail-closed.
 - **Capture-from-raw-card** bleibt bewusst offen: `bind` verlangt einen bereits
   existierenden Landscape-Moment (`landscape-moment-required`). Das Erzeugen
   eines neuen kanonischen Landscape-Moments aus einer rohen Whiteboard-Karte
@@ -292,6 +315,50 @@ kennt weiterhin **keine** PTS-Domainbegriffe (durch Test abgesichert).
   auf dem Board, bis ein generischer `delete-shape`-Seam existiert. Für Phase 2b
   genügt das Lösen der Bindung; das visuelle Entfernen ist ein späterer
   generischer dsh-whiteboard-Schritt.
+
+## Architekturfolge nach Phase 2b (nicht Teil von 2b)
+
+> Diskussionsstand 2026-09-16, dokumentiert als eigener Architektur-/Migrationspunkt.
+> **Nicht** in Phase 2b umzusetzen und **kein** Grund, das Fail-closed-Verhalten
+> aufzuweichen.
+
+Das Domain-Binding macht eine ältere Gleichsetzung sichtbar:
+
+```text
+learning-landscape.md
+        │
+        ├─ LearningMoments        ← weiterhin die kanonischen Domainobjekte
+        └─ Landschaft/Topologie   ← nur eine mögliche Sicht/Organisation
+```
+
+Der aktuelle kanonische PTS-Vertrag definiert LearningMoments **weiterhin** in
+`learning-landscape.md`; deshalb setzt das Binding-Plugin diese Datei bewusst
+voraus (`landscapeMoment()` liest fest `learning-landscape.md`; `capture`/`update`
+liefern fail-closed `landscape-moment-required`). Das ist korrekt und bleibt so.
+
+Sichtbar wird aber: Ein Domain-Binding **für Lernmomente** setzt technisch eine
+Datei namens `learning-landscape.md` voraus, obwohl wir Lernmomente heute eher
+als eigenständige Denkraum-Domain denken und die Lernlandschaft nur als eine
+Sicht darauf:
+
+```text
+Denkraum-Domain
+   └─ LearningMoments
+        ├─ LM-17
+        └─ LM-18
+            │
+    ┌───────┼─────────┐
+    ▼       ▼         ▼
+ Whiteboard Werkstatt Lernlandschaft
+ Projection  View       View
+```
+
+**Folgepunkt (vor einer möglichen Phase 2c):** prüfen, ob LearningMoments aus
+`learning-landscape.md` als eigenständige Denkraum-Domain herausgelöst werden und
+die Lernlandschaft zu einer Projektion/Sicht wird. Bis dahin bleibt
+`learning-landscape.md` der kanonische Speicher, und Phase 2b bindet nur
+**vorhandene** Lernmomente — kein impliziter Lernmoment aus einer Board-Karte,
+kein Auto-Anlegen der Datei, kein Fallback auf das Binding-Ledger.
 
 ## Phase-1-Verträge geschützt
 
