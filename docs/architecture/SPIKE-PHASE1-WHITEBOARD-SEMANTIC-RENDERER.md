@@ -17,22 +17,22 @@ steht noch aus und ist Bedingung für einen uneingeschränkten PASS.
 Die Inventur wurde gegen `F:\code\dsh-tldraw\plugin\dsh-whiteboard` und die
 laufzeitnahe Junction im PTS-Profil vorgenommen.
 
-| Fähigkeit | Ergebnis | Beleg / Konsequenz |
-|---|---|---|
-| Pages intern erzeugen | vorhanden in tldraw, nun generisch ausgeführt | `editor.createPage({ name })` |
-| Pages umbenennen | tldraw-Store-Fähigkeit vorhanden, vorher nicht exponiert | Phase-1-Seam nutzt bestehende Page-Auflösung; eine separate Companion-Funktion gibt es nicht |
-| Shapes zwischen Pages verschieben/kopieren | tldraw-Store kann Records persistieren; gezieltes Bearbeiten inaktiver Pages war nicht exponiert | Renderer liest Quellen vor dem Page-Wechsel und kopiert ausgewählte Karten auf die Ziel-Page |
-| Shapes Links tragen | tldraw Rich-Text unterstützt Link-Markierungen | PTS-interne Hash-Links; URL ist zusätzlich in `meta.href/pageRef` gespiegelt |
-| Deep Links auf Pages/Shapes | Page-Deep-Link jetzt als kontrollierter Hash zur aktiven Whiteboard-Instanz | `#dsh-whiteboard-page=<pageId>` plus `hashchange`; Shape-Deep-Link bleibt bewusst nicht als allgemeiner URL-Vertrag definiert |
-| Styles vorhandener Shapes | vorhanden | tldraw-Shape-Props; Renderer verwendet zentrale Rollen-Zuordnung |
-| Hintergrund/Füllung/Rahmen/Textfarbe | vorhanden für die verwendeten Note-/Frame-Props | nicht nur Farbe: Icon, Label, Shape und `meta.semanticRole` unterscheiden Rollen |
-| Shape-Typen | bestehend: `note`, `frame`, `arrow`; tldraw zusätzlich für `image` und `text` verwendet | PTS ordnet den begrenzten semantischen Typ `free_text` der generischen `text`-Presentation zu |
-| Bilder/Assets | tldraw `asset` + `image` vorhanden, vorher nicht exponiert | generischer Seam legt Asset und sichtbares Image-Shape an |
-| Asset-Resolver/Upload-Seam | kein bestehender PTS-Resolver; kein Upload gebaut | kontrollierte Read-only-Resource-Route für ausgewählte Workspace-Dateien |
-| PTS-interne URL auf Shape | vorher nicht vorhanden | `/pts-whiteboard-renderer/resource?...` für Dokument-/Materialreferenzen; lokale `file://`-Pfade werden nicht verwendet |
-| mehrere Änderungen als gemeinsamer Auftrag | vorher nein, Queue enthielt einzelne Low-Level-Kommandos | ein `whiteboard_render_plan`-Queue-Eintrag; Renderer arbeitet in einem `editor.run`-Batch |
-| Host↔Client-Seams | `/dsh-whiteboard/api`, sessiongebundene Event-Streams, Store-Listener und Tool-Registry vorhanden | zusätzlich generisches `wb-board`/`wb-save` für dauerhafte tldraw-Snapshots; M1-Adapter bleibt reine Leseschicht |
-| intern vorhandene, nicht exponierte Fähigkeiten | Page-Store, Page-Wechsel, tldraw Assets, Rich-Text-Links, `editor.run` | als generische dsh-whiteboard-Gegenstelle exponiert; keine PTS-Semantik in dsh-whiteboard |
+| Fähigkeit                                       | Ergebnis                                                                                          | Beleg / Konsequenz                                                                                                            |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Pages intern erzeugen                           | vorhanden in tldraw, nun generisch ausgeführt                                                     | `editor.createPage({ name })`                                                                                                 |
+| Pages umbenennen                                | tldraw-Store-Fähigkeit vorhanden, vorher nicht exponiert                                          | Phase-1-Seam nutzt bestehende Page-Auflösung; eine separate Companion-Funktion gibt es nicht                                  |
+| Shapes zwischen Pages verschieben/kopieren      | tldraw-Store kann Records persistieren; gezieltes Bearbeiten inaktiver Pages war nicht exponiert  | Renderer liest Quellen vor dem Page-Wechsel und kopiert ausgewählte Karten auf die Ziel-Page                                  |
+| Shapes Links tragen                             | tldraw Rich-Text unterstützt Link-Markierungen                                                    | PTS-interne Hash-Links; URL ist zusätzlich in `meta.href/pageRef` gespiegelt                                                  |
+| Deep Links auf Pages/Shapes                     | Page-Deep-Link jetzt als kontrollierter Hash zur aktiven Whiteboard-Instanz                       | `#dsh-whiteboard-page=<pageId>` plus `hashchange`; Shape-Deep-Link bleibt bewusst nicht als allgemeiner URL-Vertrag definiert |
+| Styles vorhandener Shapes                       | vorhanden                                                                                         | tldraw-Shape-Props; Renderer verwendet zentrale Rollen-Zuordnung                                                              |
+| Hintergrund/Füllung/Rahmen/Textfarbe            | vorhanden für die verwendeten Note-/Frame-Props                                                   | nicht nur Farbe: Icon, Label, Shape und `meta.semanticRole` unterscheiden Rollen                                              |
+| Shape-Typen                                     | bestehend: `note`, `frame`, `arrow`; tldraw zusätzlich für `image` und `text` verwendet           | PTS ordnet den begrenzten semantischen Typ `free_text` der generischen `text`-Presentation zu                                 |
+| Bilder/Assets                                   | tldraw `asset` + `image` vorhanden, vorher nicht exponiert                                        | generischer Seam legt Asset und sichtbares Image-Shape an                                                                     |
+| Asset-Resolver/Upload-Seam                      | kein bestehender PTS-Resolver; kein Upload gebaut                                                 | kontrollierte Read-only-Resource-Route für ausgewählte Workspace-Dateien                                                      |
+| PTS-interne URL auf Shape                       | vorher nicht vorhanden                                                                            | `/pts-whiteboard-renderer/resource?...` für Dokument-/Materialreferenzen; lokale `file://`-Pfade werden nicht verwendet       |
+| mehrere Änderungen als gemeinsamer Auftrag      | vorher nein, Queue enthielt einzelne Low-Level-Kommandos                                          | ein `whiteboard_render_plan`-Queue-Eintrag; Renderer arbeitet in einem `editor.run`-Batch                                     |
+| Host↔Client-Seams                               | `/dsh-whiteboard/api`, sessiongebundene Event-Streams, Store-Listener und Tool-Registry vorhanden | zusätzlich generisches `wb-board`/`wb-save` für dauerhafte tldraw-Snapshots; M1-Adapter bleibt reine Leseschicht              |
+| intern vorhandene, nicht exponierte Fähigkeiten | Page-Store, Page-Wechsel, tldraw Assets, Rich-Text-Links, `editor.run`                            | als generische dsh-whiteboard-Gegenstelle exponiert; keine PTS-Semantik in dsh-whiteboard                                     |
 
 Zusammenfassung: **vorhanden** waren die tldraw-Primitives; **vorhanden, aber
 nicht exponiert** waren Pages, Assets, Links und Batch-Ausführung; **tatsächlich
@@ -146,15 +146,15 @@ visuelle Abnahme.
 Die zentrale Zuordnung liegt parallel in `render-plan.mjs` und im generischen
 Client:
 
-| Rolle | Darstellung |
-|---|---|
-| `note` bzw. fehlende Rolle | neutrale gelbe Karte; der Text bleibt unverändert |
-| `learning_moment` | hervorgehobene blaue Ankerkarte, ohne Präfix im Inhalt |
-| `method_idea` | gelbe Ideenkarte, ohne „💡 Methodenidee:“ im Inhalt |
-| `open_question` | violett akzentuierte Karte, ohne Kategorie-Text |
-| `document_reference` | grüne Referenzkarte; Beschriftung kommt aus dem Auftrag |
-| `material_reference` | orange Referenzkarte oder sichtbares Bild-Asset |
-| `page_reference` | blaue Navigationskarte mit Hash-Link |
+| Rolle                      | Darstellung                                             |
+| -------------------------- | ------------------------------------------------------- |
+| `note` bzw. fehlende Rolle | neutrale gelbe Karte; der Text bleibt unverändert       |
+| `learning_moment`          | hervorgehobene blaue Ankerkarte, ohne Präfix im Inhalt  |
+| `method_idea`              | gelbe Ideenkarte, ohne „💡 Methodenidee:“ im Inhalt     |
+| `open_question`            | violett akzentuierte Karte, ohne Kategorie-Text         |
+| `document_reference`       | grüne Referenzkarte; Beschriftung kommt aus dem Auftrag |
+| `material_reference`       | orange Referenzkarte oder sichtbares Bild-Asset         |
+| `page_reference`           | blaue Navigationskarte mit Hash-Link                    |
 
 Semantik wird damit nicht ausschließlich durch Farbe kommuniziert. `meta.actor`
 bleibt die Herkunft des Renderer-Beitrags; bei kopierten menschlichen Karten
@@ -240,15 +240,15 @@ Installation:
 
 Der neue Pfad hat als beabsichtigte und statisch nachweisbare Form:
 
-| Metrik | bisheriger Low-Level-Pfad | neuer Pfad |
-|---|---:|---:|
-| sichtbare Companion-Toolcalls | mehrere | 1 |
-| Board-State-Abfragen | mindestens 1, oft erneut vor Referenzschritten | 1 im Renderer |
-| Low-Level-Whiteboard-Operationen im Companion | mehrere | 0 sichtbar; 1 interner Batchauftrag |
-| Designer-/Subagent-Turns | 0 | 0 im deterministischen Phase-1-Designer |
-| Gesamtdauer / Zeit bis Gesprächsbereitschaft | noch nicht live gemessen | noch nicht live gemessen |
-| Referenz-Fehlversuche | können zwischen Turns auftreten | vor Mutation: missing/ambiguous als strukturierter Fehler |
-| Renderer-Validierungsfehler | kein Planvertrag | explizit gezählt und zurückgegeben |
+| Metrik                                        | bisheriger Low-Level-Pfad                      | neuer Pfad                                                |
+| --------------------------------------------- | ----------------------------------------------:| ---------------------------------------------------------:|
+| sichtbare Companion-Toolcalls                 | mehrere                                        | 1                                                         |
+| Board-State-Abfragen                          | mindestens 1, oft erneut vor Referenzschritten | 1 im Renderer                                             |
+| Low-Level-Whiteboard-Operationen im Companion | mehrere                                        | 0 sichtbar; 1 interner Batchauftrag                       |
+| Designer-/Subagent-Turns                      | 0                                              | 0 im deterministischen Phase-1-Designer                   |
+| Gesamtdauer / Zeit bis Gesprächsbereitschaft  | noch nicht live gemessen                       | noch nicht live gemessen                                  |
+| Referenz-Fehlversuche                         | können zwischen Turns auftreten                | vor Mutation: missing/ambiguous als strukturierter Fehler |
+| Renderer-Validierungsfehler                   | kein Planvertrag                               | explizit gezählt und zurückgegeben                        |
 
 Das ist noch kein empirischer Geschwindigkeitsnachweis. Der Vorteil ist derzeit
 belegt als Companion-Entlastung und als bessere Fehlergrenze; ein echter
@@ -391,20 +391,20 @@ bei konkurrierenden Schreibvorgängen wird der spätere Stand geschützt.
 Dieser Abschnitt ist der abschliessende Status. Die frueheren Vorbehalte im
 Bericht stammen aus der Zeit vor der Browser-Abnahme.
 
-| Bereich | Status | Nachweis |
-|---|---|---|
-| Generische DSH/PTS-Grenze | **PASS WITH CONDITIONS** | `dsh-whiteboard` akzeptiert nur aufgeloeste `presentation`-Specs. Die Uebersetzung von PTS-Rollen zu Darstellungsrollen liegt einmalig im PTS-Renderer. Der Companion sieht `whiteboard_state` read-only und nutzt `pts_whiteboard_render` als einzige Schreib-/Semantik-Fassade; Low-Level-Mutationen bleiben verborgen. |
-| A - Lernmoment-Arbeitsraum | **PASS** | Frischer Browserlauf im Workspace `WB-Tests`: genau ein sichtbarer semantischer Toolcall; eigene Page `Phase 1 Browser A Abschluss`, Frame, Lernmoment-Anker, zwei Methodenideen, zwei Pfeile mit vier Bindings sowie Uebersichts- und Ruecknavigation. Page-Link wechselte im selben Tab. |
-| B - Detach | **PASS** | Menschliche Ursprungskarte blieb erhalten; die Renderer-Projektion wurde mit `detach: [{ role, match }]` entfernt. Andere Karten blieben erhalten; keine Konsolenfehler. |
-| C - Dokumentreferenz | **PASS** | PDF-Karte sichtbar; `/pts-whiteboard-renderer/resource?path=...` lieferte `200 application/pdf` und 566 Bytes. `../../outside.txt` lieferte `400`; kein `file://`. Die neue URL ist nicht an eine abgelaufene Browser-Session gebunden. |
-| D - Bild und Material | **PASS** | `bild-1.png` erschien als echter tldraw-`image`-Shape mit PNG-Asset; `lied.pdf` nur als Referenzkarte. Nicht ausgewaehlte Dateien erschienen nicht; Dateinamen, Groessen und Zeitstempel des Materialpools blieben unveraendert. |
-| Snapshot und Reload | **PASS** | Board-Aenderung, Speichern und Browser-Reload stellten Page und Shapes wieder her; die Board-Ansicht oeffnete sich erneut. |
-| Snapshot-Versionskonflikt | **PASS** | Speichern auf Version 1; veraltetes Schreiben mit Version 0 wurde als `conflict: true` abgewiesen; Schreiben mit Version 1 ergab Version 2. |
-| Performance-Referenzfall | **PASS WITH CONDITIONS** | 1 sichtbarer Companion-Toolcall, 1 Renderer-State-Abfrage, 1 interner Render-Batch, 0 Subagent-Turns; Laufkarte etwa 12 s. Exakte Millisekunden bis zum sichtbaren Shape wurden nicht separat instrumentiert. Keine Optimierung. |
-| Kamera-Fokus neuer Inhalte | **OUT OF SCOPE** | Kein `zoomToFit()`/Kamera-Fokus; technische Schuld fuer einen eigenen dsh-tldraw-Spike. |
-| Animierte Agenten-Aenderungen | **OUT OF SCOPE** | Kein Einfliegen, Erscheinen oder Pulsieren; Reduced-Motion und Accessibility gehoeren in denselben spaeteren generischen Spike. |
-| WebSocket/Multiplayer-Sync | **OUT OF SCOPE** | Der versionierte Snapshot-Store ist kein Echtzeit-Sync. |
-| LearningMoment-Domainbindung | **OUT OF SCOPE** | Kein Domainobjekt, keine kanonische Domain-ID, kein `decisions.yml`-Write und keine bidirektionale Synchronisierung. |
+| Bereich                       | Status                   | Nachweis                                                                                                                                                                                                                                                                                                                  |
+| ----------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Generische DSH/PTS-Grenze     | **PASS WITH CONDITIONS** | `dsh-whiteboard` akzeptiert nur aufgeloeste `presentation`-Specs. Die Uebersetzung von PTS-Rollen zu Darstellungsrollen liegt einmalig im PTS-Renderer. Der Companion sieht `whiteboard_state` read-only und nutzt `pts_whiteboard_render` als einzige Schreib-/Semantik-Fassade; Low-Level-Mutationen bleiben verborgen. |
+| A - Lernmoment-Arbeitsraum    | **PASS**                 | Frischer Browserlauf im Workspace `WB-Tests`: genau ein sichtbarer semantischer Toolcall; eigene Page `Phase 1 Browser A Abschluss`, Frame, Lernmoment-Anker, zwei Methodenideen, zwei Pfeile mit vier Bindings sowie Uebersichts- und Ruecknavigation. Page-Link wechselte im selben Tab.                                |
+| B - Detach                    | **PASS**                 | Menschliche Ursprungskarte blieb erhalten; die Renderer-Projektion wurde mit `detach: [{ role, match }]` entfernt. Andere Karten blieben erhalten; keine Konsolenfehler.                                                                                                                                                  |
+| C - Dokumentreferenz          | **PASS**                 | PDF-Karte sichtbar; `/pts-whiteboard-renderer/resource?path=...` lieferte `200 application/pdf` und 566 Bytes. `../../outside.txt` lieferte `400`; kein `file://`. Die neue URL ist nicht an eine abgelaufene Browser-Session gebunden.                                                                                   |
+| D - Bild und Material         | **PASS**                 | `bild-1.png` erschien als echter tldraw-`image`-Shape mit PNG-Asset; `lied.pdf` nur als Referenzkarte. Nicht ausgewaehlte Dateien erschienen nicht; Dateinamen, Groessen und Zeitstempel des Materialpools blieben unveraendert.                                                                                          |
+| Snapshot und Reload           | **PASS**                 | Board-Aenderung, Speichern und Browser-Reload stellten Page und Shapes wieder her; die Board-Ansicht oeffnete sich erneut.                                                                                                                                                                                                |
+| Snapshot-Versionskonflikt     | **PASS**                 | Speichern auf Version 1; veraltetes Schreiben mit Version 0 wurde als `conflict: true` abgewiesen; Schreiben mit Version 1 ergab Version 2.                                                                                                                                                                               |
+| Performance-Referenzfall      | **PASS WITH CONDITIONS** | 1 sichtbarer Companion-Toolcall, 1 Renderer-State-Abfrage, 1 interner Render-Batch, 0 Subagent-Turns; Laufkarte etwa 12 s. Exakte Millisekunden bis zum sichtbaren Shape wurden nicht separat instrumentiert. Keine Optimierung.                                                                                          |
+| Kamera-Fokus neuer Inhalte    | **OUT OF SCOPE**         | Kein `zoomToFit()`/Kamera-Fokus; technische Schuld fuer einen eigenen dsh-tldraw-Spike.                                                                                                                                                                                                                                   |
+| Animierte Agenten-Aenderungen | **OUT OF SCOPE**         | Kein Einfliegen, Erscheinen oder Pulsieren; Reduced-Motion und Accessibility gehoeren in denselben spaeteren generischen Spike.                                                                                                                                                                                           |
+| WebSocket/Multiplayer-Sync    | **OUT OF SCOPE**         | Der versionierte Snapshot-Store ist kein Echtzeit-Sync.                                                                                                                                                                                                                                                                   |
+| LearningMoment-Domainbindung  | **OUT OF SCOPE**         | Kein Domainobjekt, keine kanonische Domain-ID, kein `decisions.yml`-Write und keine bidirektionale Synchronisierung.                                                                                                                                                                                                      |
 
 ### Technische Pruefungen
 
