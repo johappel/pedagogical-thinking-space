@@ -55,7 +55,8 @@ for (const name of readdirSync(pluginsDir).sort()) {
     continue;
   }
   const entryPath = resolve(dir, entry);
-  if (!entryPath.startsWith(`${dir}\\`) && entryPath !== dir) {
+  const relativePath = relative(dir, entryPath);
+  if (relativePath.startsWith('..')) {
     fail(`${subject}: exports["./client"] leaves its package directory`);
     continue;
   }
