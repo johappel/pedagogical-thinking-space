@@ -51,22 +51,27 @@ test('alle sieben PTS-Rollen sind als eigene Subagent-Tools konfiguriert', () =>
 	for (const allow of Object.values(ALLOW_LISTS)) assert.ok(text.includes(allow), `toolFilter fehlt: ${allow}`);
 });
 
+// Seven pedagogical roles plus one capability worker (pts_whiteboard, Phase 1b).
+const SUBAGENT_ROLES = ROLES.length + 1;
+
 test('jede Rolle hat maxDepth 1 und nie 0', () => {
 	const text = active(read(COMPOSITION));
 	const depths = [...text.matchAll(/maxDepth:\s*(\d+)/g)].map((match) => match[1]);
-	assert.equal(depths.length, ROLES.length, 'maxDepth je Rolle erwartet');
+	assert.equal(depths.length, SUBAGENT_ROLES, 'maxDepth je Rolle erwartet');
 	assert.deepEqual([...new Set(depths)], ['1'], 'nur maxDepth 1 ist startbar');
 	assert.ok(!/maxDepth:\s*0/.test(text));
 });
 
-test('sechs Rollen sind continuable, pts_edit ist ein one-shot', () => {
+test('sechs Rollen sind continuable, pts_edit und pts_whiteboard sind one-shot', () => {
 	const text = active(read(COMPOSITION));
 	const modes = [...text.matchAll(/backgroundMode:\s*(\S+)/g)].map((match) => match[1]);
-	assert.equal(modes.length, ROLES.length);
+	assert.equal(modes.length, SUBAGENT_ROLES);
 	assert.equal(modes.filter((mode) => mode === 'continuable').length, 6);
-	assert.equal(modes.filter((mode) => mode === 'one-shot').length, 1);
-	const editBlock = text.slice(text.indexOf('toolName: pts_edit'), text.indexOf('toolName: pts_edit') + 400);
-	assert.match(editBlock, /backgroundMode: one-shot/, 'pts_edit muss one-shot bleiben');
+	assert.equal(modes.filter((mode) => mode === 'one-shot').length, 2);
+	for (const role of ['pts_edit', 'pts_whiteboard']) {
+		const block = text.slice(text.indexOf(`toolName: ${role}\n`), text.indexOf(`toolName: ${role}\n`) + 600);
+		assert.match(block, /backgroundMode: one-shot/, `${role} muss one-shot bleiben`);
+	}
 });
 
 test('die Komposition publiziert keinen Service ausserhalb des Compaction-Realms', () => {

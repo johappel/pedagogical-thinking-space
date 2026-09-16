@@ -478,3 +478,117 @@ PTS-Adapter-Tests, 3/3 dsh-tldraw-Hosttests, Syntaxpruefungen und
 noch offen, weil die aktive Instanz den Profil-Rewrite derzeit mit `EPERM`
 abbricht; daher ist die Laufzeitverbesserung noch nicht als Browser-abgenommen
 zu bezeichnen.
+
+## 22. Phase 1b – Background Whiteboard Worker (2026-09-16)
+
+### Motivation
+
+Bei umfangreicher Board-Arbeit (mehrere Zettel ordnen, clustern, einen
+Lernmoment-Arbeitsraum anlegen) war der Companion lange mit dem RenderPlan und
+der Ack-/Verification-Kette beschäftigt und stand währenddessen nicht für das
+Gespräch mit der Lehrkraft zur Verfügung. Phase 1b behebt ausschließlich dieses
+Blockieren; die Phase-1-Renderkette bleibt unverändert.
+
+### Ablauf
+
+```text
+Companion
+  │ klärt die pädagogische Bedeutung, delegiert EINEN begrenzten Auftrag
+  ▼
+pts_whiteboard            (nativer DSH-Background-Subagent, one-shot)
+  │ liest whiteboard_state, baut genau einen RenderPlan
+  ▼
+pts_whiteboard_render     (unveränderte semantische Fassade aus Phase 1)
+  ▼
+validierter PTS-RenderPlan → generischer presentation-RenderPlan
+  ▼
+whiteboard_render_plan → editor.run(...) → commandId → verified
+```
+
+Der Companion startet den Worker mit `run_in_background: true` und ist danach
+sofort wieder für die Lehrkraft ansprechbar. Er wartet nicht auf Render/Ack.
+
+### Warum kein eigener PTS-Hintergrund
+
+DSH besitzt Subagents, `backgroundMode`, `enableRunInBackground`, Job-Lifecycle,
+Settlement und Cancellation bereits. Phase 1b konfiguriert nur eine Rolle und
+ihre Autoritätsgrenze auf einer `@deepseek-ai/dsh-tool-subagent`-Zeile — keine
+eigene Queue, kein Scheduler, kein Dispatcher, kein PTS-Job-Store.
+
+### Warum `one-shot`
+
+Die Aufträge sind abgeschlossen („ordne diese acht Zettel in die drei
+festgelegten Gruppen“, „lege einen Arbeitsraum an“). Wie `pts_edit` ist der
+Worker `backgroundMode: one-shot`: DSH legt bei `run_in_background: true` einen
+`ctx.jobs`-Job mit `owner: parent` an; der ausgelieferte Jobs-Reporter erzeugt
+beim Abschluss ein Companion-Follow-up (das Settlement). Eine dauerhafte eigene
+Whiteboard-Konversation (`continuable`) ist für Phase 1b nicht nötig.
+
+### Autoritätsgrenze Companion ↔ Worker
+
+Der Companion bleibt verantwortlich für pädagogische Bedeutung, fachliche
+Auswahl, Zuordnung, die Entscheidung was zusammengehört und was ein Lernmoment
+ist, und was erhalten oder verworfen wird. Der Worker setzt nur den bereits
+geklärten Auftrag mechanisch um: Boardzustand lesen, Referenzen eindeutig
+auflösen, vereinbarte Inhalte räumlich organisieren, vereinbarte Projektionen
+anlegen, den semantischen Renderauftrag ausführen und das `verified`-Ergebnis
+prüfen. Er ist kein zweiter Companion.
+
+### Erlaubte Tools
+
+`toolFilter.allow: [whiteboard_state, pts_whiteboard_render]` — sonst nichts.
+Keine Denk-, Schreib-, Recherche- oder Skill-Tools, keine Low-Level-Whiteboard-
+Primitiven (`whiteboard_render_plan`, `whiteboard_request_open`,
+`createShape`/`createPage`/`updateShape`/`deleteShape` usw.) und keine weiteren
+Worker. Die Fassade `pts_whiteboard_render` erreicht die internen Primitiven
+weiterhin über die globale Tools-Registry (`ctx.get('tools')` beim Plugin-
+`apply`), nicht über den restringierten Worker-Scope; die einzige sichtbare
+Schreibfassade bleibt damit `pts_whiteboard_render`.
+
+### Command-Ack, Idempotenz, Stale State
+
+Der Phase-1-Vertrag gilt unverändert: `accepted`/`queued` ≠ `verified`. Der
+Worker meldet einen Auftrag nur als erledigt, wenn `pts_whiteboard_render`
+`status="verified"` liefert (passende `commandId` mit `ok: true` und neuer
+Snapshot). Idempotenz, höchstens einmalige Nachlieferung mit derselben
+`commandId` und der eine transiente Retry liegen weiterhin in der Fassade und
+werden nicht dupliziert. Bei fehlender oder mehrdeutiger Referenz — auch wenn
+sich das Board seit dem Auftrag so verändert hat, dass der Auftrag nicht mehr
+eindeutig anwendbar ist — schreibt der Worker nicht über den neueren Zustand,
+sondern meldet die Unklarheit fail-closed an den Parent zurück (der Designer
+scheitert vor jeder Mutation mit `missing-reference`/`ambiguous-reference`).
+
+### Settlement-Verhalten
+
+one-shot + owned Job ⇒ der DSH-Jobs-Reporter benachrichtigt den Companion beim
+Abschluss. Der Companion entscheidet dann, ob die Lehrkraft gefragt werden muss.
+Es gibt keinen zusätzlichen PTS-Settlement-Pfad.
+
+### Nachweis
+
+- Statisch/Konfiguration: `tests/pts-whiteboard-worker.test.mjs` (Rolle ist
+  one-shot Background-Subagent, `maxDepth: 1`, nur die zwei Fassaden-Tools,
+  keine Primitiven/anderen Worker, Persona bindet die Grenze und den
+  `verified`-Vertrag) und die erweiterten Zählungen in
+  `tests/pts-companion-composition.test.mjs` (acht Subagent-Rollen, sechs
+  continuable, zwei one-shot).
+- Unverändert grün: `tests/pts-whiteboard-renderer.test.mjs` (Ack/Retry/
+  Ambiguity), `tests/pts-whiteboard-adapter.test.mjs`, `tests/pts-context.test.mjs`,
+  `tests/companion-tool-boundary.test.mjs`.
+- DSH-Runtime gegen den installierten `dsh-tool-subagent`/`dsh-subagent`
+  verifiziert: `run_in_background` als Tool-Input, one-shot ⇒ owned Job mit
+  Reporter-Follow-up, `toolFilter` via `childCtx.tools.restrict`,
+  Child-Header `origin: 'subagent'`.
+
+### Offen (Browser-Abnahme)
+
+Die Live-LLM-Abnahme — Companion delegiert bei sechs bis acht Karten genau
+einen `pts_whiteboard`-Hintergrundauftrag, beantwortet unmittelbar eine zweite
+Lehrkraftnachricht, während der Worker im Hintergrund rendert, danach liegt die
+Struktur vor und bleibt nach Reload erhalten, ohne doppelte oder verlorene
+menschliche Karten — ist der verbleibende manuelle Abnahmeschritt. Ablauf:
+Instanz gestoppt neu rendern (`pwsh -File scripts/install-pts-instance.ps1`),
+`pwsh -File scripts/start-pts.ps1 -Open`, einen Denkraum mit sechs bis acht
+Karten öffnen, den Ordnungsauftrag geben und sofort eine zweite Nachricht
+senden. Die deterministische Renderkette selbst ist in Phase 1 bereits
+Browser-abgenommen.

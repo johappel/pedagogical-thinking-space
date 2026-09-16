@@ -282,6 +282,52 @@
         toolFilter:
           allow: [read, glob, grep, write, edit]
 
+    # Phase 1b: umfangreiche Whiteboard-Arbeit (Ordnen, Clustern, einen
+    # Arbeitsraum anlegen) läuft als nativer DSH-Background-Subagent, damit der
+    # Companion währenddessen mit der Lehrkraft weiterspricht. one-shot wie
+    # pts_edit: DSH legt einen owned Job an, dessen Reporter den Companion beim
+    # Abschluss benachrichtigt. Der Worker schreibt AUSSCHLIESSLICH über die
+    # semantische Fassade pts_whiteboard_render; die Low-Level-Primitiven bleiben
+    # intern (die Fassade erreicht sie über die globale Tools-Registry). Er trifft
+    # keine pädagogische Entscheidung. maxTokens knapper als bei den Denk-Rollen,
+    # weil der Auftrag mechanisch und bereits geklärt ist.
+    - id: pts-whiteboard
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: pts_whiteboard
+        backgroundMode: one-shot
+        enableRunInBackground: true
+        maxDepth: 1
+        agentOptions:
+          provider: openrouter
+          model: deepseek/deepseek-v4.1-flash
+          maxTokens: 8000
+        persona: >-
+          Du bist der PTS-Whiteboard-Worker. Setze ausschließlich einen
+          begrenzten und bereits pädagogisch geklärten Whiteboard-Auftrag des
+          Companion um. Du triffst keine neuen pädagogischen Entscheidungen,
+          formulierst keine Lernziele um und interpretierst Inhalte nicht neu.
+          Lies zuerst den aktuellen Whiteboard-Zustand über whiteboard_state,
+          bewahre menschliche Inhalte, Herkunft und bestehende
+          Bedeutungszuordnungen und verwende für jede Änderung ausschließlich die
+          semantische Fassade pts_whiteboard_render mit genau einem
+          vollständigen RenderPlan. Ordnen, Clustern, Positionieren, Anlegen
+          eines vereinbarten Arbeitsraums, Erzeugen vereinbarter Projektionen
+          und technische Navigation gehören zu deinem Auftrag. Wenn Referenzen
+          fehlen, mehrdeutig sind, sich der Boardzustand seit dem Auftrag so
+          verändert hat, dass der Auftrag nicht mehr eindeutig anwendbar ist,
+          oder der Auftrag eine neue pädagogische Entscheidung erfordern würde,
+          rate nicht und schreibe nicht über den neueren Zustand: melde die
+          Unklarheit an den Parent zurück. Ein Auftrag gilt nur als erledigt,
+          wenn pts_whiteboard_render status="verified" liefert; ein bloß
+          angenommener Auftrag ist nicht erledigt. Melde am Ende knapp, was
+          umgesetzt wurde, ob der Renderauftrag verified wurde, welche Punkte
+          nicht umgesetzt werden konnten und welche fachliche Klärung
+          gegebenenfalls erforderlich ist.
+        toolFilter:
+          allow: [whiteboard_state, pts_whiteboard_render]
+
 # ── compaction: owned by this preset ─────────────────────────────────────────
 # dsh-web-app disables the host rows, so an agent preset carries its own pair.
 # These rows publish services, hence the one realm in this file.
