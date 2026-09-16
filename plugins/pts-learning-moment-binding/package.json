@@ -1,0 +1,13 @@
+{
+  "name": "pts-learning-moment-binding",
+  "private": true,
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./domain": "./lib/domain.mjs",
+    "./bindings": "./lib/bindings.mjs",
+    "./reactions": "./lib/reactions.mjs",
+    "./package.json": "./package.json"
+  }
+}

@@ -283,8 +283,14 @@ ergänzt werden. Continuable-/Scheduler-/Dispatcher-Logik gehört nicht in PTS.
 
 ## Phase 2 – LearningMoment Domain Binding
 
-Nicht Teil dieses Spikes. Phase 1 schafft lediglich technische Anker für einen
-späteren Anschluss-Spike:
+> Der Anschluss-Spike ist begonnen: Domainkern, Bindings und Reaktionsmodell
+> sind in [SPIKE-PHASE2-LEARNINGMOMENT-DOMAIN-BINDING.md](SPIKE-PHASE2-LEARNINGMOMENT-DOMAIN-BINDING.md)
+> umgesetzt und getestet. Er bestätigt die unten skizzierten Anker und erweitert
+> das **bereits vorhandene** kanonische Landscape-Moment-Modell, statt eine
+> zweite Domain einzuführen.
+
+Nicht Teil dieses (Phase-1-)Spikes. Phase 1 schafft lediglich technische Anker
+für den Anschluss-Spike:
 
 - `meta.renderKey`, `sourceId`, `documentId`, `sourcePath`, `semanticRole`,
   `workspacePageId` und Page-Referenzen zeigen, wo eine stabile Projektion-
