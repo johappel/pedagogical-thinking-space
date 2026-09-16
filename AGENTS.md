@@ -28,59 +28,13 @@ compact board projection to `pts-companion` sessions through the scoped
 `system-prompt/assemble` waterfall, without a service, a tool or a trigger. See
 `docs/architecture/SPIKE-M1-WHITEBOARD-ADAPTER.md`.
 
-## Regel: Neue dsh-tldraw-Fähigkeiten in PTS berücksichtigen
+## Architecture guard: dsh-tldraw integration boundary
 
-`F:\\code\\dsh-tldraw` ist die generische technische Gegenstelle. Der Coder
-Agent darf neue tldraw-Features oder beobachtete Verhaltensänderungen nicht
-direkt als Sonderlogik in `plugins/pts-whiteboard-renderer` nachbauen. Vor
-jeder Übernahme gilt dieser Ablauf:
-
-1. **Inventarisieren:** In `dsh-tldraw` zuerst `AGENTS.md`,
-   `docs/WHITEBOARD-SPEC.md`, `docs/TESTING.md`, `docs/SPIKE-REPORT.md` und
-   bei tldraw-Fragen die versionierte Referenz
-   `docs/vendor/tldraw/llms-full.txt` lesen. Danach die installierte DSH-/
-   tldraw-Version und den tatsächlichen Host-/Client-Code prüfen.
-2. **Einordnen:** Festhalten, ob es sich um eine generische Plattform-
-   Fähigkeit, eine PTS-semantische Abbildung oder eine Domainentscheidung
-   handelt. Generische Implementierung, Persistenz, Sidebar-/Link-Verhalten
-   und tldraw-Schema gehören nach `dsh-tldraw`; Rollen, RenderPlan-
-   Validierung und PTS-Referenzauflösung gehören hierher.
-3. **Seam statt Spiegelung:** PTS darf nur einen dokumentierten, stabilen
-   generischen Seam verwenden. Keine direkten tldraw-Store-Mutationen,
-   Browser-DOM-Annahmen, privaten Client-Funktionen oder Kopien von
-   Low-Level-Whiteboard-Tools in den PTS-Renderer aufnehmen. Der Companion
-   sieht weiterhin nur `pts_whiteboard_render`.
-4. **Nachweis vor Code:** Eine neue Fähigkeit gilt erst als nutzbar, wenn sie
-   im generischen Repo implementiert oder ausdrücklich als vorhandener
-   Vertrag nachgewiesen, gegen die installierte Runtime geprüft und im
-   dsh-tldraw-Test-/E2E-Workflow abgenommen ist. Ungeprüfte Upstream-
-   Möglichkeiten bleiben Kandidaten und werden nicht still aktiviert.
-5. **PTS-Übernahme:** Erst danach die kleinste nötige Änderung an
-   `schemas/whiteboard-render-plan.schema.json`,
-   `plugins/pts-whiteboard-renderer/lib/render-plan.mjs`,
-   `renderer.mjs`, der Companion-Guidance und den fokussierten Tests planen.
-   Unbekannte oder nicht unterstützte Fähigkeiten müssen vor einer Queue-
-   Mutation fail-closed mit einem strukturierten Fehler enden.
-6. **Abnahme und Dokumentation:** Static-, Live-Boot- und Browser-E2E-
-   Nachweise getrennt ausweisen. Die PTS-Architekturdokumentation muss die
-   Capability, den verwendeten dsh-tldraw-Seam, die Runtime-Version, den
-   Fallback/Fehlerfall und die offenen Grenzen nennen. Eine erfolgreiche
-   Syntax- oder Unit-Prüfung ersetzt keine Browser- oder Sichtprüfung.
-
-Die ausführliche Checkliste und das Nachweisformat stehen in
-`docs/architecture/DSH_TLDRAW_INTEGRATION.md`. Wenn der benötigte generische
-Seam fehlt, ist zuerst ein separater dsh-tldraw-Spike mit dessen Tests und
-Dokumentation erforderlich; ein PTS-Workaround ist keine zulässige
-Ersatzimplementierung. Diese Regel ändert weder die Phase-1-Grenze noch die
-Vorgabe, keine Domainobjekte, `decisions.yml` oder bidirektionale Board-
-Synchronisierung einzuführen.
-
-Konkrete Beispiele für solche Kandidaten sind die automatische Sichtführung
-auf neu gerenderte Inhalte und eine dezente visuelle Anzeige von Agenten-
-Änderungen. Beide Beispiele sind in
-`docs/architecture/DSH_TLDRAW_INTEGRATION.md` als verbindliche Anforderungen
-für einen späteren Spike beschrieben; sie gelten nicht durch diese Regel
-allein als implementiert.
+Native DSH delegation: `F:\\code\\dsh-tldraw` is the generic layer. Code diffs
+must validate that features are implemented upstream, tested against runtime,
+and referenced via stable seams—not copied into PTS. Genericized implementation,
+persistence, schema and protocol belong there. Semantic mapping, validation and
+reference resolution belong here. See `docs/architecture/DSH_TLDRAW_INTEGRATION.md`.
 
 ## Instance
 
@@ -114,24 +68,12 @@ holds the copy. `--dump-config` is the cheap verification: it must show
 `default: pts-companion`, `pts-demo-capability` (disabled), `dsh-whiteboard` and
 `pts-whiteboard-adapter`.
 
-**Four rules learned the hard way (2026-09-11):**
+**Critical facts (2026-09-11):**
 
-1. Install while the instance is **stopped**. The `agent-presets` row is a
-   startup artifact: changing its config re-instantiates the roster, and the
-   standing preset mounts hang off that service, so running sessions lose their
-   preset layer until they are created again.
-2. Preset **code** (the `.mjs` modules) is cached per process. An edited module
-   only takes effect after a restart; an edited `agent.cordis.yml` is picked up
-   by the next session as a new generation.
-3. A preset-local module must not read `ctx.agent`: a preset is mounted once per
-   process under a standing scope, so `ctx.agent` does not exist there and
-   reading it fails the whole mount. Attach per-session work through the agent
-   registry (`inject: ['agents']`, `ctx.on('agent/created')`).
-4. An inserted profile row must not resolve `systemPrompt` (or anything provided
-   after the insert block) eagerly in `apply`: the eager `ctx.get()` finds
-   nothing and the capability silently disables itself. Resolve services at USE
-   time, or declare a hard dependency the way `dsh-whiteboard` declares
-   `inject: [webServer]`.
+1. Install while **stopped**—preset mounting happens at startup.
+2. Module code is per-process cached; .mjs changes need restart.
+3. Preset-local modules must not read `ctx.agent` (doesn't exist in static scope).
+4. Don't resolve `systemPrompt` eagerly in profile-row `apply`; use lazy resolution or declare hard dependency.
 
 ## PTS worker roles (native DSH subagents)
 
