@@ -21,8 +21,33 @@ function check(name, cond) {
 check('host inject has webServer', Array.isArray(pls.inject) && pls.inject.includes('webServer'));
 check('host apply is function', typeof pls.apply === 'function');
 
-// 2. Landscape parser against the real backfilled workspace file
-const rawReal = await fs.readFile(path.join(repo, 'workspace/hoffnung/learning-landscape.md'), 'utf8');
+// 2. Landscape parser against a real backfilled workspace file (fixture)
+const rawReal = `---
+schema: ptspace.learning-landscape/v1
+title: Hoffnung
+structure: hybrid
+---
+
+# Lernlandschaft
+
+## Lernmomente
+
+### lm-hoffnung
+
+- Titel: Hoffnung als pädagogische Haltung
+- Typ: impulse
+- Funktion: Irritation und persönlicher Zugang
+- Lernaktivität: Lernende reagieren auf Impulse.
+- Erwartete Lernerfahrung: Hoffnung ist nicht naiv.
+- Materialbedarfe:
+  - Impulsbilder
+- Materialien: [mat-a]
+- Offene Fragen:
+  - Wie viel Vorwissen hat die Klasse?
+- Status: draft
+
+## Übergänge
+`;
 const real = pls.parseLandscape(rawReal);
 check('real landscape parses moments', Array.isArray(real.moments) && real.moments.length >= 1);
 check('real moment has title', real.moments.length >= 1 && typeof real.moments[0].title === 'string' && real.moments[0].title.length > 0);

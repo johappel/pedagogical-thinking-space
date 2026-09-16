@@ -12,7 +12,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const read = (relative) => readFileSync(new URL(`../${relative}`, import.meta.url), 'utf8');
+const read = (relative) => readFileSync(new URL(`../${relative}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 const COMPOSITION = 'dsh/presets/pts-companion/agent.cordis.yml';
 const PERSONA = 'dsh/presets/pts-companion/prompt/persona.md';

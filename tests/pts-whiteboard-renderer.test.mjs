@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { access } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
@@ -9,6 +10,16 @@ import {
 	designRenderPlan,
 	validateRenderPlan,
 } from '../plugins/pts-whiteboard-renderer/lib/render-plan.mjs';
+
+// Architecture-guard seam: these tests validate that generic dsh-whiteboard
+// behaviour is implemented upstream in the dsh-tldraw repository. They only
+// run when that repository is available (locally or via DSH_TLDRAW_ROOT);
+// the CI has no copy, so they are skipped there.
+const TLDRAW_CLIENT = process.env.DSH_TLDRAW_ROOT
+	? `${process.env.DSH_TLDRAW_ROOT}/plugin/dsh-whiteboard/lib/client.js`
+	: 'F:/code/dsh-tldraw/plugin/dsh-whiteboard/lib/client.js';
+const tldrawAvailable = await access(TLDRAW_CLIENT).then(() => true, () => false);
+const readTldrawClient = () => import('node:fs/promises').then(({ readFile }) => readFile(TLDRAW_CLIENT, 'utf8'));
 
 test('the standard layout catalog is explicit and fails closed outside its allowlist', () => {
 	assert.deepEqual(LAYOUT_TEMPLATES, ['learning_moment_workspace', 'comparison', 'pro_con', 'cause_effect', 'sequence', 'cluster', 'matrix', 'timeline']);
@@ -78,7 +89,8 @@ test('free text is a bounded new-text annotation rather than a card or a convert
 	})), (error) => error instanceof RenderPlanError && error.code === 'invalid-plan');
 });
 
-test('a new card needs no category and its visible content receives no presentation prefix', async () => {
+test('a new card needs no category and its visible content receives no presentation prefix', async (t) => {
+	if (!tldrawAvailable) return t.skip('dsh-tldraw repository not available');
 	const content = 'Visible Learning bündelt Meta-Analysen: 2009 über 800, 2023 über 2.100 Meta-Analysen.';
 	const plan = validateRenderPlan(request({
 		elements: [{ key: 'evidence', source: 'new', text: content }],
@@ -91,12 +103,13 @@ test('a new card needs no category and its visible content receives no presentat
 	assert.equal('label' in compiled.plan.elements[0].presentation, false);
 	assert.equal('icon' in compiled.plan.elements[0].presentation, false);
 
-	const client = await import('node:fs/promises').then(({ readFile }) => readFile('F:/code/dsh-tldraw/plugin/dsh-whiteboard/lib/client.js', 'utf8'));
+	const client = await readTldrawClient();
 	assert.match(client, /spec\.label === undefined \? '' : String\(spec\.label\)\.trim\(\)/);
 	assert.match(client, /var visibleText = prefix \? prefix \+ ': ' \+ String\(text\) : String\(text\)/);
 });
 
-test('re-rendering an old agent card removes only its former visible category prefix', async () => {
+test('re-rendering an old agent card removes only its former visible category prefix', async (t) => {
+	if (!tldrawAvailable) return t.skip('dsh-tldraw repository not available');
 	const legacy = '💡 Methodenidee: Visible Learning bündelt Meta-Analysen.';
 	const legacySnapshot = {
 		...snapshot,
@@ -110,7 +123,7 @@ test('re-rendering an old agent card removes only its former visible category pr
 	assert.deepEqual(designed.detach, [{ role: 'method_idea', match: legacy }]);
 	const compiled = compileRenderPlan(designed, rendererCapabilities(['whiteboard_render_plan']));
 	assert.deepEqual(compiled.plan.detach, [{ role: 'method_idea', match: legacy, presentationRole: 'idea' }]);
-	const client = await import('node:fs/promises').then(({ readFile }) => readFile('F:/code/dsh-tldraw/plugin/dsh-whiteboard/lib/client.js', 'utf8'));
+	const client = await readTldrawClient();
 	assert.match(client, /function shapeCopy\(mods, source, styleSpec, x, y, key, textOverride\)/);
 	assert.match(client, /textOverride === undefined \? propsToText\(source\.props\) : String\(textOverride\)/);
 	assert.match(client, /sm\.sourceText \|\| propsToText\(all\[si\]\.props\) \|\| ''/);
@@ -150,8 +163,9 @@ test('detach is translated once from PTS semantics to a generic presentation rol
 	assert.deepEqual(compiled.plan.detach, [{ role: 'method_idea', match: 'Menschliche Ursprungskarte', presentationRole: 'idea' }]);
 });
 
-test('generic renderer keeps the learning-moment element text distinct from the heading', async () => {
-	const source = await import('node:fs/promises').then(({ readFile }) => readFile('F:/code/dsh-tldraw/plugin/dsh-whiteboard/lib/client.js', 'utf8'));
+test('generic renderer keeps the learning-moment element text distinct from the heading', async (t) => {
+	if (!tldrawAvailable) return t.skip('dsh-tldraw repository not available');
+	const source = await readTldrawClient();
 	assert.match(source, /anchorContent[\s\S]*el\.source === 'existing'[\s\S]*el\.text/);
 });
 
@@ -175,24 +189,27 @@ test('designer resolves non-note shapes from the complete snapshot element list'
 	assert.deepEqual(plan.elements.map((element) => element.resolvedType), ['geo', 'text']);
 });
 
-test('the root-scoped opener follows the active session for automatic opening', async () => {
-	const source = await import('node:fs/promises').then(({ readFile }) => readFile('F:/code/dsh-tldraw/plugin/dsh-whiteboard/lib/client.js', 'utf8'));
+test('the root-scoped opener follows the active session for automatic opening', async (t) => {
+	if (!tldrawAvailable) return t.skip('dsh-tldraw repository not available');
+	const source = await readTldrawClient();
 	assert.match(source, /var rootSessionId = props && typeof props\.useSessions === 'function'[\s\S]*state && state\.current[\s\S]*var sessionId[\s\S]*rootSessionId/);
 	assert.match(source, /function openBoard\(targetSessionId\)[\s\S]*if \(!targetSessionId \|\| opening \|\| !sidebarRef\.open\) return false/);
 	assert.match(source, /function retryUntilBoardBodyBinds\(targetSessionId, attempts, onBound\)[\s\S]*requestedSessionId === targetSessionId[\s\S]*retryUntilBoardBodyBinds\(targetSessionId \|\| activeSessionRef\.current/);
 	assert.match(source, /retryUntilBoardBodyBinds\(targetSessionId, 0, function \(\) \{[\s\S]*apiCall\('wb-open-ack', \{ sessionId: targetSessionId \}\)/);
 });
 
-test('the global tldraw host rejects stale or duplicate asynchronous mounts', async () => {
-	const source = await import('node:fs/promises').then(({ readFile }) => readFile('F:/code/dsh-tldraw/plugin/dsh-whiteboard/lib/client.js', 'utf8'));
+test('the global tldraw host rejects stale or duplicate asynchronous mounts', async (t) => {
+	if (!tldrawAvailable) return t.skip('dsh-tldraw repository not available');
+	const source = await readTldrawClient();
 	assert.match(source, /var boardMountEpoch = 0/);
 	assert.match(source, /function resetMountedBoard\(\) \{\s*boardMountEpoch \+= 1/);
 	assert.match(source, /if \(boardSessionId === sessionId && boardKey === persistenceKey\) return;\s*var mountEpoch = \+\+boardMountEpoch/);
 	assert.match(source, /loadModules\(\)\.then\(function \(mods\) \{\s*if \(mountEpoch !== boardMountEpoch \|\| requestedSessionId !== sessionId/);
 });
 
-test('generic dsh-whiteboard does not contain PTS semantic role names', async () => {
-	const source = await import('node:fs/promises').then(({ readFile }) => readFile('F:/code/dsh-tldraw/plugin/dsh-whiteboard/lib/client.js', 'utf8'));
+test('generic dsh-whiteboard does not contain PTS semantic role names', async (t) => {
+	if (!tldrawAvailable) return t.skip('dsh-tldraw repository not available');
+	const source = await readTldrawClient();
 	for (const role of ['learning_moment', 'method_idea', 'open_question', 'document_reference', 'material_reference', 'page_reference']) {
 		assert.doesNotMatch(source, new RegExp('\\b' + role + '\\b'));
 	}

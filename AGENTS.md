@@ -1,8 +1,8 @@
 # PTS on DSH — workspace orientation
 
 This repository is the pedagogical domain layer of a DeepSeek Harness (DSH)
-instance. DSH owns sessions, the agent loop, tools, subagents, jobs,
-persistence, the model route and the web client. PTS owns the pedagogical
+instance. DSH owns agents, tools, subagent execution, sessions, the agent loop,
+jobs, persistence, the model route and the web client. PTS owns the pedagogical
 stance, the agent composition, the worker roles and the Denkraum content.
 
 **The visible role of the `pts-companion` agent preset is defined in
@@ -90,6 +90,8 @@ holds the copy. `--dump-config` is the cheap verification: it must show
 Every role is configuration (persona, route, `toolFilter`, `maxDepth: 1`,
 background policy) on a `dsh-tool-subagent` row. There is no PTS dispatcher,
 queue, worker lifecycle, session store or tool pipeline — DSH owns all of it.
+A direct bounded instruction is already authorization: delegate the commissioned
+change once and Do not ask "Soll ich anfangen?" for a bounded order.
 
 ## Denkraum and reference documents
 

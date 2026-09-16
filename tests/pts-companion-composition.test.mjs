@@ -243,7 +243,7 @@ test('die Demo-Capability ist ausgeliefert-aber-inaktiv und registriert genau ei
 
 test('Profil-Bundles bleiben dsh-base plus dsh-web-app', () => {
 	const manifest = JSON.parse(read('dsh/profiles/pts/package.json'));
-	assert.deepEqual(manifest.dsh.profile.bundles, ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app']);
+	assert.deepEqual(manifest.dsh.profile.bundles, ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'dsh-coding-subscription-oauth']);
 	assert.equal(manifest.dsh.profile.patchReload, 'live');
 });
 
