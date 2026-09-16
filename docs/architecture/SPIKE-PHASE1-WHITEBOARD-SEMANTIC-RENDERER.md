@@ -637,3 +637,31 @@ Zweitbefund (Phase-1-Renderer, nicht Phase 1b): Die Render-Operationen
 sie zu verschieben; eine duplikatfreie Umordnung „acht Karten neu gruppieren"
 ist damit nicht ausdrückbar. Der Companion hat das korrekt erkannt und keinen
 nicht existierenden Board-Skill behauptet.
+
+### Auflösung des Blockers — generischer dsh-tldraw-Seam (2026-09-16)
+
+Der Blocker lag in der generischen Schicht und wurde dort behoben, nicht in PTS.
+`whiteboard_state`/`whiteboard_render_plan` waren an den Live-Kanal der
+aufrufenden Session gebunden; eine Child-Session ohne eigenen Tab bekam
+`live=false`. `dsh-whiteboard` bekommt jetzt eine **board-gebundene
+Zustellung**: hat der Aufrufer keinen eigenen Command-Kanal, stellt der Host den
+Auftrag über eine verbundene Session **desselben** `boardId` zu (bevorzugt den
+Parent) und spiegelt die `commandResults` board-gebunden, sodass das Child seine
+`commandId` verifiziert. Die Auflösung ist strikt auf einen identischen
+`boardId` begrenzt (nie ein fremdes Workspace-Board); ohne lebendigen Kanal
+desselben Boards bleibt es fail-closed. Umsetzung:
+`F:\code\dsh-tldraw\plugin\dsh-whiteboard\lib\session-routing.mjs` (reine
+Auflösung) plus die Verdrahtung in `lib/index.js`; Vertrag in
+`docs/WHITEBOARD-SPEC.md` („Board-gebundene Zustellung ohne eigenen Kanal").
+
+Nachweis: Static — `plugin/dsh-whiteboard/test/session-routing.test.mjs` (vier
+Fälle: Child rendert über den Parent-Kanal und verifiziert seine `commandId`;
+ohne lebendigen Kanal fail-closed; eine Session auf einem **anderen** Board macht
+das Child nie live und empfängt seinen Auftrag nie; reiner Routing-Vertrag), dazu
+die unveränderten `open-handshake`/`render-layout`/`snapshot-store`/`arrow-schema`
+und der PTS-Renderer-Test. Browser-E2E — der Background-`pts_whiteboard`-Worker
+legte über den Parent-Kanal die neue Seite „Sortierte Gruppen" mit drei Karten
+(Gruppe A/B/C) an, `verified`, und die Seite überlebt einen Reload; die acht
+Zettel der anderen Seite blieben unverändert. Damit ist die Hintergrund-
+Renderarbeit aus Phase 1b live durchführbar; der Zweitbefund (Kopieren statt
+Verschieben) bleibt davon unberührt.
