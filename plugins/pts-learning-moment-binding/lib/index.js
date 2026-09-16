@@ -1,6 +1,6 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { workspaceRoot } from '../../../dsh-presets/pts-companion/teaching-product.mjs';
+import { resolveDenkraumRoot } from '../../../dsh-presets/pts-companion/teaching-product.mjs';
 import { readProduct } from '../../../dsh-presets/pts-companion/teaching-product.mjs';
 import { parseLandscape } from '../../../dsh-presets/pts-companion/workspace-parsers.mjs';
 import { buildMomentImpact } from '../../../dsh-presets/pts-companion/moment-impact.mjs';
@@ -55,17 +55,11 @@ async function landscapeMoment(root, domainId) {
 	}
 }
 
-// The Denkraum root is the session working directory. Prefer the strict
-// scaffolded `<base>/workspace/<name>` layout (repo Denkräume) for its realpath
-// escape checks; fall back to the live Denkraum cwd itself, which is how the
-// Companion and pts_edit already operate on real Denkräume. This does NOT relax
-// the domain contract: learning-landscape.md stays required and fail-closed.
-async function resolveDenkraumRoot(cwd) {
-	if (typeof cwd !== 'string' || !path.isAbsolute(cwd)) return null;
-	try { return await workspaceRoot(cwd); } catch { /* not a scaffolded workspace/ layout */ }
-	try { return await fs.realpath(path.resolve(cwd)); } catch { return null; }
-}
-
+// The Denkraum root is the session working directory; resolveDenkraumRoot
+// (shared with the host/preset) prefers the strict scaffolded layout and falls
+// back to the live Denkraum cwd itself, failing closed on anything that is not
+// a real Denkraum. This does NOT relax the domain contract:
+// learning-landscape.md stays required and fail-closed.
 async function rootFor(ctx, sessionId) {
 	const session = ctx.get('sessions')?.get?.(sessionId);
 	if (!session?.header?.cwd) return null;

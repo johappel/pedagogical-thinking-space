@@ -82,6 +82,28 @@ export async function workspaceRoot(candidate) {
   check((await fs.stat(path.join(path.dirname(parent), 'AGENTS.md'))).isFile(), 'PTS marker missing');
   return real;
 }
+
+// A canonical PTS artefact that identifies a directory as a real Denkraum. Used
+// only to validate the live-cwd fallback below; never a new marker of its own.
+const DENKRAUM_MARKERS = ['learning-landscape.md', 'learning-design.md'];
+
+// The live Denkraum root. Prefer the strict scaffolded `<base>/workspace/<name>`
+// layout (repo Denkräume) for its realpath escape checks; otherwise accept the
+// session cwd itself when it is a real Denkraum (it carries a canonical PTS
+// artefact) — which is how the Companion and pts_edit already operate on live
+// Denkräume. Fail closed (null) on anything else: never resolve an arbitrary
+// folder, a missing cwd or a relative path. This is pure path resolution and
+// does not relax any content contract.
+export async function resolveDenkraumRoot(candidate) {
+  if (typeof candidate !== 'string' || !path.isAbsolute(candidate)) return null;
+  try { return await workspaceRoot(candidate); } catch { /* not a scaffolded workspace/ layout */ }
+  let real;
+  try { real = await fs.realpath(path.resolve(candidate)); } catch { return null; }
+  for (const marker of DENKRAUM_MARKERS) {
+    try { if ((await fs.stat(path.join(real, marker))).isFile()) return real; } catch { /* marker missing */ }
+  }
+  return null;
+}
 async function safeRead(root, file, missing = '') {
   const target = path.join(root, file);
   try {
@@ -105,7 +127,9 @@ export async function readThinking(root) {
   return { sources, moments: landscape.moments, title: landscape.front.title || path.basename(root), sourceRevision: digest(sources) };
 }
 export async function readProduct(root) {
-  root = await workspaceRoot(root);
+  const resolved = await resolveDenkraumRoot(root);
+  check(resolved, 'current PTS Denkraum required');
+  root = resolved;
   const raw = await safeRead(root, PRODUCT_FILE);
   return raw === '' ? null : validateProduct(JSON.parse(raw));
 }

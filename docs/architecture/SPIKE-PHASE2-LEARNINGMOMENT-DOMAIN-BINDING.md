@@ -3,12 +3,16 @@
 > Status Phase 2a: **Domainkern + Bindings + Reaktionsmodell implementiert und
 > durch `tests/pts-learning-moment-binding.test.mjs` (21/21) abgesichert.**
 >
-> Status Phase 2b: **Generischer echter Board-Move-Seam, Runtime-Wiring und die
-> semantische Companion-Fassade `pts_learning_moment` sind implementiert und
-> getestet** (dsh-tldraw `move-shape.test.mjs` 6/6; PTS
+> Status Phase 2b: **PASS (2026-09-16).** Generischer echter Board-Move-Seam,
+> Runtime-Wiring und die semantische Companion-Fassade `pts_learning_moment` sind
+> implementiert und getestet (dsh-tldraw `move-shape.test.mjs` 6/6; PTS
 > `pts-learning-moment-wiring.test.mjs` 11/11; keine Regression in Phase 1/1b/2a).
-> Der Browser-E2E-Pfad ist noch **nicht** ausgeführt und ist bis dahin **kein
-> PASS** (siehe Abschnitt „Phase 2b").
+> Der **Browser-E2E-Pfad ist live abgenommen**: `bind`, `move`, `create_projection`
+> (zweite Darstellung), `confirm` (inkl. Negativnachweis + bestätigter Folge),
+> `clarify`, `detach` (eine von zwei **und** die letzte → `orphanedDomain`),
+> `automatic` (Relabel → Re-Sync ohne Rückfrage) und Reload/Persistenz gegen die
+> laufende `pts-companion`-Session im Denkraum `DSH-Witeboard` (siehe Abschnitt
+> „Bekannte Grenzen" für die Belege und die zwei gefundenen echten Grenzen).
 
 ## Problem
 
@@ -295,16 +299,66 @@ kennt weiterhin **keine** PTS-Domainbegriffe (durch Test abgesichert).
   Teacher-facing Sprache ohne `domainId`/`projectionId`-Jargon; die
   confirm/clarify-Abhängigkeit wurde vom Companion benannt.
 
-  **Notwendige Korrektur für die Live-Nutzbarkeit** (separat von der bewusst
-  beibehaltenen Landscape-Kopplung): Die Fassade löste den Denkraum-Root zuvor
-  ausschließlich über die strenge `workspaceRoot()`-Schranke auf, die ein
-  `…/workspace/<name>`-Layout verlangt — das **kein** Live-Denkraum der Instanz
-  erfüllt (sie liegen als rohe Ordner, in denen der Companion/`pts_edit` direkt
-  schreiben). `resolveDenkraumRoot()` bevorzugt jetzt weiterhin das strenge
-  Layout und fällt sonst auf den realen Session-`cwd` zurück. `pts-moment-workshop`
-  und `pts-landscape` teilen dieselbe strenge Schranke und dürften dieselbe
-  Live-Inkompatibilität haben (eigener Folgepunkt). `landscape-moment-required`
-  bleibt unverändert fail-closed.
+- **Reaktionen + Detach: LIVE PASS (2026-09-16).** In derselben `DSH-Witeboard`-Session
+  (CDP an die bereits authentifizierte Seite angehängt, kein neuer Browser, keine
+  Auth-Injektion) hat der Companion selbst:
+  1. `confirm` — auf eine begrenzte semantische Änderung eines Rotfaden-Feldes
+     („Lernaktivität") ordnete er als **Rückfrage-pflichtig** ein und **mutierte
+     nichts** (Ledger byte-identisch zur Baseline = zugleich der Negativnachweis:
+     confirm erkannt, keine Zustimmung, keine Folgemutation). Nach **ausdrücklicher**
+     Lehrkraftzustimmung führte er **nur** die begrenzte Folge aus: `learning-landscape.md`
+     eine Zeile geändert (v→2), Typ/Funktion/erwartete Lernerfahrung/Status/Übergänge
+     unberührt; die gebundene Projektion blieb bewusst `stale` (`boundVersion 1 < 2`,
+     **kein** stiller Auto-Sync bei confirm); Board-Shape unverändert.
+  2. `clarify` — auf einen Charakter-Umbau (Typ + erwartete Lernerfahrung, mehrere
+     Rotfaden-Felder) klassifizierte er als **clarify**, mutierte **nichts** (Ledger
+     v2 und `learning-landscape.md` identisch), **startete keinen Worker** und machte
+     die Identitätsfrage zum Gesprächsgegenstand; er kontrastierte clarify ausdrücklich
+     mit dem vorherigen confirm.
+  3. `create_projection` — eine **zweite** Darstellung desselben Lernmoments auf einer
+     eigenen Seite „Arbeitsraum" (neue `projectionId`, kein neuer Lernmoment, die erste
+     Darstellung unverändert und **nicht** kopiert).
+  4. `detach` C1 — genau **eine** von zwei Projektionen gelöst; die andere und der
+     Lernmoment blieben; der Companion benannte die Grenze `Binding gelöst ≠ Karte
+     gelöscht`.
+  5. `detach` der **letzten** Projektion — `projections: []`, der Lernmoment **erhalten**
+     (v2, keine Domainlöschung, `learning-landscape.md` unberührt).
+  6. **Reload/Persistenz** — nach `location.reload()` blieb der Ledger stabil
+     (Lernmoment erhalten, `projections: []`).
+  7. `automatic` — eine kanonische **Umbenennung** (Titel) lief **ohne Rückfrage**
+     durch: v→3, `domainId` stabil, nur die Titelzeile geändert, und die gebundene
+     Projektion wurde **automatisch re-synct** (`boundVersion 2 → 3`).
+
+- **Automatic-Board-Propagation stößt auf die Phase-1-Render-Grenze (gefunden 2026-09-16).**
+  Der **Domänenvertrag** von `automatic` (Version-Bump ohne Rückfrage, Projektions-Sync,
+  stabile Identität) hält live. Der **Board-Nachzug** einer Umbenennung ist damit aber
+  noch nicht in-place möglich: der vorhandene Render-Weg **baut die Seite neu auf** statt
+  eine einzelne Karte umzubenennen, wodurch die Shape-Identität wechselt und die Bindung
+  auf dem Board reißt (dieselbe Phase-1-Grenze wie „Render-Ops kopieren statt verschieben"
+  und der fehlende `delete-shape`-Seam). Das ist **nicht** Teil von Phase 2b; ein
+  generischer in-place-Relabel-/`delete-shape`-Seam in `dsh-whiteboard` ist der spätere
+  Schritt. Der Companion legt die Grenze ehrlich offen und rät nicht.
+
+  **Denkraum-Root-Auflösung vereinheitlicht (Arbeitspaket B, erledigt).** Der zuvor nur
+  in der Fassade lokale `resolveDenkraumRoot()` ist jetzt der **gemeinsame**, exportierte
+  Helfer in [teaching-product.mjs](../../dsh-presets/pts-companion/teaching-product.mjs):
+  erst die strenge `workspaceRoot()`-Schranke (`…/workspace/<name>` + `AGENTS.md`, für den
+  strukturellen Vertrag **unverändert** streng), sonst der reale Session-`cwd`, **aber
+  fail-closed** validiert über einen bestehenden PTS-Marker (`learning-landscape.md` /
+  `learning-design.md`) — ein beliebiger Fremdordner, ein fehlendes oder relatives `cwd`
+  ergeben `null` und werden **nie** aufgelöst. `readProduct()` nutzt jetzt dieselbe
+  Auflösung (reine Pfadauflösung; Produkt-Validierung unverändert), womit alle Aufrufer
+  (`pts-landscape`, `pts-moment-workshop`, `pts-denkstand`, das Binding-Plugin) auf realen
+  Denkräumen funktionieren. Befund zur Vermutung: `pts-moment-workshop` rief `workspaceRoot()`
+  **direkt** auf (behoben → `resolveDenkraumRoot()` + `null`→404); `pts-landscape` ruft
+  `workspaceRoot()` **nicht** direkt — seine strenge Schranke kam **ausschließlich** über
+  `readProduct()` (zentral behoben). Tests:
+  [tests/pts-denkraum-root.test.mjs](../../tests/pts-denkraum-root.test.mjs) (strenges
+  Layout / roher Denkraum / Fremdordner + kein-cwd fail-closed / `readProduct` tolerant +
+  fail-closed) und
+  [tests/pts-learning-moment-reaction-facade.test.mjs](../../tests/pts-learning-moment-reaction-facade.test.mjs)
+  (confirm/clarify/automatic-Fassade + Zwei-Projektions-Detach), keine Regression.
+  `landscape-moment-required` bleibt unverändert fail-closed.
 - **Capture-from-raw-card** bleibt bewusst offen: `bind` verlangt einen bereits
   existierenden Landscape-Moment (`landscape-moment-required`). Das Erzeugen
   eines neuen kanonischen Landscape-Moments aus einer rohen Whiteboard-Karte
@@ -359,6 +413,101 @@ die Lernlandschaft zu einer Projektion/Sicht wird. Bis dahin bleibt
 `learning-landscape.md` der kanonische Speicher, und Phase 2b bindet nur
 **vorhandene** Lernmomente — kein impliziter Lernmoment aus einer Board-Karte,
 kein Auto-Anlegen der Datei, kein Fallback auf das Binding-Ledger.
+
+### Analysebericht: LearningMoment als eigenständige Denkraum-Domain?
+
+> Reine Analyse (Arbeitspaket D). **Keine** Migration, **keine** neue Datei
+> festgelegt, **keine** Aufweichung des Fail-closed-Verhaltens. Die Punkte A–G
+> bewerten den heutigen Stand und benennen eine Richtung, entscheiden sie aber
+> nicht.
+
+**A. Identität — wo sollte ein LearningMoment kanonisch leben?**
+Heute ist die Identität die Landscape-Moment-ID (`lm-…`) in `learning-landscape.md`;
+Version + Provenienz + Bindings liegen im Sidecar `learning-moment-bindings.json`.
+Der Inhalt (Titel, Typ, Funktion, Aktivität, Erwartung, Fragen) wird also getrennt
+von Version/Provenienz gehalten — das Binding-Plugin muss beides zusammenführen
+(`landscapeMoment()` + Ledger). Drei geprüfte Optionen:
+- *Status quo* (`learning-landscape.md` + Sidecar): minimal invasiv, verlustfreier
+  Round-Trip, fragiler Markdown-Parser bleibt unangetastet. Nachteil: Identität und
+  kanonische Metadaten (Version/Provenienz) leben in **zwei** Dateien.
+- *Eigene `learning-moments.*`-Domain* (z. B. eine strukturierte Datei mit Inhalt
+  **und** Version/Provenienz/Bindings): ein Ort für den ganzen kanonischen Moment;
+  die Lernlandschaft würde diese Domain nur noch referenzieren. Nachteil: der
+  Markdown-Writer des Learning-Landscape-Modells und alle Leser (Companion-Kontext,
+  Snapshot, Werkstatt, Landscape-Client) müssten auf die neue Quelle umgestellt
+  werden — echte Migration mit Risiko.
+- *Ein bestehender kanonischer Store* (`teaching-product.json`): ungeeignet, weil das
+  Produkt bewusst die **Unterrichtsrealisierung** ist, nicht der Denkraum-Gegenstand.
+Bewertung: Die zweite Option passt am besten zum heutigen Denkmodell, ist aber die
+teuerste. Solange nur **eine** Sicht (Lernlandschaft) und **eine** Projektion (Board)
+existieren, trägt der Status quo. Sobald eine **zweite** vollwertige Sicht (Werkstatt)
+denselben Moment kanonisch mitschreiben will, wird die Zwei-Dateien-Teilung zur echten
+Reibung — das ist der Auslöser, der die Herauslösung rechtfertigt, nicht vorher.
+
+**B. Rolle der Lernlandschaft — Domain oder View?**
+Faktisch ist `learning-landscape.md` heute **beides**: kanonischer Moment-Store **und**
+Topologie/Übergänge. Der Moment-Anteil ist Domain; der Landschafts-/Topologie-Anteil
+(Struktur, Übergänge, Layout in `learning-landscape.layout.json`) ist bereits eine
+**Sicht/Organisation**. Richtung: die Momente als Domain herauslösen, die Lernlandschaft
+als **eine** Projektion (didaktische Topologie) daneben stellen — konsistent mit dem
+Board (Projektion) und der Werkstatt (Projektion).
+
+**C. Beziehungen — wo leben die Kanten?**
+- `Moment → Moment` (Übergänge): heute in `learning-landscape.md` („## Übergänge"). Gehört
+  zur **Topologie-Sicht**, nicht zwingend in die Moment-Domain.
+- `Moment → Phase`: heute über `teaching-product.json` (`phase.momentIds`, plus
+  `sourceHashes` für Stale-Erkennung). Bleibt beim Produkt — ein Moment wird von Phasen
+  **referenziert**, nicht besessen.
+- `Moment → Material`: heute als `- Materialien: [...]` im Moment-Block der Landscape.
+  Gehört zum Moment-Inhalt und würde mit ihm in eine Moment-Domain wandern.
+- `Moment → Whiteboard-Projektion`: heute im Sidecar-Ledger (`projectionId`, `shapeId`,
+  `page`, `boundVersion`). Das ist bereits sauber getrennt und projektionsspezifisch —
+  es sollte **nicht** in die Moment-Domain gezogen werden (siehe E).
+
+**D. Produktbezug — `teaching-product.json` vs. LearningMoments.**
+Der bestehende Vertrag bleibt gültig und ist bereits korrekt: das Produkt ist das
+kanonische **Unterrichtsprodukt**; ein Moment kann von mehreren Phasen referenziert
+werden; eine Momentänderung schreibt **keine** akzeptierte Phase automatisch um
+(`sourceHashes`/Stale-Erkennung machen die Abweichung sichtbar, statt sie still zu
+propagieren). Eine Moment-Domain ändert daran nichts — sie liefert dem Produkt nur eine
+**stabilere, versionierte** Referenz (`domainId` + `version`) als heute der reine
+Markdown-Anker.
+
+**E. Binding-Ledger — bleibt `learning-moment-bindings.json` sinnvoll?**
+Ja. Das Ledger ist der **projektions-** und **provenienzspezifische** Teil (welche
+Board-Darstellungen zeigen auf den Moment, in welcher Version, wer hat wann bestätigt).
+Es ist maschinell besessen und projektionsnah — es sollte **projektionsseitig** bleiben,
+auch wenn die Moment-**Inhalts**-Domain herausgelöst wird. In einem künftigen Domain-Store
+würde die Trennung eher schärfer: `learning-moments.*` = kanonischer Inhalt + Identität;
+`…-bindings.json` = Projektionen + Version/Provenienz-Sidecar. Kein Zusammenlegen erzwingen.
+
+**F. Provenienz und Version — wo gehören `confirmedBy`/`confirmedAt`/`version` hin?**
+Heute im Ledger. Sie sind **Eigenschaften des kanonischen Moments**, nicht einer einzelnen
+Projektion — konzeptionell gehören sie zur Moment-Domain. Der Grund, dass sie heute im
+Sidecar liegen, ist rein pragmatisch (der Markdown-Parser soll unangetastet bleiben). Bei
+einer Herauslösung würden `version`/`provenance` in den Moment-Domain-Store wandern; das
+Ledger behielte nur `boundVersion` je Projektion (die Referenz auf die Moment-Version).
+Bis dahin ist die heutige Lage vertretbar, aber sie ist der klarste **konzeptionelle**
+Hinweis, dass der Moment schon jetzt mehr ist als seine Markdown-Zeilen.
+
+**G. Capture — Erzeugung neuer kanonischer Momente.**
+Heute setzt `capture`/`bind` einen **bereits vorhandenen** Landscape-Moment voraus
+(`landscape-moment-required`, fail-closed); das Anlegen aus einer rohen Karte ist bewusst
+offen (eigener Spike, weil der Landscape-Markdown-Writer sicher erweitert werden muss).
+Eine Moment-Domain mit strukturiertem Store würde genau **dieses** Capture entschärfen:
+ein Moment ließe sich sicher und schema-validiert anlegen, ohne den fragilen Markdown-Writer
+zu belasten. Das ist ein starkes Argument für die Herauslösung — aber es bleibt der
+**Folge-Spike**, nicht Phase 2b, und **Arbeitspaket E (Raw-Card → neuer Moment) wird hier
+ausdrücklich nicht implementiert**.
+
+**Empfehlung (nicht entschieden):** Die Momente sind heute de facto schon eine Domain, die
+sich zufällig eine Datei mit der Topologie-Sicht teilt. Eine Herauslösung in eine eigene
+`learning-moments.*`-Domain (Inhalt + Version + Provenienz), mit Lernlandschaft/Board/Werkstatt
+als Projektionen und dem Binding-Ledger als projektionsseitigem Sidecar, ist die kohärente
+Richtung. Der wirtschaftliche Auslöser ist eine **zweite** vollwertige Sicht, die denselben
+Moment kanonisch mitschreiben will (Werkstatt), oder das gewünschte **Raw-Card-Capture** —
+erst dann rechtfertigt der Migrationsaufwand am Markdown-Writer den Schnitt. Bis dahin bleibt
+`learning-landscape.md` der kanonische Speicher (Fail-closed unverändert).
 
 ## Phase-1-Verträge geschützt
 
