@@ -13,54 +13,60 @@ const MAX_BODY = 256 * 1024;
 const PRESET_ID = 'pts-companion';
 const CONTEXT_NAME = 'pts:whiteboard-render-plan';
 
-export const RENDER_PLAN_GUIDANCE = `## Whiteboard-Ausfuehrung (pts_whiteboard_render)
-Wenn eine Idee aus dem Gespraech auf das Whiteboard soll, fuehre genau einen
-Aufruf von pts_whiteboard_render mit einem vollstaendigen RenderPlan aus. Nutze
+export const RENDER_PLAN_GUIDANCE = `## Whiteboard-Ausführung (pts_whiteboard_render)
+Wenn eine Idee aus dem Gespräch auf das Whiteboard soll, führe genau einen
+Aufruf von pts_whiteboard_render mit einem vollständigen RenderPlan aus. Nutze
 keine Whiteboard-Primitiven und erfinde keine Operationen.
+
+Sprach- und Zeichenkodierung: Übernimm den exakten deutschen Wortlaut der
+Lehrkraft. Verwende in deutschen Texten die echten Unicode-Zeichen ä, ö, ü,
+Ä, Ö, Ü und ß. Schreibe niemals ae, oe, ue, Ae, Oe, Ue oder ss als Ersatz für
+ein deutsches Sonderzeichen; das gilt für page.title, heading.text und jedes
+elements[].text gleichermaßen. JSON-Strings werden als UTF-8 übertragen.
 
 Erlaubte operation-Werte sind: create_learning_moment_workspace,
 update_learning_moment_workspace, materialize_selection oder
 compact_document_reference. page.action ist ensure oder use_current. Ein
-minimaler gueltiger Auftrag sieht so aus:
-{"operation":"create_learning_moment_workspace","page":{"action":"ensure","title":"Erntedank – Brainstorming"},"heading":{"text":"Erntedank – erste Ideen"},"layout":{"template":"learning_moment_workspace"},"elements":[{"key":"dankbar","source":"new","role":"open_question","text":"Wofuer sind wir dankbar?"},{"key":"feld-tisch","source":"new","role":"method_idea","text":"Vom Feld auf den Tisch"}],"links":[]}
+minimaler gültiger Auftrag sieht so aus:
+{"operation":"create_learning_moment_workspace","page":{"action":"ensure","title":"Erntedank – Brainstorming"},"heading":{"text":"Erntedank – erste Ideen"},"layout":{"template":"learning_moment_workspace"},"elements":[{"key":"dankbar","source":"new","role":"open_question","text":"Wofür sind wir dankbar?"},{"key":"feld-tisch","source":"new","role":"method_idea","text":"Vom Feld auf den Tisch"}],"links":[]}
 
 Erweitern statt ersetzen: Ein Plan mit page.action="use_current" und demselben
 heading.text wie ein bereits vorhandener Rahmen ersetzt genau diesen Arbeitsraum
 (Aktualisierung). Ein NEUER heading.text auf derselben Seite legt einen ZWEITEN
-Rahmen unter dem bestehenden an und laesst vorhandene Inhalte, menschliche Zettel
-und Pfeile unangetastet. Fuer einen ganz neuen Ort nutze page.action="ensure" mit
-neuem title (neue Seite). Waehle bewusst: gleicher Titel = aktualisieren; neuer
+Rahmen unter dem bestehenden an und lässt vorhandene Inhalte, menschliche Zettel
+und Pfeile unangetastet. Für einen ganz neuen Ort nutze page.action="ensure" mit
+neuem title (neue Seite). Wähle bewusst: gleicher Titel = aktualisieren; neuer
 Titel = daneben erweitern; ensure = neue Seite. Willst du neuen Inhalt mit einem
-vorhandenen Zettel verknuepfen, nimm diesen Zettel als source="existing" mit
+vorhandenen Zettel verknüpfen, nimm diesen Zettel als source="existing" mit
 seiner ref in denselben Plan und setze einen links-Eintrag zwischen den keys.
 
-Operationen: create_learning_moment_workspace fuer einen neuen Arbeitsraum,
-update_learning_moment_workspace fuer das Aktualisieren desselben (gleicher
+Operationen: create_learning_moment_workspace für einen neuen Arbeitsraum,
+update_learning_moment_workspace für das Aktualisieren desselben (gleicher
 Titel), materialize_selection um eine bestehende Auswahl in einen neuen
-Arbeitsraum zu ueberfuehren (das Original bleibt erhalten),
-compact_document_reference fuer eine kompakte Dokumentkarte.
+Arbeitsraum zu überführen (das Original bleibt erhalten),
+compact_document_reference für eine kompakte Dokumentkarte.
 
-Fuer jedes neue Brainstorming-Element gilt: source="new" und text enthaelt
+Für jedes neue Brainstorming-Element gilt: source="new" und text enthält
 den exakten Inhalt der Lehrkraft. role ist optional: Ohne role entsteht eine
 neutrale Karte. role="open_question", role="method_idea" und
-role="learning_moment" steuern nur die Darstellung; sie duerfen weder Icon
-noch Kategorie-Text vor elements[].text setzen. heading.text ist ausschliesslich
+role="learning_moment" steuern nur die Darstellung; sie dürfen weder Icon
+noch Kategorie-Text vor elements[].text setzen. heading.text ist ausschließlich
 der Frame-Titel und darf niemals den Inhalt von elements[].text ersetzen.
 Soll ein alter Agenten-Zettel mit einem solchen Kategorie-Praefix bereinigt
 werden, verwende source="existing", seine exakte ref und die passende role;
 der Renderer ersetzt ausschliesslich seinen eigenen Treffer durch den Text ohne
-Praefix. Menschliche Zettel werden dabei nicht veraendert.
+Präfix. Menschliche Zettel werden dabei nicht verändert.
 
 Freitext ohne Zettel wird ausschliesslich als source="new",
-role="free_text" und text verwendet. Er ist fuer kurze Ueberschriften,
-Achsenbeschriftungen oder Erlaeuterungen gedacht und wird als neutrale
-Text-Shape gerendert; bestehende Zettel, Materialien und Dokumente duerfen
+role="free_text" und text verwendet. Er ist für kurze Überschriften,
+Achsenbeschriftungen oder Erläuterungen gedacht und wird als neutrale
+Text-Shape gerendert; bestehende Zettel, Materialien und Dokumente dürfen
 nicht als Freitext umgedeutet werden.
 
-Verfuegbare layout.template-Werte: learning_moment_workspace, comparison,
+Verfügbare layout.template-Werte: learning_moment_workspace, comparison,
 pro_con, cause_effect, sequence, cluster, matrix und timeline. comparison,
 pro_con und cause_effect lesen die Elemente paarweise von links nach rechts;
-sequence und timeline lesen sie in zeitlicher Reihenfolge. Fuer eine gewuenschte
+sequence und timeline lesen sie in zeitlicher Reihenfolge. Für eine gewünschte
 Darstellung ausserhalb dieser Liste benenne die Grenze ehrlich statt einen neuen
 Board-Skill zu behaupten.
 
@@ -68,10 +74,10 @@ Nicht verwenden: operation="create", type="card", body oder overview.enabled.
 Freitext ist nur als role="free_text" innerhalb eines vollstaendigen
 RenderPlans erlaubt. overview darf nur mit
 action="ensure_navigation_reference" angegeben werden. status="verified" bedeutet,
-dass der Browser die Command-ID bestaetigt und einen neuen Board-Snapshot geliefert
+	dass der Browser die Command-ID bestätigt und einen neuen Board-Snapshot geliefert
 hat. Bei status="pending" oder "failed" musst du whiteboard_state lesen, die Ursache
-pruefen und den semantischen Auftrag begrenzt erneut ausfuehren; behaupte niemals eine
-sichtbare Aenderung ohne verified.`;
+prüfen und den semantischen Auftrag begrenzt erneut ausführen; behaupte niemals eine
+sichtbare Änderung ohne verified.`;
 
 function isSubagent(agent) {
 	return agent?.session?.header?.origin === 'subagent';
@@ -264,7 +270,7 @@ export function apply(ctx) {
 
 	const renderTool = {
 		name: TOOL_NAME,
-		description: 'Fuehrt genau einen vollstaendigen semantischen Phase-1-RenderPlan aus. Uebergib operation, page, layout und elements direkt als Felder (kein description/prompt). Ein neuer heading.text auf derselben Seite erweitert das Board um einen zweiten Rahmen; derselbe Titel ersetzt den vorhandenen Arbeitsraum. Neue Karten duerfen ohne role als neutrale Zettel erscheinen; optionale Rollen steuern nur die Darstellung und schreiben keinen Kategorie-Praefix in elements[].text. Der Inhalt muss in elements[].text stehen; heading.text ist nur der Frame-Titel. Keine type=card/body/operation=create und keine Whiteboard-Primitiven. Keine LearningMoment-Domainpersistenz.',
+		description: 'Führt genau einen vollständigen semantischen Phase-1-RenderPlan aus. Übergib operation, page, layout und elements direkt als Felder (kein description/prompt). Ein neuer heading.text auf derselben Seite erweitert das Board um einen zweiten Rahmen; derselbe Titel ersetzt den vorhandenen Arbeitsraum. Neue Karten dürfen ohne role als neutrale Zettel erscheinen; optionale Rollen steuern nur die Darstellung und schreiben keinen Kategorie-Präfix in elements[].text. Der Inhalt muss in elements[].text stehen; heading.text ist nur der Frame-Titel. Keine type=card/body/operation=create und keine Whiteboard-Primitiven. Keine LearningMoment-Domainpersistenz. Deutsche Texte behalten ihre echten Umlaute und ihr ß.',
 		parameters: {
 			type: 'object',
 			required: ['operation', 'page', 'layout', 'elements'],

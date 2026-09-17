@@ -387,4 +387,6 @@ test('the renderer capability gives the Companion an explicit execution contract
 	assert.match(RENDER_PLAN_GUIDANCE, /pending.*failed/);
 	assert.match(RENDER_PLAN_GUIDANCE, /Erweitern statt ersetzen/);
 	assert.match(RENDER_PLAN_GUIDANCE, /neuer\s+Titel = daneben erweitern/);
+	assert.match(RENDER_PLAN_GUIDANCE, /echten Unicode-Zeichen ä, ö, ü/);
+	assert.match(RENDER_PLAN_GUIDANCE, /niemals ae, oe, ue, Ae, Oe, Ue oder ss/);
 });

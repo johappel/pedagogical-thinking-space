@@ -231,6 +231,17 @@ test('das Kontextmodul versorgt auch die sieben Rollen, aber ohne Methodik', () 
 	);
 });
 
+test('der PTS-Renderer bewahrt deutsche Unicode-Schreibweise', () => {
+	const preset = active(read('dsh/presets/pts-companion/agent.cordis.yml'));
+	const start = preset.indexOf('    - id: pts-renderer\n');
+	const end = preset.indexOf('    - id: pts-whiteboard\n', start);
+	assert.notEqual(start, -1, 'pts-renderer-Rolle fehlt');
+	assert.notEqual(end, -1, 'Grenze nach pts-renderer fehlt');
+	const row = preset.slice(start, end);
+	assert.match(row, /echte Unicode-Zeichen für ä, ö, ü, Ä, Ö, Ü und ß/);
+	assert.match(row, /niemals durch ae, oe, ue, Ae, Oe, Ue oder ss/);
+});
+
 test('die Demo-Capability ist ausgeliefert-aber-inaktiv und registriert genau ein Tool', () => {
 	const patch = read(PATCH);
 	const demoBlock = patch.slice(patch.indexOf('pts-demo-capability'));
