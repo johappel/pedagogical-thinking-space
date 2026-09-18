@@ -18,7 +18,11 @@ import { semanticDelta } from './delta.mjs';
 
 export const TEACHING_PRODUCT_SCHEMA = 'ptspace.teaching-product-spike/v1';
 export const BLOCK_TYPES = Object.freeze(['heading', 'paragraph', 'task', 'list', 'note', 'link', 'image']);
-export const ACTORS = Object.freeze(['teacher', 'companion']);
+// 'collaborative' is a Phase-2B commit whose text was merged by a CRDT from more
+// than one contributor; the single-writer `actor` is then no longer meaningful,
+// so such a revision additionally carries `contributors`.
+export const ACTORS = Object.freeze(['teacher', 'companion', 'collaborative']);
+export const CONTRIBUTORS = Object.freeze(['teacher', 'companion']);
 
 export class ProductError extends Error {
 	constructor(code, message, detail = {}) {
@@ -149,15 +153,29 @@ export function removeBlock(product, { lessonId, phaseId, blockId } = {}) {
  * The product content is already mutated by the calls above; commit only
  * records the boundary.
  */
-export function commit(product, changes, { actor, now = defaultNow } = {}) {
+export function commit(product, changes, { actor, contributors, now = defaultNow } = {}) {
 	if (!ACTORS.includes(actor)) throw new ProductError('invalid-actor', `Unbekannter Actor: ${actor}`, { actor });
 	if (!Array.isArray(changes) || changes.length === 0) throw new ProductError('empty-revision', 'Eine Revision braucht mindestens eine Änderung');
+	const contribs = normalizeContributors(contributors);
 	const next = clone(product);
 	next.revision = product.revision + 1;
 	const record = { revision: next.revision, actor, at: now(), changes: clone(changes) };
+	if (contribs) record.contributors = contribs;
 	record.delta = semanticDelta(record);
 	next.revisions = [...(product.revisions ?? []), record];
 	return { product: next, revision: record, delta: record.delta };
+}
+
+function normalizeContributors(contributors) {
+	if (contributors === undefined || contributors === null) return null;
+	if (!Array.isArray(contributors)) throw new ProductError('invalid-contributors', 'contributors muss eine Liste sein');
+	const set = new Set();
+	for (const value of contributors) {
+		if (!CONTRIBUTORS.includes(value)) throw new ProductError('invalid-contributors', `Unbekannter Contributor: ${value}`, { value });
+		set.add(value);
+	}
+	if (set.size === 0) throw new ProductError('invalid-contributors', 'contributors darf nicht leer sein');
+	return [...set].sort();
 }
 
 // ── finders (fail-closed) ─────────────────────────────────────────────────────

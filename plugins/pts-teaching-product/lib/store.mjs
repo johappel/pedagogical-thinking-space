@@ -114,3 +114,22 @@ export async function savePhaseDuration(root, { lessonId, phaseId, durationMinut
 	await writeProduct(root, committed.product);
 	return committed;
 }
+
+/**
+ * Phase 2B — settle a collaboratively edited block into ONE domain revision.
+ * The CRDT already merged the text, so there is no optimistic-revision guard on
+ * the text; but a structural conflict the CRDT cannot resolve (the block was
+ * deleted meanwhile) still fails closed via findBlock. A settle whose merged
+ * content equals the stored content is a no-op — no empty revision is created,
+ * so idle settles and pure re-focus never pollute the domain history.
+ */
+export async function saveCollaborativeEdit(root, { lessonId, phaseId, blockId, content, contributors }, options = {}) {
+	const product = await loadProduct(root);
+	if (!product) throw new StoreError('not-found', 'Kein Teaching Product vorhanden');
+	const { block } = findBlock(product, lessonId, phaseId, blockId); // structural conflict fails closed here
+	if (block.content === content) return { product, revision: null, delta: null, noop: true };
+	const edited = replaceBlock(product, { lessonId, phaseId, blockId, content });
+	const committed = commit(edited.product, [edited.change], { actor: 'collaborative', contributors, now: options.now });
+	await writeProduct(root, committed.product);
+	return { ...committed, noop: false };
+}
