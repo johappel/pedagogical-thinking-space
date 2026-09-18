@@ -1,0 +1,12 @@
+{
+  "name": "pts-teaching-product",
+  "version": "0.1.0",
+  "description": "Spike domain: Product Snapshot (bewusste Grenze Denkraum→Produkt), Teaching Product (Reihe→Stunde→Phase→Block), Revisionen mit semantischem Delta und gezielter Companion-Edit-API. Reine Logik, keine Host-Verdrahtung, keine UI.",
+  "private": true,
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  }
+}
