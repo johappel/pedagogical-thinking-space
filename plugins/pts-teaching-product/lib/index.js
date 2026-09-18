@@ -40,3 +40,41 @@ export {
 	companionReplaceBlock,
 	companionUpdatePhaseDuration,
 } from './companion-edit.mjs';
+
+export {
+	markupToOps,
+	opsToMarkup,
+	visibleText,
+} from './markup.mjs';
+
+export {
+	domainBlockToEditorState,
+	editorStateToDomainMutation,
+	applyEditorState,
+} from './quill-adapter.mjs';
+
+export {
+	EDITOR_STATE,
+	openBlock,
+	markEdited,
+	beginSave,
+	saveSucceeded,
+	saveFailed,
+	externalChange,
+	resolveKeepMine,
+	resolveTakeTheirs,
+	canLeave,
+	canAutoApplyExternal,
+} from './editor-session.mjs';
+
+export {
+	StoreError,
+	PRODUCT_DIR,
+	PRODUCT_FILE,
+	productPath,
+	loadProduct,
+	initProduct,
+	saveProduct,
+	saveBlockEdit,
+	savePhaseDuration,
+} from './store.mjs';

@@ -1,0 +1,19 @@
+{
+  "name": "pts-teaching-product-editor",
+  "version": "0.1.0",
+  "description": "Phase-2A-Spike: Quill als editierbare Projektion des Teaching-Product-Domainmodells. Host-Route + Persistenz-Anbindung + lokal vendored Quill; Client-Tab mit Stunden/Phasen/Block-Editor. Kennt die Domäne, keine Domainlogik im Editor.",
+  "private": true,
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [],
+      "platform": "web"
+    }
+  }
+}

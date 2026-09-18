@@ -11,6 +11,8 @@
 // A formatting-only change must never reach the Companion as a pedagogical
 // signal (Spike §13, §23): `toCompanionContext` drops it.
 
+import { visibleText } from './markup.mjs';
+
 export const FORMATTING = 'formatting';
 
 const BLOCK_LABEL = {
@@ -23,8 +25,9 @@ const BLOCK_LABEL = {
 	image: 'Bild',
 };
 
-// Strip markdown emphasis so a pure bold/italic edit reads as unchanged text.
-const plain = (value) => String(value ?? '').replace(/[*_`~]/g, '').replace(/\s+/g, ' ').trim();
+// The visible words of a block, markup removed — a pure bold/italic/heading/list
+// /link edit reads as unchanged text and therefore classifies as formatting.
+const plain = (value) => visibleText(value);
 
 export function classifyChange(change) {
 	switch (change.operation) {
