@@ -127,7 +127,8 @@ window.__ModuleLoader__.load({
 		function openWorkshop() {
 			try { if (window.__ptsOpenWorkshop) window.__ptsOpenWorkshop(); } catch (err) {}
 		}
-		function humanizeRef(ref) {
+		function humanizeRef(ref, titles) {
+			if (titles && titles[ref]) return titles[ref];
 			const parts = String(ref).split(':');
 			const kind = parts[0];
 			const id = parts.slice(1).join(':');
@@ -402,7 +403,7 @@ window.__ModuleLoader__.load({
 								})
 								: (l.intention ? h('div', { className: 'ptp-plesson-intention' }, l.intention) : null),
 							l.sourceRefs && l.sourceRefs.length
-								? h('div', { className: 'ptp-plesson-prov' }, 'Entstanden aus: ' + l.sourceRefs.map(humanizeRef).join(' · '))
+								? h('div', { className: 'ptp-plesson-prov' }, 'Entstanden aus: ' + l.sourceRefs.map((r) => humanizeRef(r, proposal.momentTitles)).join(' · '))
 								: null,
 						)),
 						editMode ? h('button', { className: 'ptp-btn', onClick: () => editProposal('add', {}) }, '+ Stunde ergänzen') : null,

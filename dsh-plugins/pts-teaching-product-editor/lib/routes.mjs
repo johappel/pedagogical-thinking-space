@@ -14,6 +14,8 @@ import { loadProduct, saveProduct, saveBlockEdit, StoreError } from '../../../pl
 import { editorStateToDomainMutation, domainBlockToEditorState } from '../../../plugins/pts-teaching-product/lib/quill-adapter.mjs';
 import { buildDemoProduct, buildDemoSnapshot } from '../../../plugins/pts-teaching-product/lib/demo.mjs';
 import { createProductSnapshot } from '../../../plugins/pts-teaching-product/lib/snapshot.mjs';
+import { parseLandscape } from '../../../dsh-presets/pts-companion/workspace-parsers.mjs';
+import { extractNamedMoments } from './learning-design-moments.mjs';
 import {
 	createProposalFromSnapshot,
 	acceptProposal,
@@ -35,6 +37,8 @@ export const PREFIX = '/pts-teaching-product';
 
 const DENKSTAND_FILE = '.pts/denkstand-state.json';
 const LEDGER_FILE = 'learning-moment-bindings.json';
+const LANDSCAPE_FILE = 'learning-landscape.md';
+const LEARNING_DESIGN_FILE = 'learning-design.md';
 
 // Build the Product Snapshot for a Denkraum from its real current state — the
 // confirmed Denkstand and the LearningMoment ledger. Selection is deliberately
@@ -45,21 +49,42 @@ const LEDGER_FILE = 'learning-moment-bindings.json';
 async function buildSnapshotForSession(root) {
 	let state;
 	let ledger;
+	let landscape;
 	try {
 		state = JSON.parse(await fs.readFile(path.join(root, DENKSTAND_FILE), 'utf8'));
 	} catch { state = null; }
 	try {
 		ledger = JSON.parse(await fs.readFile(path.join(root, LEDGER_FILE), 'utf8'));
 	} catch { ledger = null; }
+	try {
+		landscape = parseLandscape(await fs.readFile(path.join(root, LANDSCAPE_FILE), 'utf8'));
+	} catch { landscape = null; }
+	let designRaw = null;
+	try {
+		designRaw = await fs.readFile(path.join(root, LEARNING_DESIGN_FILE), 'utf8');
+	} catch { designRaw = null; }
 
 	const entries = Array.isArray(state?.entries) ? state.entries : [];
-	const moments = Array.isArray(ledger?.moments) ? ledger.moments : [];
+	const ledgerMoments = Array.isArray(ledger?.moments) ? ledger.moments : [];
+	const landscapeMoments = Array.isArray(landscape?.moments) ? landscape.moments : [];
+
+	// Moment sources, in order of structural strength: the structured landscape
+	// (with ledger versions), then the binding ledger, then — for a Denkraum that
+	// only captured moments as prose — the NAMED moments in learning-design.md.
+	// The last is tentative and feeds only the (non-binding) proposal draft.
+	const versionOf = new Map(ledgerMoments.map((m) => [m.domainId, m.version]));
+	let moments = landscapeMoments
+		.filter((m) => m && typeof m.id === 'string' && m.id.trim() !== '')
+		.map((m) => ({ domainId: m.id, version: versionOf.get(m.id) ?? 1, ...(m.title ? { title: m.title } : {}) }));
+	if (moments.length === 0 && ledgerMoments.length) moments = ledgerMoments.map((m) => ({ domainId: m.domainId, version: m.version }));
+	if (moments.length === 0 && designRaw) moments = extractNamedMoments(designRaw);
+
 	if (entries.length === 0 && moments.length === 0) return buildDemoSnapshot();
 
 	const confirmed = entries.filter((e) => e && e.status === 'teacher_confirmed');
 	const decisionIds = confirmed.filter((e) => e.kind !== 'moment').map((e) => e.id);
 	const openQuestionIds = entries.filter((e) => e && e.status === 'teacher_open').map((e) => e.id);
-	const learningMomentIds = moments.map((m) => m.domainId).filter(Boolean);
+	const learningMomentIds = moments.map((m) => m.domainId);
 
 	return createProductSnapshot({
 		denkstandEntries: entries,

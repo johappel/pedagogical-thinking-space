@@ -78,7 +78,9 @@ export function createProductSnapshot(input = {}, options = {}) {
 	const learningMoments = learningMomentIds.map((domainId) => {
 		const moment = moments.get(domainId);
 		if (!moment) throw new SnapshotError('unknown-moment', `LearningMoment nicht im Ledger: ${domainId}`, { domainId });
-		return { domainId, version: Number.isInteger(moment.version) && moment.version >= 1 ? moment.version : 1 };
+		const entry = { domainId, version: Number.isInteger(moment.version) && moment.version >= 1 ? moment.version : 1 };
+		if (typeof moment.title === 'string' && moment.title.trim() !== '') entry.title = moment.title;
+		return entry;
 	});
 
 	const decisions = [];

@@ -120,6 +120,13 @@ export function createProposalFromSnapshot(snapshot, input = {}, options = {}) {
 	const rationale = `Aus ${momentRefs.length} Lernmoment(en), ${decisionRefs.length} bestätigten Entscheidung(en)`
 		+ ` und ${questionRefs.length} offenen Frage(n) entsteht eine Dramaturgie in ${lessons.length} Stunde(n).`;
 
+	// Carry moment titles (when the snapshot knew them) so the teacher-facing
+	// provenance can name the actual moments, not just their ids.
+	const momentTitles = {};
+	for (const m of snapshot.learningMoments ?? []) {
+		if (typeof m.title === 'string' && m.title.trim() !== '') momentTitles[`learning-moment:${m.domainId}`] = m.title;
+	}
+
 	return {
 		schema: PRODUCT_PROPOSAL_SCHEMA,
 		proposalId: id('proposal'),
@@ -129,6 +136,7 @@ export function createProposalFromSnapshot(snapshot, input = {}, options = {}) {
 		series: { title: title(input.title ?? '', 'title'), rationale },
 		lessons,
 		openQuestions: (snapshot.openQuestions ?? []).map((q) => ({ id: q.id, statement: String(q.statement ?? '') })),
+		momentTitles,
 		status: 'draft',
 	};
 }

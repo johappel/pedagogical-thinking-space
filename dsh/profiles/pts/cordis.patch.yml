@@ -114,3 +114,15 @@
     - id: pts-denkstand-writer
       name: '@PTS_ROOT@/plugins/pts-denkstand-writer/lib/index.js'
       inject: [webServer, agents]
+
+    # Phase 3 spike — the teacher-facing "Unterrichtsreihe" editor. A WEB UI
+    # plugin: resolved by bare name through a junction in the profile
+    # node_modules (like dsh-whiteboard), so the client roster scan finds its
+    # `./client` bundle. Its floating opener sits next to `.wb-opener`; it
+    # registers the /pts-teaching-product HTTP route plus the collab WebSocket
+    # upgrade, and persists product/proposal/snapshot sidecars in the Denkraum's
+    # .pts/. It knows the Teaching Product domain but holds no Denkstand or
+    # LearningMoment write authority — the product boundary stays one-way.
+    - id: pts-teaching-product-editor
+      name: pts-teaching-product-editor
+      inject: [webServer]
