@@ -80,6 +80,23 @@ export function createCollabHub({ resolveRoot, loadProduct, findBlock, saveColla
 		scheduleSettle(room);
 	}
 
+	// A programmatic worker/companion edit of the SAME Y.Doc (Spike §12/§13). No
+	// browser, no socket: the worker mutates a bounded range in a 'server' Yjs
+	// transaction; the resulting update is broadcast live to every open browser.
+	// The contributor is fixed to 'companion' server-side — never client-claimed.
+	function applyWorkerEdit(room, mutate) {
+		let captured = null;
+		const handler = (update, origin) => { if (origin === 'server') captured = update; };
+		room.doc.on('update', handler);
+		try { room.doc.transact(() => mutate(room.doc.getText('quill'), Y), 'server'); }
+		finally { room.doc.off('update', handler); }
+		room.contributors.add('companion');
+		room.updateCount += 1;
+		if (captured) broadcast(room, { type: 'update', update: b64encode(captured) }, null);
+		scheduleSettle(room);
+		return { updateCount: room.updateCount };
+	}
+
 	function scheduleSettle(room) {
 		if (!(idleMs > 0)) return; // 0/negative: only forceSettle drives commits (tests)
 		if (room.idleTimer) clearTimeout(room.idleTimer);
@@ -111,6 +128,17 @@ export function createCollabHub({ resolveRoot, loadProduct, findBlock, saveColla
 				broadcast(room, { type: 'committed', ...room.lastCommitted });
 			}
 			return result;
+		} catch (err) {
+			// A structural conflict the CRDT cannot merge (block/phase deleted or
+			// moved): invalidate the room, tell open editors, still fail closed.
+			if (err && err.name === 'ProductError' && /^unknown-(block|phase|lesson)$/.test(err.code)) {
+				room.invalid = true;
+				broadcast(room, { type: 'invalidated', reason: err.code });
+			} else if (err && err.name === 'StoreError' && err.code === 'not-found') {
+				room.invalid = true;
+				broadcast(room, { type: 'invalidated', reason: 'not-found' });
+			}
+			throw err;
 		} finally {
 			room.settling = false;
 		}
@@ -121,11 +149,12 @@ export function createCollabHub({ resolveRoot, loadProduct, findBlock, saveColla
 		join,
 		leave,
 		applyClientUpdate,
+		applyWorkerEdit,
 		forceSettle: (room) => settle(room),
 		roomFor: (target) => rooms.get(keyOf(target)),
 		stats(target) {
 			const room = rooms.get(keyOf(target));
-			return room ? { updateCount: room.updateCount, revisionCount: room.revisionCount, contributors: [...room.contributors], lastCommitted: room.lastCommitted } : null;
+			return room ? { updateCount: room.updateCount, revisionCount: room.revisionCount, contributors: [...room.contributors], lastCommitted: room.lastCommitted, invalid: !!room.invalid } : null;
 		},
 	};
 }

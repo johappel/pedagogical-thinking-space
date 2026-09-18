@@ -54,4 +54,6 @@ if ($patch -notmatch "(?m)^\s*- id: $([regex]::Escape($pluginName))\s*$") {
 }
 
 Write-Host "Junctioned $pluginName into $nodeModules" -ForegroundColor Green
+Write-Host "Phase 2C: the plugin registers a collab WebSocket via webServer.registerUpgrade at /pts-teaching-product/collab." -ForegroundColor Cyan
+Write-Host "yjs/y-quill/ws resolve from the repo node_modules through the junction real path (no separate profile install)." -ForegroundColor Cyan
 Write-Host "Restart DSH, then open the right-sidebar tab 'Unterrichtsprodukt'." -ForegroundColor Cyan

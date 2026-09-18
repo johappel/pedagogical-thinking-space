@@ -50,6 +50,13 @@
 			state.lastCommitted = m;
 			var log = document.getElementById('log');
 			if (log) log.textContent = 'PTS-Revision ' + m.revision + ' · ' + (m.classification || '') + ' · contributors: ' + (m.contributors || []).join(', ');
+		} else if (m.type === 'invalidated') {
+			// Structural conflict the CRDT cannot merge: freeze the editor, keep
+			// the uncommitted text reconstructable, tell the teacher.
+			state.invalidated = m.reason || true;
+			quill.enable(false);
+			var notice = document.getElementById('notice');
+			if (notice) notice.textContent = 'Dieser Abschnitt wurde inzwischen strukturell verändert.';
 		}
 	};
 

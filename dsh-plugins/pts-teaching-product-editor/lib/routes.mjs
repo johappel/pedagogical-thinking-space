@@ -18,9 +18,11 @@ export const PREFIX = '/pts-teaching-product';
 const VENDOR = {
 	'/vendor/quill.js': { file: '../vendor/quill.js', type: 'text/javascript; charset=utf-8' },
 	'/vendor/quill.snow.css': { file: '../vendor/quill.snow.css', type: 'text/css; charset=utf-8' },
+	'/vendor/yjs-quill.bundle.js': { file: '../vendor/yjs-quill.bundle.js', type: 'text/javascript; charset=utf-8' },
+	'/collab-client.js': { file: './collab-client.js', type: 'text/javascript; charset=utf-8' },
 };
 
-export function createTeachingProductHandler({ resolveRoot }) {
+export function createTeachingProductHandler({ resolveRoot, collab } = {}) {
 	return async function handler(req, res) {
 		try {
 			const url = new URL(req.url, 'http://localhost');
@@ -32,6 +34,24 @@ export function createTeachingProductHandler({ resolveRoot }) {
 				res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'public, max-age=3600' });
 				res.end(data);
 				return;
+			}
+
+			if (collab && req.method === 'GET' && sub === '/collab-page') {
+				res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+				res.end(collabPage(url.searchParams));
+				return;
+			}
+
+			if (collab && req.method === 'GET' && sub === '/api/collab-stats') {
+				const target = targetFromParams(url.searchParams);
+				return json(res, 200, collab.hub.stats(target) || {});
+			}
+
+			if (collab && req.method === 'POST' && sub === '/api/worker-edit') {
+				const args = await readBody(req);
+				const target = { sessionId: args.sessionId, lessonId: args.lessonId, phaseId: args.phaseId, blockId: args.blockId };
+				await collab.workerReplace(target, { find: args.find, replace: args.replace });
+				return json(res, 200, { ok: true });
 			}
 
 			if (req.method === 'GET' && sub === '/api/product') {
@@ -87,6 +107,31 @@ export function createTeachingProductHandler({ resolveRoot }) {
 
 function ok(committed) {
 	return { revision: committed.revision.revision, actor: committed.revision.actor, delta: committed.delta, product: committed.product };
+}
+
+function targetFromParams(p) {
+	return { sessionId: p.get('session'), lessonId: p.get('lesson'), phaseId: p.get('phase'), blockId: p.get('block') };
+}
+
+function collabPage(p) {
+	const cfg = JSON.stringify({
+		sessionId: p.get('session'), lessonId: p.get('lesson'), phaseId: p.get('phase'), blockId: p.get('block'),
+		role: p.get('role') === 'companion' ? 'companion' : 'teacher', wsPath: PREFIX + '/collab', base: PREFIX,
+	});
+	return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Collab</title>
+<link rel="stylesheet" href="${PREFIX}/vendor/quill.snow.css">
+<style>body{font:14px system-ui;margin:0;padding:12px}#editor{min-height:160px;border:1px solid #ccc}#bar{display:flex;gap:10px;margin:8px 0}#log{font:12px ui-monospace,monospace;opacity:.8}#notice{color:#e06c75;font-weight:600;margin:6px 0;min-height:1em}</style></head>
+<body>
+<div><b>Rolle:</b> <span id="role">${p.get('role') === 'companion' ? 'companion' : 'teacher'}</span></div>
+<div id="notice"></div>
+<div id="editor"></div>
+<div id="bar"><button id="settle">Commit (settle)</button></div>
+<div id="log">noch kein Commit</div>
+<script>window.__COLLAB__=${cfg};</script>
+<script src="${PREFIX}/vendor/quill.js"></script>
+<script src="${PREFIX}/vendor/yjs-quill.bundle.js"></script>
+<script src="${PREFIX}/collab-client.js"></script>
+</body></html>`;
 }
 
 function json(res, status, payload) {
