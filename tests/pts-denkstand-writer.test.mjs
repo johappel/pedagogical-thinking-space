@@ -1,0 +1,72 @@
+// Tests for the Denkstand write-seam (plugins/pts-denkstand-writer/lib/index.js)
+// and its live integration into the pts:denkstand context.
+
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
+import { runOperation } from '../plugins/pts-denkstand-writer/lib/index.js';
+import { STATUS, SIGNIFICANCE, emptyState, record as recordEntry, hypothesize, projectCurrentState } from '../dsh/presets/pts-companion/denkstand-state.mjs';
+import { renderDenkstandContext } from '../dsh/presets/pts-companion/pts-context.mjs';
+
+test('record + confirm move an entry to confirmed teacher ground', () => {
+	let out = runOperation(emptyState(), { operation: 'record', status: 'teacher_open', statement: 'Gott als Gegenüber', id: 'e1' });
+	assert.equal(out.ok, true);
+	assert.equal(out.result.entry.status, STATUS.OPEN);
+	out = runOperation(out.state, { operation: 'confirm', id: 'e1' });
+	assert.equal(out.ok, true);
+	assert.equal(out.result.entry.status, STATUS.CONFIRMED);
+	assert.equal(out.result.entry.confirmedBy, 'teacher');
+});
+
+test('hypothesize lands as assistant hypothesis; only confirm promotes it', () => {
+	let out = runOperation(emptyState(), { operation: 'hypothesize', statement: 'Vielleicht Nähe', id: 'h1' });
+	assert.equal(out.result.entry.status, STATUS.HYPOTHESIS);
+	out = runOperation(out.state, { operation: 'confirm', id: 'h1' });
+	assert.equal(out.result.entry.status, STATUS.CONFIRMED);
+});
+
+test('reject removes from active state; supersede replaces an older reading', () => {
+	let out = runOperation(emptyState(), { operation: 'hypothesize', statement: 'Gott als Freund', id: 'h1' });
+	out = runOperation(out.state, { operation: 'supersede', oldId: 'h1', status: 'teacher_confirmed', statement: 'Gott als Gegenüber', id: 'e2' });
+	assert.equal(out.ok, true);
+	assert.equal(out.result.superseded, 'h1');
+	const view = projectCurrentState(out.state);
+	assert.equal(view[STATUS.HYPOTHESIS].length, 0);
+	assert.equal(view[STATUS.CONFIRMED][0].statement, 'Gott als Gegenüber');
+	assert.equal(view[STATUS.REJECTED][0].id, 'h1');
+});
+
+test('a fact requires a source and unknown operations fail cleanly', () => {
+	const noSource = runOperation(emptyState(), { operation: 'record', status: 'facts', statement: 'x' });
+	assert.equal(noSource.ok, false);
+	assert.equal(noSource.error.code, 'fact-requires-source');
+	const unknown = runOperation(emptyState(), { operation: 'frobnicate' });
+	assert.equal(unknown.ok, false);
+	assert.equal(unknown.error.code, 'unknown-operation');
+});
+
+test('current reads the state without mutating it', () => {
+	const state = runOperation(emptyState(), { operation: 'record', status: 'teacher_confirmed', statement: 'C', id: 'c' }).state;
+	const out = runOperation(state, { operation: 'current' });
+	assert.equal(out.ok, true);
+	assert.equal(out.state, state); // unchanged reference → no write
+	assert.equal(out.result.current[STATUS.CONFIRMED][0].statement, 'C');
+});
+
+test('the current state is projected into the live pts:denkstand context', () => {
+	let state = emptyState();
+	state = recordEntry(state, { status: STATUS.CONFIRMED, statement: 'Gott als Gegenüber', author: 'teacher', id: 'c', significance: SIGNIFICANCE.ANCHOR }).state;
+	state = hypothesize(state, { statement: 'Vielleicht Nähe', id: 'h' }).state;
+	const text = renderDenkstandContext({
+		cwd: 'F:/dsh-instances/pts/denkraeume/x',
+		repoRoot: 'F:/code/pedagogical-thinking-space/',
+		presentFiles: ['learning-design.md'],
+		currentState: state,
+	});
+	assert.match(text, /CURRENT DENKSTAND/);
+	assert.match(text, /Bestätigt \(Lehrkraft\):[\s\S]*Gott als Gegenüber/);
+	assert.match(text, /Companion-Hypothesen/);
+	// Without a current state the context is unchanged (no CURRENT DENKSTAND block).
+	const plain = renderDenkstandContext({ cwd: 'x', presentFiles: [] });
+	assert.doesNotMatch(plain, /CURRENT DENKSTAND/);
+});

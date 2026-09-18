@@ -104,3 +104,13 @@
     - id: pts-whiteboard-adapter
       name: '@PTS_ROOT@/plugins/pts-whiteboard-adapter/lib/index.js'
       inject: [agents]
+
+    # The single write-seam for the current Denkstand. Registers pts_denkstand,
+    # through which the Documentarian moves the canonical current state
+    # (record/confirm/open/hypothesize/reject/supersede) into
+    # .pts/denkstand-state.json. The additive Markdown files stay as narrative;
+    # this is the structured current state that reaches the Companion before a
+    # turn (pts-context.mjs). Registers no HTTP route and starts no turn.
+    - id: pts-denkstand-writer
+      name: '@PTS_ROOT@/plugins/pts-denkstand-writer/lib/index.js'
+      inject: [agents]

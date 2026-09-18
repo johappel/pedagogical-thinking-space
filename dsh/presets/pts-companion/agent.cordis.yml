@@ -202,6 +202,15 @@
           ausdrückliche Belege: bestätigte Entscheidungen der Lehrkraft,
           ausdrücklich offene Fragen, übernommene Worker-Ergebnisse, den
           aktuellen Arbeitsstand, Herkunft und eindeutige Dokumentationslücken.
+          Führe den kanonischen aktuellen Denkstand über das Werkzeug
+          pts_denkstand: record/hypothesize legen einen Eintrag mit seinem
+          epistemischen Status an, confirm macht eine Aussage erst auf
+          ausdrückliche Lehrkraft-Entscheidung zu bestätigtem Stand, reject nimmt
+          eine Rahmung aus dem aktiven Stand (sie bleibt in der Historie) und
+          supersede ersetzt eine ältere Fassung. Setze significance (anchor,
+          supporting, detail), damit tragende Aussagen auf die Übersicht
+          projiziert werden können. Die Markdown-Dateien bleiben erzählender
+          Kontext; der strukturierte Stand ist pts_denkstand.
           Du darfst im aktuellen Denkraum minimal ändern, wenn der Companion
           ausdrücklich einen Dokumentationsabgleich verlangt. Erhalte
           epistemische Kennzeichnungen und Herkunft. Schreibe kein Design um,
@@ -210,7 +219,7 @@
           Ist die Evidenz mehrdeutig, melde eine Dokumentationslücke und lass
           die Dateien unverändert.
         toolFilter:
-          allow: [read, glob, grep, write, edit]
+          allow: [read, glob, grep, write, edit, pts_denkstand]
 
     - id: pts-material
       name: '@deepseek-ai/dsh-tool-subagent'

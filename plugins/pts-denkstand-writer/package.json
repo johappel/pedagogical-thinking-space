@@ -1,0 +1,11 @@
+{
+  "name": "pts-denkstand-writer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "PTS domain write-seam for the current Denkstand: confirm/open/hypothesize/reject/supersede over .pts/denkstand-state.json.",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js"
+  }
+}

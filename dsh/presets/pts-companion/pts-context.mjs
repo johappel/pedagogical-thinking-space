@@ -24,6 +24,9 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { parseState } from './denkstand-state.mjs';
+import { renderCurrentDenkstand } from './companion-turn-context.mjs';
+
 export const name = 'pts-companion-context';
 export const inject = ['agents'];
 
@@ -171,7 +174,12 @@ export function renderDenkstandContext(input = {}) {
 		'Arbeitsregel: Dieser Auszug ist eine Projektion des aktuellen Stands, keine zweite Wahrheit. '
 		+ 'Der Gesprächsverlauf kommt ausschließlich aus der DSH-Session; dieser Denkstand ist das verdichtete Gedächtnis des Denkraums.',
 	);
-	return clip(lines.join('\n'), input.budget ?? TOTAL_BUDGET);
+	const body = clip(lines.join('\n'), input.budget ?? TOTAL_BUDGET);
+	// The structured current state is budgeted on its own so its epistemic
+	// categories can never be clipped away by the narrative projection above.
+	const state = input.currentState;
+	const hasEntries = state !== undefined && state !== null && Array.isArray(state.entries) && state.entries.length > 0;
+	return hasEntries ? `${body}\n\n${renderCurrentDenkstand(state)}` : body;
 }
 
 /** mtime+size cache so a per-step assembly does not re-read unchanged files. */
@@ -211,6 +219,10 @@ export function collectDenkstand(cwd, repoRoot) {
 	const input = { cwd, repoRoot, presentFiles, presentDirs };
 	if (raw !== undefined) input.design = parseLearningDesign(raw);
 	else if (presentFiles.includes('learning-design.md')) input.error = 'nicht lesbar';
+	// The canonical current state (written by pts_denkstand) lives beside the
+	// narrative files; when present it is projected structurally into this turn.
+	const stateRaw = readCached(join(cwd, '.pts', 'denkstand-state.json'));
+	if (stateRaw !== undefined) input.currentState = parseState(stateRaw);
 	return input;
 }
 

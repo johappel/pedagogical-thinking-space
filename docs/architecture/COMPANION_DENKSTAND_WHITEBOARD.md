@@ -1,7 +1,9 @@
 # Companion ↔ Denkstand ↔ Whiteboard — Architektur
 
 Status: Domänenschicht implementiert und getestet (PTS Core, pure Module).
-UI-Verdrahtung (Kamera, Composer-Button) als Contract dokumentiert, siehe §10/§11.
+Live-Verdrahtung Phase 2: **State-Writer** (`pts_denkstand`) und **Turn-Brief**
+(strukturierter aktueller Stand im `pts:denkstand`-Kontext) sind angebunden.
+Board-Projektion live, Context Picker und Focus-on-Change bleiben Handoff (§10/§11).
 
 Diese Datei ergänzt — nicht ersetzt — die bestehenden Dokumente
 [SPIKE-M1-WHITEBOARD-ADAPTER.md](SPIKE-M1-WHITEBOARD-ADAPTER.md),
@@ -171,18 +173,29 @@ technischen Berichts.
 
 ## 10. Offene Architekturfragen
 
-- **Live-Integration des Turn-Briefs:** `companion-turn-context` ist pure; die
-  additive Einspeisung in `pts-context.mjs`/`system-prompt/assemble` (nur wenn
-  `.pts/denkstand-state.json` existiert) ist noch nicht verdrahtet, damit das
-  bestehende Live-Verhalten unverändert bleibt, bis der State-Writer steht.
-- **State-Writer:** Wer schreibt `.pts/denkstand-state.json`? Vorschlag: der
-  `pts_documentarian` bekommt eine strukturierte Schreibfassade (analog
-  `learning-moment`), statt weiter rein additiv in Markdown zu schreiben.
-- **Revision-Persistenz:** `companionLastSeenRevision` muss pro Session gehalten
-  werden (heute hält der Adapter nur den letzten Snapshot pro Agent in-memory).
+- **State-Writer (erledigt, Phase 2):** `plugins/pts-denkstand-writer` registriert
+  `pts_denkstand` (record/confirm/open/hypothesize/reject/supersede/current) und
+  schreibt `.pts/denkstand-state.json`. Der `pts_documentarian` hat das Tool in
+  seinem `toolFilter` und die Anweisung, den strukturierten Stand darüber zu
+  führen statt rein additiv in Markdown. Profile-Row in
+  `dsh/profiles/pts/cordis.patch.yml`.
+- **Live-Integration des Turn-Briefs (erledigt, Phase 2):** `pts-context.mjs`
+  liest `.pts/denkstand-state.json` und projiziert den strukturierten aktuellen
+  Stand (`renderCurrentDenkstand`) additiv in den bestehenden
+  `pts:denkstand`-Kontext, der schon in `system-prompt/assemble` läuft. Ohne
+  Datei bleibt das Verhalten unverändert.
+- **Board-Projektion live (offen, Phase 3):** `teacher_confirmed + anchor` muss
+  wirklich auf der Übersicht landen bzw. eine bestehende Projektion aktualisieren.
+  Die Policy (`planProjection`) und die Bindungsmechanik (`pts_learning_moment`)
+  liegen vor; es fehlt die Verkettung nach einem `confirm` und die Garantie
+  stabiler Pages `Sammeln`/`Übersicht` im generischen dsh-tldraw-Layer.
+- **Board-Delta seit Revision (teils offen):** `board-delta.mjs` liefert die
+  strukturierte Differenz; die Einspeisung in den Turn-Brief seit
+  `companionLastSeenRevision` (statt der bestehenden Prosa im whiteboard-adapter)
+  ist noch nicht umgestellt. `companionLastSeenRevision` muss pro Session
+  gehalten werden.
 - **Board-Projektion ↔ Denkstand-Eintrag:** die projectionId sollte im
-  Denkstand-Eintrag hinterlegt werden (Feld analog `learning-moment` bindings),
-  sobald der Board-Worker die Policy anwendet.
+  Denkstand-Eintrag hinterlegt werden, sobald der Board-Worker die Policy anwendet.
 
 ## Handoff-Antworten (§20)
 
