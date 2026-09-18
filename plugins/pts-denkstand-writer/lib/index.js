@@ -130,10 +130,27 @@ function denkraumRoot(exec) {
 	return typeof cwd === 'string' && cwd.trim() !== '' ? cwd : null;
 }
 
+// A rename of a learning moment is a supersede: the old active entry is
+// rejected and a new one (new id, new title) is recorded. To keep the moment's
+// own board page across that rename, map the NEW entry id to the former title
+// so the board relabels the existing page instead of orphaning it. Only a
+// moment (kind='moment') has an own page, so only that case is threaded.
+export function renamedMomentTitles(previousState, args, outcome) {
+	const map = {};
+	if (String(args?.operation ?? '') !== 'supersede') return map;
+	const supersededId = outcome?.result?.superseded;
+	const nextEntry = outcome?.result?.entry;
+	if (typeof supersededId !== 'string' || !nextEntry || nextEntry.kind !== 'moment') return map;
+	const oldEntry = (previousState?.entries ?? []).find((entry) => entry.id === supersededId);
+	if (oldEntry && oldEntry.kind === 'moment' && typeof oldEntry.statement === 'string' && oldEntry.statement !== nextEntry.statement) {
+		map[nextEntry.id] = oldEntry.statement;
+	}
+	return map;
+}
+
 async function readState(root) {
 	try {
-		return parseState(await fs.readFile(path.join(root, STATE_DIR, STATE_FILE), 'utf8'));
-	} catch (error) {
+		return parseState(await fs.readFile(path.join(root, STATE_DIR, STATE_FILE), 'utf8'));	} catch (error) {
 		if (error?.code === 'ENOENT') return emptyState();
 		throw error;
 	}
@@ -208,7 +225,7 @@ export function apply(ctx) {
 				const renderTool = tools.get(RENDER_TOOL);
 				const render = renderTool && typeof renderTool.execute === 'function' ? (request) => renderTool.execute(request, exec) : undefined;
 				try {
-					projection = await reconcileBoard(render, nextState);
+					projection = await reconcileBoard(render, nextState, { previousTitles: renamedMomentTitles(state, args, outcome) });
 				} catch (error) {
 					projection = { ok: false, applied: [], pages: [], skipped: String(error?.message ?? error) };
 				}

@@ -39,12 +39,17 @@ export function roleFor(entry) {
  * returns the ordered render requests (each a valid pts_whiteboard_render input)
  * plus the pages the plan guarantees.
  * @param {object} state - a denkstand-state ledger.
- * @param {{ relevantIds?: string[] }} [opts] - fact ids that are relevant now.
+ * @param {{ relevantIds?: string[], previousTitles?: Record<string,string> }} [opts]
+ *   - relevantIds: fact ids that are relevant now.
+ *   - previousTitles: map of moment entry id → the title its own page had before
+ *     a rename, so the plan relabels that page in place instead of creating a
+ *     new one (keeping the page, its content and its "Zur Übersicht" link).
  * @returns {{ requests: object[], pages: string[], overviewEntryIds: string[], momentPages: string[] }}
  */
 export function planBoardReconcile(state, opts = {}) {
 	const groups = projectCurrentState(state);
 	const relevant = new Set(Array.isArray(opts.relevantIds) ? opts.relevantIds : []);
+	const previousTitles = opts.previousTitles && typeof opts.previousTitles === 'object' ? opts.previousTitles : {};
 	const overview = [];
 	const sammeln = [];
 	const momentPages = [];
@@ -53,7 +58,7 @@ export function planBoardReconcile(state, opts = {}) {
 			const target = projectEntry(entry, { relevantNow: relevant.has(entry.id) });
 			if (target.board === BOARD.UEBERSICHT) {
 				overview.push(entry);
-				if (target.ownPage) momentPages.push(entry.statement);
+				if (target.ownPage) momentPages.push({ id: entry.id, title: entry.statement });
 			} else if (target.board === BOARD.SAMMELN) {
 				sammeln.push(entry);
 			}
@@ -77,12 +82,17 @@ export function planBoardReconcile(state, opts = {}) {
 		});
 	}
 
-	// A confirmed learning moment additionally gets its own page.
-	for (const title of momentPages) {
+	// A confirmed learning moment additionally gets its own page. On a rename,
+	// previousTitles carries the page's former title so the board relabels the
+	// existing page in place (stable page id) instead of orphaning it.
+	for (const { id, title } of momentPages) {
 		pages.push(title);
+		const previousTitle = previousTitles[id];
+		const page = { action: 'ensure', title };
+		if (typeof previousTitle === 'string' && previousTitle !== '' && previousTitle !== title) page.previousTitle = previousTitle;
 		requests.push({
 			operation: 'create_learning_moment_workspace',
-			page: { action: 'ensure', title },
+			page,
 			heading: { text: title },
 			layout: { template: 'learning_moment_workspace' },
 			elements: [{ key: 'kernidee', source: 'new', role: 'learning_moment', text: title }],
@@ -103,7 +113,7 @@ export function planBoardReconcile(state, opts = {}) {
 		});
 	}
 
-	return { requests, pages, overviewEntryIds: overview.map((e) => e.id), momentPages };
+	return { requests, pages, overviewEntryIds: overview.map((e) => e.id), momentPages: momentPages.map((m) => m.title) };
 }
 
 /**
@@ -112,7 +122,7 @@ export function planBoardReconcile(state, opts = {}) {
  * clean `skipped` result and never breaks the Denkstand write.
  * @param {(request: object) => Promise<object>} render - executes one render request.
  * @param {object} state - the current denkstand-state ledger.
- * @param {{ relevantIds?: string[] }} [opts]
+ * @param {{ relevantIds?: string[], previousTitles?: Record<string,string> }} [opts]
  * @returns {Promise<{ ok: boolean, applied: object[], pages: string[], skipped?: string }>}
  */
 export async function reconcileBoard(render, state, opts = {}) {

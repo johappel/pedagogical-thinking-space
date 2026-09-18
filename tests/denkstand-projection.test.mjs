@@ -43,6 +43,33 @@ test('a confirmed learning moment gets its own page', () => {
 	assert.ok(plan.requests.some((r) => r.page.title === 'Lernmoment: Der Widerspruch'));
 });
 
+test('renaming a moment relabels its own page in place instead of orphaning it', () => {
+	// The rename result: the same conceptual moment now carries a new title (and,
+	// after a supersede, a new entry id). previousTitles maps the new id to the
+	// former title so the moment page is relabeled rather than recreated.
+	let state = emptyState();
+	state = record(state, { status: STATUS.CONFIRMED, statement: 'Gott als Gegenüber', author: ACTOR.TEACHER, id: 'm2', kind: 'moment' }).state;
+	const plan = planBoardReconcile(state, { previousTitles: { m2: 'Gott als Freund' } });
+	const momentPage = plan.requests.find((r) => r.page.title === 'Gott als Gegenüber' && r.operation === 'create_learning_moment_workspace');
+	assert.ok(momentPage, 'expected the moment page request');
+	assert.equal(momentPage.page.action, 'ensure');
+	assert.equal(momentPage.page.previousTitle, 'Gott als Freund', 'the page must be relabeled from its former title');
+	// The overview element for the same moment updates in place (keyed by id).
+	const overview = plan.requests.find((r) => r.page.title === PAGE_TITLE.UEBERSICHT);
+	assert.ok(overview.elements.some((e) => e.text === 'Gott als Gegenüber'));
+});
+
+test('an unchanged or missing previous title does not force a page relabel', () => {
+	let state = emptyState();
+	state = record(state, { status: STATUS.CONFIRMED, statement: 'Gleicher Titel', author: ACTOR.TEACHER, id: 'm3', kind: 'moment' }).state;
+	// No previousTitles at all → a plain ensure, no relabel.
+	const a = planBoardReconcile(state).requests.find((r) => r.operation === 'create_learning_moment_workspace');
+	assert.equal(a.page.previousTitle, undefined);
+	// previousTitle identical to the current title → still no relabel field.
+	const b = planBoardReconcile(state, { previousTitles: { m3: 'Gleicher Titel' } }).requests.find((r) => r.operation === 'create_learning_moment_workspace');
+	assert.equal(b.page.previousTitle, undefined);
+});
+
 test('re-running produces an update of the same frame, not a duplicate page', () => {
 	const state = anchorState();
 	const a = planBoardReconcile(state);

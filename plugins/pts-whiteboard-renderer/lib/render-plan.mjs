@@ -68,6 +68,11 @@ export function validateRenderPlan(plan) {
 	assertPlain(plan.page, 'page');
 	if (!['ensure', 'use_current'].includes(plan.page.action)) throw new RenderPlanError('invalid-plan', 'page.action ist nicht erlaubt', { action: plan.page.action });
 	const pageTitle = text(plan.page.title, 'page.title', 120);
+	// An optional previous title marks an in-place page relabel: the board
+	// renames the existing page instead of creating a new one, keeping its
+	// identity, content and "Zur Übersicht" navigation. Only meaningful with
+	// page.action='ensure'.
+	const pagePreviousTitle = plan.page.previousTitle === undefined ? undefined : text(plan.page.previousTitle, 'page.previousTitle', 120);
 	assertPlain(plan.layout, 'layout');
 	if (!LAYOUT_TEMPLATES.includes(plan.layout.template)) throw new RenderPlanError('invalid-plan', 'layout.template ist nicht verfügbar', { template: plan.layout.template, available: LAYOUT_TEMPLATES });
 	if (plan.heading !== undefined) {
@@ -115,7 +120,7 @@ export function validateRenderPlan(plan) {
 			text(entry.match, `detach[${index}].match`, 600);
 		});
 	}
-	return { ...plan, page: { ...plan.page, title: pageTitle }, elements };
+	return { ...plan, page: { ...plan.page, title: pageTitle, ...(pagePreviousTitle !== undefined ? { previousTitle: pagePreviousTitle } : {}) }, elements };
 }
 
 function normalize(value) {

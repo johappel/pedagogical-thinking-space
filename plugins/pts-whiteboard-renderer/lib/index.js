@@ -46,6 +46,14 @@ Titel), materialize_selection um eine bestehende Auswahl in einen neuen
 Arbeitsraum zu überführen (das Original bleibt erhalten),
 compact_document_reference für eine kompakte Dokumentkarte.
 
+Eine bestehende Seite umbenennen (nicht ersetzen): Wenn dieselbe Seite nur einen
+neuen Titel bekommt (z. B. weil ein Lernmoment umbenannt wurde), setze
+page.action="ensure", page.title=neuer Titel UND page.previousTitle=bisheriger
+Titel. Die Seite wird dann in-place umbenannt; ihre Inhalte, ihr Arbeitsraum und
+ihre „Zur Übersicht"-Navigation bleiben erhalten. Ohne previousTitle entstünde
+bei einem neuen Titel eine neue, leere Seite und die alte würde verwaisen —
+nutze previousTitle immer, wenn es ein Umbenennen und kein neuer Ort ist.
+
 Für jedes neue Brainstorming-Element gilt: source="new" und text enthält
 den exakten Inhalt der Lehrkraft. role ist optional: Ohne role entsteht eine
 neutrale Karte. role="open_question", role="method_idea" und
@@ -276,7 +284,7 @@ export function apply(ctx) {
 			required: ['operation', 'page', 'layout', 'elements'],
 			properties: {
 				operation: { type: 'string', enum: ['create_learning_moment_workspace', 'update_learning_moment_workspace', 'materialize_selection', 'compact_document_reference'] },
-				page: { type: 'object', required: ['action', 'title'], properties: { action: { type: 'string', enum: ['ensure', 'use_current'] }, title: { type: 'string', minLength: 1, maxLength: 120 } } },
+				page: { type: 'object', required: ['action', 'title'], properties: { action: { type: 'string', enum: ['ensure', 'use_current'] }, title: { type: 'string', minLength: 1, maxLength: 120 }, previousTitle: { type: 'string', minLength: 1, maxLength: 120, description: 'Bisheriger Seitentitel bei einem In-place-Umbenennen; die Seite wird umbenannt statt neu erzeugt.' } } },
 				heading: { type: 'object', properties: { text: { type: 'string', minLength: 1, maxLength: 600 } } },
 				layout: { type: 'object', required: ['template'], properties: { template: { type: 'string', enum: ['learning_moment_workspace', 'comparison', 'pro_con', 'cause_effect', 'sequence', 'cluster', 'matrix', 'timeline'] } } },
 				elements: { type: 'array', maxItems: 40, items: { type: 'object', required: ['source'], properties: { key: { type: 'string' }, source: { type: 'string', enum: ['existing', 'new', 'material', 'document'] }, role: { type: 'string', enum: ['note', 'learning_moment', 'method_idea', 'open_question', 'document_reference', 'material_reference', 'page_reference', 'free_text'] }, ref: { type: 'object' }, text: { type: 'string', maxLength: 600 }, document: { type: 'object' }, material: { type: 'object' } } } },

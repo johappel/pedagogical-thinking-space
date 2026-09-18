@@ -390,3 +390,53 @@ test('the renderer capability gives the Companion an explicit execution contract
 	assert.match(RENDER_PLAN_GUIDANCE, /echten Unicode-Zeichen ä, ö, ü/);
 	assert.match(RENDER_PLAN_GUIDANCE, /niemals ae, oe, ue, Ae, Oe, Ue oder ss/);
 });
+
+test('an in-place page relabel carries a validated previousTitle through the whole plan', () => {
+	const plan = validateRenderPlan(request({
+		page: { action: 'ensure', title: 'Gott als Gegenüber', previousTitle: 'Gott als Freund' },
+		elements: [{ key: 'kernidee', source: 'new', role: 'learning_moment', text: 'Gott als Gegenüber' }],
+		overview: undefined,
+	}));
+	assert.equal(plan.page.previousTitle, 'Gott als Freund');
+	const designed = designRenderPlan({
+		operation: 'create_learning_moment_workspace',
+		page: { action: 'ensure', title: 'Gott als Gegenüber', previousTitle: 'Gott als Freund' },
+		heading: { text: 'Gott als Gegenüber' },
+		layout: { template: 'learning_moment_workspace' },
+		elements: [{ key: 'kernidee', source: 'new', role: 'learning_moment', text: 'Gott als Gegenüber' }],
+		links: [],
+	}, { page: { id: 'page:x', name: 'Übersicht', pageCount: 2 } });
+	assert.equal(designed.page.previousTitle, 'Gott als Freund');
+	const compiled = compileRenderPlan(designed, rendererCapabilities(['whiteboard_render_plan']));
+	assert.equal(compiled.plan.page.previousTitle, 'Gott als Freund');
+	// A whitespace-only or over-long previousTitle fails closed like any title.
+	assert.throws(() => validateRenderPlan(request({ page: { action: 'ensure', title: 'Neu', previousTitle: '   ' } })), (error) => error instanceof RenderPlanError && error.code === 'invalid-plan');
+});
+
+test('the generic client relabels a page in place from previousTitle instead of orphaning it', async (t) => {
+	if (!tldrawAvailable) return t.skip('dsh-tldraw repository not available');
+	const source = await readTldrawClient();
+	// The generic in-place page rename seam exists and is preferred over createPage.
+	assert.match(source, /function renamePageInPlace\(editor, pageId, name\)/);
+	assert.match(source, /if \(typeof editor\.renamePage === 'function'\) \{ editor\.renamePage\(id, String\(name\)\)/);
+	assert.match(source, /if \(typeof editor\.updatePage === 'function'\) \{ editor\.updatePage\(\{ id: id, name: String\(name\) \}\)/);
+	assert.match(source, /if \(!targetPage && plan\.page\.previousTitle && String\(plan\.page\.previousTitle\) !== String\(plan\.page\.title\)\)/);
+	assert.match(source, /renamePageInPlace\(editor, priorPage\.id, plan\.page\.title\)/);
+	// The rename keeps the page id, so page links (pageHash uses the id) survive.
+	assert.match(source, /function pageHash\(pageId\) \{ return '#dsh-whiteboard-page=' \+ encodeURIComponent\(String\(pageId\)\)/);
+	// A clean relabel: the old workspace frame (former heading) is matched and
+	// relabeled in place, and the "↩ Zur Übersicht" card is preserved on a
+	// same-page relabel instead of being stripped.
+	assert.match(source, /var renamedInPlaceFrom = null/);
+	assert.match(source, /renamedInPlaceFrom = String\(plan\.page\.previousTitle\)/);
+	assert.match(source, /previousWorkspaceKey \? workspaceIdentity\(renamedInPlaceFrom\) : null|renamedInPlaceFrom \? workspaceIdentity\(renamedInPlaceFrom\) : null/);
+	assert.match(source, /existingKey !== workspaceKey && !\(previousWorkspaceKey && existingKey === previousWorkspaceKey\)/);
+	assert.match(source, /if \(samePage && !renamedInPlaceFrom\)/);
+	assert.match(source, /var keepBackReference = samePage && renamedInPlaceFrom/);
+});
+
+test('the render guidance explains the in-place page relabel via previousTitle', () => {
+	assert.match(RENDER_PLAN_GUIDANCE, /page\.previousTitle/);
+	assert.match(RENDER_PLAN_GUIDANCE, /in-place umbenannt/);
+	assert.match(RENDER_PLAN_GUIDANCE, /„Zur Übersicht"-Navigation bleiben erhalten/);
+});

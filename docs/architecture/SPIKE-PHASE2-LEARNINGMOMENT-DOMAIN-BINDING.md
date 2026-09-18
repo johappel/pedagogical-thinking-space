@@ -329,15 +329,50 @@ kennt weiterhin **keine** PTS-Domainbegriffe (durch Test abgesichert).
      durch: v→3, `domainId` stabil, nur die Titelzeile geändert, und die gebundene
      Projektion wurde **automatisch re-synct** (`boundVersion 2 → 3`).
 
-- **Automatic-Board-Propagation stößt auf die Phase-1-Render-Grenze (gefunden 2026-09-16).**
+- **Automatic-Board-Propagation: In-place-Page-Relabel — GELÖST (2026-09-18).**
   Der **Domänenvertrag** von `automatic` (Version-Bump ohne Rückfrage, Projektions-Sync,
-  stabile Identität) hält live. Der **Board-Nachzug** einer Umbenennung ist damit aber
-  noch nicht in-place möglich: der vorhandene Render-Weg **baut die Seite neu auf** statt
-  eine einzelne Karte umzubenennen, wodurch die Shape-Identität wechselt und die Bindung
-  auf dem Board reißt (dieselbe Phase-1-Grenze wie „Render-Ops kopieren statt verschieben"
-  und der fehlende `delete-shape`-Seam). Das ist **nicht** Teil von Phase 2b; ein
-  generischer in-place-Relabel-/`delete-shape`-Seam in `dsh-whiteboard` ist der spätere
-  Schritt. Der Companion legt die Grenze ehrlich offen und rät nicht.
+  stabile Identität) hielt bereits live. Der zuvor offene **Board-Nachzug** einer
+  Umbenennung ist jetzt in-place möglich: statt die Seite neu aufzubauen, wird die
+  **bestehende Page in-place umbenannt**, sodass ihre `pageId` — und damit jede Shape,
+  jeder Arbeitsraum-Frame und **jeder Navigations-Link** — erhalten bleibt. Der Grund,
+  warum das trägt: ein Page-Link ist `pageHash(pageId)`, nie der Seitentitel; eine reine
+  Umbenennung berührt die `pageId` nicht.
+
+  **Verbindlicher Update-Contract (Rename & Content Edit = In-place Domain Update):**
+  Eine Titel- oder Inhaltsänderung eines bestehenden LearningMoments **erzeugt niemals**
+  ein neues Domainobjekt und **niemals** eine neue Projektion oder Page. Sie darf nicht
+  als Delete+Create ausgeführt werden.
+  - **Stabile IDs:** `domainId` bleibt gleich (`lm-…`); `version` steigt; eine gebundene
+    `projectionId`/`shapeId` bleibt gleich; die eigene **Board-Page behält ihre `pageId`**.
+  - **Ledger:** ein bestehender Eintrag wird **aktualisiert**, nicht ersetzt
+    (`bumpVersion` + `syncProjections` bei `automatic`); der Titel ist kein Ledger-Schlüssel.
+  - **Navigation:** „↩ Zur Übersicht" hängt an der stabilen `pageId` (`pageHash`) und
+    überlebt den Rename; die Übersicht-Karte des Moments aktualisiert in-place (key=`entry.id`).
+  - **Root-Cause der alten Grenze:** die eigene Moment-Page wurde in
+    [denkstand-projection.mjs](../../dsh/presets/pts-companion/denkstand-projection.mjs)
+    ausschließlich über den **veränderlichen Titel** adressiert
+    (`page.action='ensure', title=entry.statement`), und der generische Client matcht Pages
+    nur per Name → neuer Titel = neue Page, alte verwaist inkl. „Zur Übersicht".
+  - **Fix (drei Nähte, bestehende Architektur, keine zweite Binding-Logik):**
+    1. **Generischer Seam** in `dsh-whiteboard` (`client.js`): `renamePageInPlace()`; der
+       Render-Plan-Handler benennt bei `page.previousTitle` die vorhandene Page um, statt
+       eine neue zu erzeugen. PTS-frei, per Quelltext-Test abgesichert
+       ([tests/pts-whiteboard-renderer.test.mjs](../../tests/pts-whiteboard-renderer.test.mjs)).
+    2. **PTS-Seam** ([render-plan.mjs](../../plugins/pts-whiteboard-renderer/lib/render-plan.mjs)):
+       optionales, validiertes `page.previousTitle`, das durch `designRenderPlan`/`compileRenderPlan`
+       gereicht wird; Prompt-Guidance erklärt das Relabel.
+    3. **Projektions-Seam** ([denkstand-projection.mjs](../../dsh/presets/pts-companion/denkstand-projection.mjs)
+       + [pts-denkstand-writer](../../plugins/pts-denkstand-writer/lib/index.js)): der Writer
+       erkennt einen Moment-Rename (`supersede`, `kind='moment'`) und reicht
+       `previousTitles: { neueEntryId → alterTitel }` an `reconcileBoard`; die eigene
+       Moment-Page setzt dann `page.previousTitle` → In-place-Relabel.
+  Tests:
+  [tests/denkstand-projection.test.mjs](../../tests/denkstand-projection.test.mjs) (Relabel
+  statt Waise; unveränderter/fehlender Titel erzwingt kein Relabel),
+  [tests/pts-denkstand-writer.test.mjs](../../tests/pts-denkstand-writer.test.mjs)
+  (nur Moment-Rename fädelt einen previousTitle ein) und die Renderer-/Client-Nähte.
+  Der frühere `delete-shape`-Seam bleibt für das **visuelle** Entfernen einer Detach-Karte
+  offen (siehe unten) — er ist für Rename/Edit nicht nötig.
 
   **Denkraum-Root-Auflösung vereinheitlicht (Arbeitspaket B, erledigt).** Der zuvor nur
   in der Fassade lokale `resolveDenkraumRoot()` ist jetzt der **gemeinsame**, exportierte
