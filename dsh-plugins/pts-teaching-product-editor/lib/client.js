@@ -19,6 +19,7 @@ window.__ModuleLoader__.load({
 
 		const TYPE_ID = "pts-teaching-product-editor";
 		const TYPE_KIND = "ptsTeachingProduct";
+		const WORKSHOP_KIND = "whiteboard";
 		const BASE = "/pts-teaching-product";
 
 		const CSS = `
@@ -55,6 +56,30 @@ window.__ModuleLoader__.load({
 .ptp-debug summary { cursor:pointer; font-size:11px; text-transform:uppercase; letter-spacing:.5px; opacity:.5; }
 .ptp-debug pre { font-family:ui-monospace,Consolas,monospace; font-size:11px; opacity:.75; white-space:pre-wrap; word-break:break-word; margin:6px 0 0; }
 .ptp-tools { display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; }
+.ptp-head { display:flex; align-items:flex-start; gap:10px; }
+.ptp-head-main { flex:1 1 auto; min-width:0; }
+.ptp-focus { font-size:11.5px; opacity:.8; border-left:3px solid rgba(126,198,153,.6); padding:2px 0 2px 8px; }
+.ptp-btn-on { border-color:#7ec699; background:rgba(126,198,153,.16); font-weight:600; }
+.ptp-workshop { flex:0 0 auto; }
+.ptp-a { padding:28px 22px; display:flex; flex-direction:column; gap:14px; max-width:520px; }
+.ptp-a-title { font-weight:700; font-size:18px; }
+.ptp-a-text { opacity:.85; line-height:1.5; }
+.ptp-a-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.ptp-a-debug { margin-top:8px; }
+.ptp-a-debug .ptp-btn { font-size:11px; opacity:.6; }
+.ptp-proposal-subtitle { font-size:13.5px; margin-top:2px; opacity:.9; }
+.ptp-proposal-rationale { font-size:11.5px; opacity:.7; margin-top:6px; line-height:1.45; }
+.ptp-proposal-body { flex:1 1 auto; overflow:auto; padding:12px 14px; display:flex; flex-direction:column; gap:10px; }
+.ptp-plesson { border:1px solid rgba(128,128,128,.28); border-radius:8px; padding:10px 12px; display:flex; flex-direction:column; gap:6px; }
+.ptp-plesson-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.ptp-plesson-num { font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; opacity:.55; }
+.ptp-plesson-title { font-weight:600; font-size:14px; }
+.ptp-plesson-actions { margin-left:auto; display:flex; gap:4px; }
+.ptp-plesson-intention { font-size:12.5px; opacity:.85; line-height:1.4; }
+.ptp-plesson-prov { font-size:11px; opacity:.6; }
+.ptp-input { font:inherit; font-size:13.5px; padding:4px 8px; border:1px solid rgba(128,128,128,.4); border-radius:6px; background:rgba(255,255,255,.03); color:inherit; flex:1 1 auto; min-width:120px; }
+.ptp-input-intention { font-size:12.5px; }
+.ptp-proposal-bar { display:flex; gap:8px; flex-wrap:wrap; padding:10px 14px; border-top:1px solid rgba(128,128,128,.2); }
 `;
 
 		function ensureStyle() {
@@ -96,6 +121,23 @@ window.__ModuleLoader__.load({
 			return { status: res.status, data };
 		}
 
+		function notifyChanged() {
+			try { window.dispatchEvent(new CustomEvent('pts-tp-changed')); } catch (err) {}
+		}
+		function openWorkshop() {
+			try { if (window.__ptsOpenWorkshop) window.__ptsOpenWorkshop(); } catch (err) {}
+		}
+		function humanizeRef(ref) {
+			const parts = String(ref).split(':');
+			const kind = parts[0];
+			const id = parts.slice(1).join(':');
+			const label = kind === 'learning-moment' ? 'Lernmoment'
+				: kind === 'decision' ? 'Entscheidung'
+					: kind === 'anchor' ? 'Anker'
+						: kind === 'open-question' ? 'Offene Frage' : kind;
+			return label + ' ' + id;
+		}
+
 		function firstSelection(product) {
 			const lesson = product && product.series && product.series.lessons[0];
 			const phase = lesson && lesson.phases[0];
@@ -115,9 +157,13 @@ window.__ModuleLoader__.load({
 
 		function Body(props) {
 			const sessionId = props.sessionId;
+			const [view, setView] = useState('loading'); // loading|A|B|C
 			const [product, setProduct] = useState(null);
+			const [proposal, setProposal] = useState(null);
+			const [editMode, setEditMode] = useState(false);
 			const [sel, setSel] = useState(null);
 			const [status, setStatus] = useState('clean'); // clean|dirty|saving|externally_changed
+			const [quillReady, setQuillReady] = useState(false);
 			const [baseRevision, setBaseRevision] = useState(0);
 			const [conflict, setConflict] = useState(null);
 			const [log, setLog] = useState(null);
@@ -131,20 +177,27 @@ window.__ModuleLoader__.load({
 			const baseRef = useRef(baseRevision);
 			baseRef.current = baseRevision;
 
-			const load = useCallback(async (keepSel) => {
-				const { data } = await api('GET', '/api/product?sessionId=' + encodeURIComponent(sessionId || ''));
-				setProduct(data.product);
-				if (data.product) {
-					setBaseRevision(data.product.revision);
-					setSel((prev) => (keepSel && prev ? prev : firstSelection(data.product)));
-				}
-			}, [sessionId]);
+			const adoptProduct = useCallback((next, keepSel) => {
+				setProduct(next);
+				setBaseRevision(next.revision);
+				setSel((prev) => (keepSel && prev ? prev : firstSelection(next)));
+				setView('C');
+			}, []);
 
-			useEffect(() => { ensureStyle(); load(); }, [load]);
+			const refreshState = useCallback(async (keepSel) => {
+				const { data } = await api('GET', '/api/state?sessionId=' + encodeURIComponent(sessionId || ''));
+				if (data.hasProduct && data.product) { adoptProduct(data.product, keepSel); return; }
+				if (data.hasProposal && data.proposal) { setProposal(data.proposal); setView('B'); return; }
+				setView('A');
+			}, [sessionId, adoptProduct]);
 
-			// Mount Quill once the tab body has real size and a block is selected.
+			const load = useCallback(async (keepSel) => { await refreshState(keepSel); }, [refreshState]);
+
+			useEffect(() => { ensureStyle(); refreshState(); }, [refreshState]);
+
+			// Mount Quill once the product tab has real size and a block is selected.
 			useEffect(() => {
-				if (!product || !sel || !hostRef.current) return;
+				if (view !== 'C' || !product || !sel || !hostRef.current) return;
 				let cancelled = false;
 				ensureQuill().then((Quill) => {
 					if (cancelled) return;
@@ -157,26 +210,74 @@ window.__ModuleLoader__.load({
 							if (source === 'user' && statusRef.current === 'clean') setStatus('dirty');
 						});
 					}
+					setQuillReady(true); // Quill is constructed asynchronously; signal the content-load effect
 				}).catch((err) => setError(String(err.message || err)));
 				return () => { cancelled = true; };
 				// eslint-disable-next-line react-hooks/exhaustive-deps
-			}, [product, sel && sel.blockId]);
+			}, [view, product, sel && sel.blockId]);
 
 			useEffect(() => {
-				if (!quillRef.current || !product || !sel) return;
+				if (view !== 'C' || !quillReady || !quillRef.current || !product || !sel) return;
 				let cancelled = false;
-				fetchEditorState().then((ops) => {
+				const target = sel;
+				// Clear immediately so a stale pre-load never satisfies a "content present"
+				// wait for the newly selected block; the correct content arrives below.
+				if (statusRef.current === 'clean') quillRef.current.setContents([], 'silent');
+				api('POST', '/api/editor-state', { sessionId, ...target }).then(({ data }) => {
 					if (cancelled || !quillRef.current) return;
-					quillRef.current.setContents(ops, 'silent'); // silent → not a user edit
+					// Never clobber an in-progress edit, and ignore a load whose block is
+					// no longer the selected one (fixes the async Quill-mount / phase-switch race).
+					if (statusRef.current !== 'clean') return;
+					if (!selRef.current || selRef.current.blockId !== target.blockId) return;
+					quillRef.current.setContents(data.editorDelta ? data.editorDelta.ops : [], 'silent'); // silent → not a user edit
 					setStatus('clean');
 				});
 				return () => { cancelled = true; };
 				// eslint-disable-next-line react-hooks/exhaustive-deps
-			}, [product && product.revision, sel && sel.blockId]);
+			}, [view, quillReady, product && product.revision, sel && sel.blockId]);
 
 			async function fetchEditorState() {
 				const { data } = await api('POST', '/api/editor-state', { sessionId, ...sel });
 				return data.editorDelta ? data.editorDelta.ops : [];
+			}
+
+			// ── Zustand A → B / C ──────────────────────────────────────────────────
+			async function develop() {
+				const { data } = await api('POST', '/api/develop', { sessionId });
+				if (data.product) adoptProduct(data.product);
+				else if (data.proposal) { setProposal(data.proposal); setView('B'); }
+				notifyChanged();
+			}
+			async function seedDemo() {
+				await api('POST', '/api/seed', { sessionId });
+				await refreshState();
+				notifyChanged();
+			}
+
+			// ── Zustand B (proposal) ───────────────────────────────────────────────
+			function updateLocalLesson(id, patch) {
+				setProposal((p) => (p ? { ...p, lessons: p.lessons.map((l) => (l.proposedLessonId === id ? { ...l, ...patch } : l)) } : p));
+			}
+			async function editProposal(op, extra) {
+				const { data } = await api('POST', '/api/proposal/edit', { sessionId, op, ...extra });
+				if (data.proposal) setProposal(data.proposal);
+			}
+			function moveLesson(idx, dir) {
+				const ids = proposal.lessons.map((l) => l.proposedLessonId);
+				const j = idx + dir;
+				if (j < 0 || j >= ids.length) return;
+				const tmp = ids[idx]; ids[idx] = ids[j]; ids[j] = tmp;
+				editProposal('reorder', { order: ids });
+			}
+			async function acceptProposalAction() {
+				const { data } = await api('POST', '/api/proposal/accept', { sessionId });
+				if (data.product) { adoptProduct(data.product); notifyChanged(); }
+				else if (data.message) setError(data.message);
+			}
+			async function rejectProposal() {
+				await api('POST', '/api/proposal/reject', { sessionId });
+				setProposal(null); setEditMode(false); setView('A');
+				notifyChanged();
 			}
 
 			const guardLeave = useCallback(() => {
@@ -250,21 +351,85 @@ window.__ModuleLoader__.load({
 			}
 
 			if (error) return h('div', { className: 'ptp-root' }, h('div', { className: 'ptp-empty' }, 'Fehler: ' + error));
-			if (product === null) {
-				return h('div', { className: 'ptp-root' }, h('div', { className: 'ptp-empty' },
-					h('div', null, 'Noch kein Teaching Product in diesem Denkraum.'),
-					h('button', { className: 'ptp-btn ptp-btn-primary', onClick: async () => { await api('POST', '/api/seed', { sessionId }); load(); } }, 'Demo-Unterrichtsreihe erstellen'),
+			if (view === 'loading') return h('div', { className: 'ptp-root' }, h('div', { className: 'ptp-empty' }, 'lädt …'));
+
+			// ── Zustand A: no product, no proposal ─────────────────────────────────
+			if (view === 'A') {
+				return h('div', { className: 'ptp-root' }, h('div', { className: 'ptp-a' },
+					h('div', { className: 'ptp-a-title' }, 'Unterrichtsreihe'),
+					h('div', { className: 'ptp-a-text' }, 'Aus dem bisherigen Denkstand kann jetzt eine erste Struktur für die Unterrichtsreihe entstehen.'),
+					h('div', { className: 'ptp-a-actions' },
+						h('button', { className: 'ptp-btn ptp-btn-primary', onClick: develop }, 'Ersten Entwurf entwickeln'),
+						h('button', { className: 'ptp-btn', onClick: openWorkshop }, 'Zur Werkstatt'),
+					),
+					h('div', { className: 'ptp-a-debug' },
+						h('button', { className: 'ptp-btn', onClick: seedDemo }, 'Demo-Unterrichtsreihe erstellen'),
+					),
 				));
 			}
+
+			// ── Zustand B: the proposal ────────────────────────────────────────────
+			if (view === 'B') {
+				if (!proposal) return h('div', { className: 'ptp-root' }, h('div', { className: 'ptp-empty' }, 'lädt …'));
+				return h('div', { className: 'ptp-root' },
+					h('div', { className: 'ptp-head' }, h('div', { className: 'ptp-head-main' },
+						h('div', { className: 'ptp-series' }, 'Vorschlag für die Unterrichtsreihe'),
+						proposal.series.title ? h('div', { className: 'ptp-proposal-subtitle' }, proposal.series.title) : null,
+						proposal.series.rationale ? h('div', { className: 'ptp-proposal-rationale' }, proposal.series.rationale) : null,
+					)),
+					h('div', { className: 'ptp-proposal-body' },
+						proposal.lessons.map((l, idx) => h('div', { key: l.proposedLessonId, className: 'ptp-plesson' },
+							h('div', { className: 'ptp-plesson-head' },
+								h('span', { className: 'ptp-plesson-num' }, 'Stunde ' + (idx + 1)),
+								editMode
+									? h('input', {
+										className: 'ptp-input', value: l.title,
+										onChange: (e) => updateLocalLesson(l.proposedLessonId, { title: e.target.value }),
+										onBlur: (e) => editProposal('rename', { proposedLessonId: l.proposedLessonId, title: e.target.value }),
+									})
+									: h('span', { className: 'ptp-plesson-title' }, l.title || 'Stunde'),
+								editMode ? h('span', { className: 'ptp-plesson-actions' },
+									h('button', { className: 'ptp-btn', disabled: idx === 0, onClick: () => moveLesson(idx, -1) }, '↑'),
+									h('button', { className: 'ptp-btn', disabled: idx === proposal.lessons.length - 1, onClick: () => moveLesson(idx, 1) }, '↓'),
+									h('button', { className: 'ptp-btn', onClick: () => editProposal('remove', { proposedLessonId: l.proposedLessonId }) }, 'Entfernen'),
+								) : null,
+							),
+							editMode
+								? h('input', {
+									className: 'ptp-input ptp-input-intention', value: l.intention || '', placeholder: 'Intention',
+									onChange: (e) => updateLocalLesson(l.proposedLessonId, { intention: e.target.value }),
+									onBlur: (e) => editProposal('intention', { proposedLessonId: l.proposedLessonId, intention: e.target.value }),
+								})
+								: (l.intention ? h('div', { className: 'ptp-plesson-intention' }, l.intention) : null),
+							l.sourceRefs && l.sourceRefs.length
+								? h('div', { className: 'ptp-plesson-prov' }, 'Entstanden aus: ' + l.sourceRefs.map(humanizeRef).join(' · '))
+								: null,
+						)),
+						editMode ? h('button', { className: 'ptp-btn', onClick: () => editProposal('add', {}) }, '+ Stunde ergänzen') : null,
+					),
+					h('div', { className: 'ptp-proposal-bar' },
+						h('button', { className: 'ptp-btn ptp-btn-primary', onClick: acceptProposalAction }, 'So übernehmen'),
+						h('button', { className: 'ptp-btn' + (editMode ? ' ptp-btn-on' : ''), onClick: () => setEditMode((m) => !m) }, 'Gemeinsam verändern'),
+						h('button', { className: 'ptp-btn', onClick: rejectProposal }, 'Noch nicht'),
+						h('button', { className: 'ptp-btn ptp-workshop', onClick: openWorkshop }, 'Zur Werkstatt'),
+					),
+				);
+			}
+
+			// ── Zustand C: the Teaching Product editor ─────────────────────────────
+			if (product === null) return h('div', { className: 'ptp-root' }, h('div', { className: 'ptp-empty' }, 'lädt …'));
 			if (!sel) return h('div', { className: 'ptp-root' }, h('div', { className: 'ptp-empty' }, 'Diese Reihe hat noch keine bearbeitbaren Blöcke.'));
 
 			const { lesson, phase } = findPhase(product, sel);
 			return h('div', { className: 'ptp-root' },
 				h('div', { className: 'ptp-head' },
-					h('div', { className: 'ptp-series' }, product.series.title || 'Unterrichtsreihe'),
-					h('div', { className: 'ptp-tabs' }, product.series.lessons.map((l) =>
-						h('button', { key: l.id, className: 'ptp-tab' + (l.id === sel.lessonId ? ' ptp-tab-active' : ''), onClick: () => selectLesson(l.id) }, l.title || 'Stunde'),
-					)),
+					h('div', { className: 'ptp-head-main' },
+						h('div', { className: 'ptp-series' }, product.series.title || 'Unterrichtsreihe'),
+						h('div', { className: 'ptp-tabs' }, product.series.lessons.map((l) =>
+							h('button', { key: l.id, className: 'ptp-tab' + (l.id === sel.lessonId ? ' ptp-tab-active' : ''), onClick: () => selectLesson(l.id) }, l.title || 'Stunde'),
+						)),
+					),
+					h('button', { className: 'ptp-btn ptp-workshop', onClick: openWorkshop }, 'Zur Werkstatt'),
 				),
 				h('div', { className: 'ptp-body' },
 					h('div', { className: 'ptp-phases' },
@@ -274,6 +439,7 @@ window.__ModuleLoader__.load({
 						}, h('span', null, p.title || 'Phase'), p.durationMinutes ? h('span', { className: 'ptp-phase-dur' }, p.durationMinutes + ' min') : null)),
 					),
 					h('div', { className: 'ptp-main' },
+						h('div', { className: 'ptp-focus' }, 'Wir arbeiten gerade an: ' + (lesson ? (lesson.title || 'Stunde') : '') + (phase ? ' · ' + (phase.title || 'Phase') : '')),
 						h('div', { className: 'ptp-phase-title' }, phase ? phase.title : ''),
 						conflict ? h('div', { className: 'ptp-conflict' },
 							h('div', { className: 'ptp-conflict-msg' }, conflict.message),
@@ -311,23 +477,71 @@ window.__ModuleLoader__.load({
 			return String(markup || '').replace(/[*_`#>-]/g, '').replace(/\s+/g, ' ').trim().split(' ').slice(0, 4).join(' ') || 'Auftrag';
 		}
 
+		// The floating opener chip — the teacher-facing entry to the product area,
+		// sitting to the LEFT of the whiteboard's `.wb-opener` (Spike Phase 3 §2/§3).
+		function Opener(props) {
+			const [state, setState] = useState(null); // null|A|B|C
+			const rootSessionId = props && typeof props.useSessions === 'function'
+				? props.useSessions((s) => (s && s.current ? String(s.current) : null))
+				: null;
+			const sessionId = (props && props.sessionId) ? String(props.sessionId) : (rootSessionId || '');
+			const fetchOpenerState = useCallback(async () => {
+				try {
+					const res = await fetch(BASE + '/api/state?sessionId=' + encodeURIComponent(sessionId));
+					const data = await res.json();
+					setState(data.hasProduct ? 'C' : data.hasProposal ? 'B' : 'A');
+				} catch (err) { /* opener status is best-effort */ }
+			}, [sessionId]);
+			useEffect(() => {
+				fetchOpenerState();
+				const onChanged = () => fetchOpenerState();
+				window.addEventListener('pts-tp-changed', onChanged);
+				return () => window.removeEventListener('pts-tp-changed', onChanged);
+			}, [fetchOpenerState]);
+			const label = state === 'B' ? 'Unterrichtsreihe · Entwurf' : 'Unterrichtsreihe';
+			return h('button', {
+				className: 'tp-opener', title: 'Unterrichtsreihe öffnen',
+				onClick: () => { try { if (window.__ptsTeachingProductOpen) window.__ptsTeachingProductOpen(); } catch (err) {} },
+			},
+			h('span', { className: 'tp-opener-dot' + (state && state !== 'A' ? ' tp-opener-dot-on' : '') }),
+			label);
+		}
+
+		const OPENER_CSS = `
+.tp-opener { position:fixed; right:150px; bottom:14px; z-index:900; display:inline-flex; align-items:center; gap:7px; font-size:12px; padding:6px 12px; border-radius:999px; border:1px solid rgba(126,198,153,.55); background:rgba(20,22,28,.94); color:#eef1f6; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.35); }
+.tp-opener:hover { background:rgba(30,40,34,.96); }
+.tp-opener-dot { width:8px; height:8px; border-radius:50%; background:transparent; border:1px solid rgba(255,255,255,.35); }
+.tp-opener-dot-on { background:#7ec699; border-color:#7ec699; }
+`;
+		function ensureOpenerStyle() {
+			if (document.getElementById('tp-opener-style')) return () => {};
+			const el = document.createElement('style');
+			el.id = 'tp-opener-style';
+			el.textContent = OPENER_CSS;
+			document.head.appendChild(el);
+			return () => { el.remove(); };
+		}
+
 		function apply(ctx) {
 			const tabs = ctx.get('sidebarRightTabs');
 			const right = ctx.get('sidebarRight');
 			if (!tabs || !right) { console.error('[pts-teaching-product-editor] Sidebar-Services fehlen'); return; }
 			window.__ptsTeachingProductOpen = () => right.openTab(TYPE_KIND);
+			// "Zur Werkstatt": reuse the existing whiteboard tab type, never a second navigation.
+			window.__ptsOpenWorkshop = () => { try { return right.openTab(WORKSHOP_KIND); } catch (err) { return false; } };
 			ctx.effect(() => tabs.register({
 				id: TYPE_ID, kind: TYPE_KIND, priority: 'extension',
-				title: () => 'Unterrichtsprodukt',
-				guide: [{ order: 35, title: () => 'Unterrichtsprodukt', description: () => 'Aus dem bestätigten Denkstand eine Unterrichtsreihe konkretisieren.' }],
+				title: () => 'Unterrichtsreihe',
+				guide: [{ order: 35, title: () => 'Unterrichtsreihe', description: () => 'Aus dem bestätigten Denkstand einen Vorschlag entwickeln und daraus die Unterrichtsreihe gestalten.' }],
 			}), 'pts-teaching-product-editor:type');
 			ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register(
 				{ name: 'sidebar.right.pane.tab', key: TYPE_ID },
 				(p) => h(Body, p),
 			)), 'pts-teaching-product-editor:body');
+			ctx.effect(() => ensureOpenerStyle(), 'pts-teaching-product-editor:opener-css');
 			ctx.effect(() => ctx.slots.inject('shell.overlay', () => ctx.slots.register(
-				{ name: 'shell.overlay', id: 'pts-teaching-product-opener', order: 42, label: 'Unterrichtsprodukt öffnen' },
-				() => h('button', { className: 'ptp-btn', style: { position: 'fixed', bottom: '14px', right: '14px', zIndex: 30 }, onClick: () => right.openTab(TYPE_KIND) }, 'Unterrichtsprodukt'),
+				{ name: 'shell.overlay', id: 'pts-teaching-product-opener', order: 42, label: 'Unterrichtsreihe öffnen' },
+				(p) => h(Opener, p),
 			)), 'pts-teaching-product-editor:opener');
 		}
 
