@@ -39,12 +39,17 @@
 
 export const name = 'pts-whiteboard-adapter';
 
+import { diffBoard, nextRevision, isMeaningful } from '../../../dsh/presets/pts-companion/board-delta.mjs';
+import { renderBoardChanges } from '../../../dsh/presets/pts-companion/companion-turn-context.mjs';
+
 export const inject = ['agents'];
 
 /** The only preset that receives the board projection. */
 export const PRESET_ID = 'pts-companion';
 /** Registered prompt-context name (also the shadowing key). */
 export const CONTEXT_NAME = 'pts:whiteboard';
+/** Structured, revision-tracked board delta since the last companion turn. */
+export const CHANGES_CONTEXT_NAME = 'pts:whiteboard-changes';
 /** The existing tool this adapter reads through. */
 export const TOOL_NAME = 'whiteboard_state';
 /** Hard budget for the whole contribution. */
@@ -305,6 +310,9 @@ async function readBoard(ctx, agent) {
 export function apply(ctx) {
 	const installed = new WeakMap();
 	const shown = new WeakMap();
+	// companionLastSeenRevision per agent: the board delta is fed by revision,
+	// never as a full re-scan.
+	const revs = new WeakMap();
 
 	const handlerFor = (agent) => async (assembly, _context, next) => {
 		const base = await next();
@@ -312,15 +320,29 @@ export function apply(ctx) {
 			const result = await readBoard(ctx, agent);
 			const live = result?.live === true;
 			const available = live && result?.available === true && result?.snapshot !== null && typeof result?.snapshot === 'object';
-			let text = available ? renderWhiteboardContext(result.snapshot, shown.get(agent)) : '';
+			const previous = available ? shown.get(agent) : undefined;
+			// The snapshot summary carries no prose delta anymore; the structured,
+			// revision-tracked delta below is the single source of "what changed".
+			let text = available ? renderWhiteboardContext(result.snapshot) : '';
 			// Tab open, nothing posted yet: the board is empty, and the Companion
 			// should know the surface exists before it has any content.
 			if (text === '' && live) text = renderOpenBoardContext();
 			if (text === '') return base;
-			if (available) shown.set(agent, result.snapshot);
 			const contexts = Array.isArray(base?.contexts) ? base.contexts : [];
 			if (contexts.some((entry) => entry?.name === CONTEXT_NAME)) return base;
-			return { ...base, contexts: [...contexts, { name: CONTEXT_NAME, text }] };
+			const additions = [{ name: CONTEXT_NAME, text }];
+			if (available) {
+				const revision = nextRevision(previous, result.snapshot, revs.get(agent) ?? 0);
+				revs.set(agent, revision);
+				if (previous !== undefined) {
+					const delta = diffBoard(previous, result.snapshot, { boardRevision: revision });
+					if (isMeaningful(delta) && !contexts.some((entry) => entry?.name === CHANGES_CONTEXT_NAME)) {
+						additions.push({ name: CHANGES_CONTEXT_NAME, text: renderBoardChanges(delta) });
+					}
+				}
+				shown.set(agent, result.snapshot);
+			}
+			return { ...base, contexts: [...contexts, ...additions] };
 		} catch (error) {
 			console.error('[pts-whiteboard-adapter] Board-Kontext fehlgeschlagen:', error?.message ?? error);
 			return base;
@@ -341,6 +363,7 @@ export function apply(ctx) {
 		if (!should && current !== undefined) {
 			installed.delete(agent);
 			shown.delete(agent);
+			revs.delete(agent);
 		}
 	};
 
@@ -349,6 +372,7 @@ export function apply(ctx) {
 	ctx.on('agent/disposed', ({ agent }) => {
 		installed.delete(agent);
 		shown.delete(agent);
+		revs.delete(agent);
 	});
 	console.log('[pts-whiteboard-adapter] Host-Hälfte bereit — Board-Kontext für pts-companion-Sessions über system-prompt/assemble');
 	return undefined;

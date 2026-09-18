@@ -109,7 +109,13 @@ test('leeres Board und geschlossener Tab bleiben unterscheidbar', () => {
 	// Nur ein pollender Tab loest die Meldung aus; ohne Poll bleibt der Kontext leer.
 	assert.match(adapterCode, /const live = result\?\.live === true/);
 	assert.match(adapterCode, /if \(text === '' && live\) text = renderOpenBoardContext\(\)/);
-	assert.match(adapterCode, /if \(available\) shown\.set\(agent, result\.snapshot\)/);
+	assert.match(adapterCode, /if \(available\) \{[\s\S]*shown\.set\(agent, result\.snapshot\)/);
+});
+
+test('Board-Delta wird strukturiert und revisionsbasiert eingespeist (P3b)', () => {
+	assert.match(adapterCode, /nextRevision\(previous, result\.snapshot/);
+	assert.match(adapterCode, /diffBoard\(previous, result\.snapshot, \{ boardRevision: revision \}\)/);
+	assert.match(adapterCode, /name: CHANGES_CONTEXT_NAME, text: renderBoardChanges\(delta\)/);
 });
 
 test('leere Zettel mit Auswahl erzeugen einen Kontextbeitrag', () => {

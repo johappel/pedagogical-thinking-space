@@ -1,9 +1,25 @@
 # Companion ↔ Denkstand ↔ Whiteboard — Architektur
 
 Status: Domänenschicht implementiert und getestet (PTS Core, pure Module).
-Live-Verdrahtung Phase 2: **State-Writer** (`pts_denkstand`) und **Turn-Brief**
-(strukturierter aktueller Stand im `pts:denkstand`-Kontext) sind angebunden.
-Board-Projektion live, Context Picker und Focus-on-Change bleiben Handoff (§10/§11).
+Live-Verdrahtung Phase 2 (browser-abgenommen 18.09.2026):
+- **State-Writer** (`pts_denkstand`) + **Turn-Brief** (strukturierter aktueller
+  Stand im `pts:denkstand`-Kontext) angebunden;
+- **Board-Projektion live**: ein `teacher_confirmed + anchor` erscheint auf der
+  Seite „Übersicht“ im Rahmen „Roter Faden“;
+- **P3b**: der Board-Delta gelangt strukturiert und revisionsbasiert
+  (`board-delta.mjs` → `renderBoardChanges`) in den Companion-Kontext, nicht mehr
+  als Prosa/Full-Scan (Adapter-Kontext `pts:whiteboard-changes`);
+- **P4 Context Picker**: der Whiteboard-Knopf heißt jetzt „Im Gespräch
+  aufgreifen“ und übernimmt die Auswahl nur in den Composer (kein Auto-Senden);
+- **P4 Focus-on-Change**: „Ansehen“ zoomt auf die zuletzt agentisch geänderten
+  Shapes (teacher-initiiert, übernimmt nie selbst die Kamera).
+
+Live-Abnahme-Rezept: `scripts/pts-cdp-e2e.mjs` (Turn) bzw.
+`scripts/pts-cdp-probe-ui.mjs` (UI-Read-only). Fallstrick: ein
+tool-registrierendes Profil-Plugin MUSS `webServer` injizieren (nur `agents`
+läuft `apply` vor dem `tools`-Service → „tools-Registry nicht verfügbar“).
+Installer schreibt nach `$DSH_HOME`; die Instanz nutzt `F:\dsh-instances\pts\.dsh`
+— `install-pts-instance.ps1 -DshHome` explizit setzen oder `restart-pts.ps1 -Sync`.
 
 Diese Datei ergänzt — nicht ersetzt — die bestehenden Dokumente
 [SPIKE-M1-WHITEBOARD-ADAPTER.md](SPIKE-M1-WHITEBOARD-ADAPTER.md),

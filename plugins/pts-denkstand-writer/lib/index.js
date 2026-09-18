@@ -36,11 +36,13 @@ import {
 	supersede,
 	projectCurrentState,
 } from '../../../dsh/presets/pts-companion/denkstand-state.mjs';
+import { reconcileBoard } from '../../../dsh/presets/pts-companion/denkstand-projection.mjs';
 
 export const name = 'pts-denkstand-writer';
-export const inject = ['agents'];
+export const inject = ['webServer', 'agents'];
 
 const TOOL_NAME = 'pts_denkstand';
+const RENDER_TOOL = 'pts_whiteboard_render';
 const STATE_DIR = '.pts';
 const STATE_FILE = 'denkstand-state.json';
 
@@ -198,7 +200,20 @@ export function apply(ctx) {
 					return { ok: false, status: 'blocked', error: { code: 'state-unwritable', message: String(error?.message ?? error) } };
 				}
 			}
-			return { ok: true, status: 'ok', operation: args.operation, ...outcome.result, current: projectCurrentState(outcome.state ?? state) };
+			const nextState = outcome.state ?? state;
+			// Live board projection: a confirmed anchor must actually reach the
+			// Übersicht. Best-effort — a board that is not live never fails the write.
+			let projection;
+			if (outcome.state !== state) {
+				const renderTool = tools.get(RENDER_TOOL);
+				const render = renderTool && typeof renderTool.execute === 'function' ? (request) => renderTool.execute(request, exec) : undefined;
+				try {
+					projection = await reconcileBoard(render, nextState);
+				} catch (error) {
+					projection = { ok: false, applied: [], pages: [], skipped: String(error?.message ?? error) };
+				}
+			}
+			return { ok: true, status: 'ok', operation: args.operation, ...outcome.result, current: projectCurrentState(nextState), projection };
 		},
 	};
 	ctx.effect(() => tools.register(tool), `tool:${TOOL_NAME}`);
