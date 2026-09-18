@@ -59,7 +59,7 @@ test('creates a minimal valid workspace without technical approval language', as
 		const target = path.join(root, 'workspace', 'dilemma-verstehen');
 		for (const file of [
 			'learning-design.md',
-			'learning-landscape.md',
+			'learning-moments.json',
 			'teaching-product.json',
 			'planning-board.yml',
 			'decisions.yml',
@@ -71,17 +71,16 @@ test('creates a minimal valid workspace without technical approval language', as
 		}
 
 		const design = await readFile(path.join(target, 'learning-design.md'), 'utf8');
-		const landscape = await readFile(path.join(target, 'learning-landscape.md'), 'utf8');
+		const moments = JSON.parse(await readFile(path.join(target, 'learning-moments.json'), 'utf8'));
+		assert.equal(moments.schema, 'ptspace.learning-moments/v1');
+		assert.deepEqual(moments.moments, []);
 		const decisions = await readFile(path.join(target, 'decisions.yml'), 'utf8');
 		const product = JSON.parse(await readFile(path.join(target, 'teaching-product.json'), 'utf8'));
 		assert.equal(product.schema, 'ptspace.teaching-product/v1');
 		assert.deepEqual(product.series.lessons, []);
 		await assert.rejects(() => stat(path.join(target, 'temporal-plan.yml')), { code: 'ENOENT' });
 		assert.match(design, /Vorläufige Denkstände/);
-		assert.match(landscape, /als draft/);
-		assert.match(landscape, /als stable/);
 		assert.doesNotMatch(design, /erst nach sichtbarer Zustimmung/iu);
-		assert.doesNotMatch(landscape, /erst nach sichtbarer Zustimmung/iu);
 		assert.doesNotMatch(decisions, /genehmigt/iu);
 		assert.equal(await readdir(path.join(target, 'materials')).then((entries) => entries.length), 0);
 	} finally {

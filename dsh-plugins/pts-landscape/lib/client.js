@@ -147,7 +147,7 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 
-		const EDITABLE_FILES = ["learning-landscape.md", "temporal-plan.yml", "planning-board.yml", "decisions.yml", "learning-design.md"];
+		const EDITABLE_FILES = ["temporal-plan.yml", "planning-board.yml", "decisions.yml", "learning-design.md"];
 		const ROLES = ["opening", "irritation", "exploration", "deepening", "practice", "decision", "consolidation", "reflection", "closing", "transition", "buffer", "other"];
 		const MODES = ["common", "choice", "parallel", "individual", "group", "open"];
 		const MOMENT_TYPES = ["impulse", "learning_place", "positioning", "inquiry", "choice", "practice", "project", "product", "reflection", "assessment", "other"];

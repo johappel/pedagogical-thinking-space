@@ -313,21 +313,13 @@ export function apply(ctx) {
 				}
 				if (method === 'POST') {
 					const body = JSON.parse(await readBody(req) || '{}');
-					const sessionId = typeof body.sessionId === 'string' ? body.sessionId : '';
 					const momentId = typeof body.momentId === 'string' ? body.momentId : '';
 					const materials = Array.isArray(body.materials) ? body.materials : [];
-					const base = sessionWorkspace(sessionId) ?? fallbackRoot;
-					const file = await readWorkspaceFile(base, LANDSCAPE_FILE);
-					if (!file.ok || file.missing) {
-						sendJson(res, 404, { ok: false, error: 'learning-landscape.md nicht lesbar' });
+					const base = sessionWorkspace(typeof body.sessionId === 'string' ? body.sessionId : '') ?? fallbackRoot;
+					if (!(await updateMomentField(base, momentId, { materials }))) {
+						sendJson(res, 400, { ok: false, error: 'Lernmoment nicht gefunden' });
 						return;
 					}
-					const r = setMomentMaterials(file.raw, momentId, materials);
-					if (!r.ok) {
-						sendJson(res, 400, { ok: false, error: r.reason === 'unknown-moment-id' ? 'Lernmoment nicht gefunden' : 'Datei fehlt' });
-						return;
-					}
-					await atomicWriteFile(base, LANDSCAPE_FILE, r.content);
 					sendJson(res, 200, { ok: true });
 					return;
 				}
@@ -345,21 +337,13 @@ export function apply(ctx) {
 		handler: async (req, res) => {
 			try {
 				const body = JSON.parse(await readBody(req) || '{}');
-				const sessionId = typeof body.sessionId === 'string' ? body.sessionId : '';
 				const momentId = typeof body.momentId === 'string' ? body.momentId : '';
-				const minutes = body.minutes;
-				const base = sessionWorkspace(sessionId) ?? fallbackRoot;
-				const file = await readWorkspaceFile(base, LANDSCAPE_FILE);
-				if (!file.ok || file.missing) {
-					sendJson(res, 404, { ok: false, error: 'learning-landscape.md nicht lesbar' });
+				const minutes = Number.isFinite(body.minutes) ? body.minutes : null;
+				const base = sessionWorkspace(typeof body.sessionId === 'string' ? body.sessionId : '') ?? fallbackRoot;
+				if (!(await updateMomentField(base, momentId, { time_estimate: minutes }))) {
+					sendJson(res, 400, { ok: false, error: 'Lernmoment nicht gefunden' });
 					return;
 				}
-				const r = setMomentEstimate(file.raw, momentId, minutes);
-				if (!r.ok) {
-					sendJson(res, 400, { ok: false, error: r.reason === 'unknown-moment-id' ? 'Lernmoment nicht gefunden' : 'Datei fehlt' });
-					return;
-				}
-				await atomicWriteFile(base, LANDSCAPE_FILE, r.content);
 				sendJson(res, 200, { ok: true });
 			} catch (e) {
 				sendJson(res, 400, { ok: false, error: String(e && e.message ? e.message : e) });
@@ -374,21 +358,13 @@ export function apply(ctx) {
 		handler: async (req, res) => {
 			try {
 				const body = JSON.parse(await readBody(req) || '{}');
-				const sessionId = typeof body.sessionId === 'string' ? body.sessionId : '';
 				const momentId = typeof body.momentId === 'string' ? body.momentId : '';
 				const fields = body.fields && typeof body.fields === 'object' ? body.fields : {};
-				const base = sessionWorkspace(sessionId) ?? fallbackRoot;
-				const file = await readWorkspaceFile(base, LANDSCAPE_FILE);
-				if (!file.ok || file.missing) {
-					sendJson(res, 404, { ok: false, error: 'learning-landscape.md nicht lesbar' });
+				const base = sessionWorkspace(typeof body.sessionId === 'string' ? body.sessionId : '') ?? fallbackRoot;
+				if (!(await updateMomentField(base, momentId, fields))) {
+					sendJson(res, 400, { ok: false, error: 'Lernmoment nicht gefunden' });
 					return;
 				}
-				const r = updateMoment(file.raw, momentId, fields);
-				if (!r.ok) {
-					sendJson(res, 400, { ok: false, error: r.reason === 'unknown-moment-id' ? 'Lernmoment nicht gefunden' : 'Datei fehlt' });
-					return;
-				}
-				await atomicWriteFile(base, LANDSCAPE_FILE, r.content);
 				sendJson(res, 200, { ok: true });
 			} catch (e) {
 				sendJson(res, 400, { ok: false, error: String(e && e.message ? e.message : e) });
@@ -403,19 +379,14 @@ export function apply(ctx) {
 		handler: async (req, res) => {
 			try {
 				const body = JSON.parse(await readBody(req) || '{}');
-				const sessionId = typeof body.sessionId === 'string' ? body.sessionId : '';
-				const base = sessionWorkspace(sessionId) ?? fallbackRoot;
-				const file = await readWorkspaceFile(base, LANDSCAPE_FILE);
-				if (!file.ok || file.missing) {
-					sendJson(res, 404, { ok: false, error: 'learning-landscape.md nicht lesbar' });
-					return;
-				}
-				const r = addTransition(file.raw, { from: body.from, to: body.to, type: body.type, rationale: body.rationale });
+				const base = sessionWorkspace(typeof body.sessionId === 'string' ? body.sessionId : '') ?? fallbackRoot;
+				const existing = await readWorkspaceFile(base, TRANSITIONS_FILE);
+				const r = addMomentTransition(parseTransitions(existing.ok ? existing.raw : ''), { from: body.from, to: body.to, type: body.type, rationale: body.rationale });
 				if (!r.ok) {
-					sendJson(res, 400, { ok: false, error: r.reason === 'invalid-transition' ? 'Übergang braucht zwei verschiedene Lernmomente' : (r.reason === 'invalid-type' ? 'Übergangstyp unzulässig' : 'Datei fehlt') });
+					sendJson(res, 400, { ok: false, error: r.reason === 'invalid-transition' ? 'Übergang braucht zwei verschiedene Lernmomente' : 'Übergangstyp unzulässig' });
 					return;
 				}
-				await atomicWriteFile(base, LANDSCAPE_FILE, r.content);
+				await atomicWriteFile(base, TRANSITIONS_FILE, serializeTransitions(r.store));
 				sendJson(res, 200, { ok: true });
 			} catch (e) {
 				sendJson(res, 400, { ok: false, error: String(e && e.message ? e.message : e) });
@@ -430,20 +401,15 @@ export function apply(ctx) {
 		handler: async (req, res) => {
 			try {
 				const body = JSON.parse(await readBody(req) || '{}');
-				const sessionId = typeof body.sessionId === 'string' ? body.sessionId : '';
 				const id = typeof body.id === 'string' ? body.id : '';
-				const base = sessionWorkspace(sessionId) ?? fallbackRoot;
-				const file = await readWorkspaceFile(base, LANDSCAPE_FILE);
-				if (!file.ok || file.missing) {
-					sendJson(res, 404, { ok: false, error: 'learning-landscape.md nicht lesbar' });
-					return;
-				}
-				const r = removeTransition(file.raw, id);
+				const base = sessionWorkspace(typeof body.sessionId === 'string' ? body.sessionId : '') ?? fallbackRoot;
+				const existing = await readWorkspaceFile(base, TRANSITIONS_FILE);
+				const r = removeMomentTransition(parseTransitions(existing.ok ? existing.raw : ''), id);
 				if (!r.ok) {
-					sendJson(res, 400, { ok: false, error: r.reason === 'unknown-transition-id' ? 'Übergang nicht gefunden' : 'Datei fehlt' });
+					sendJson(res, 400, { ok: false, error: 'Übergang nicht gefunden' });
 					return;
 				}
-				await atomicWriteFile(base, LANDSCAPE_FILE, r.content);
+				await atomicWriteFile(base, TRANSITIONS_FILE, serializeTransitions(r.store));
 				sendJson(res, 200, { ok: true });
 			} catch (e) {
 				sendJson(res, 400, { ok: false, error: String(e && e.message ? e.message : e) });

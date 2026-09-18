@@ -7,8 +7,12 @@ learning-moment surface as a calm board. `pts-landscape` deliberately does not
 register a second landscape tab, so both profile plugins do not duplicate the
 navigation or panel content.
 
-`learning-landscape.md` remains the Thinking Model's collection of
-independent learning moments. `teaching-product.json` is the canonical product
+The canonical LearningMoment domain (`learning-moments.json`) is the collection
+of independent learning moments; this plugin reads it through the domain façade
+(`listLearningMoments`) and never parses a `learning-landscape.md` (removed).
+Moment edits go through `updateLearningMoment`; transitions live in the
+content-free sidecar `learning-moment-transitions.json`. `teaching-product.json`
+is the canonical product
 after explicit migration: `series -> lessons -> phases -> materials`. A moment
 may be referenced by several phases; changing it never rewrites an accepted
 phase. `temporal-plan.yml` remains readable as a legacy migration source and

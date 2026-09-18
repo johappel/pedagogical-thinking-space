@@ -160,33 +160,16 @@ By: pts-workspaces (automatische Mindeststruktur)
 `;
 }
 
-/** Minimal learning-landscape.md: schema-valid frontmatter, no moments yet. */
-function learningLandscapeTemplate(name) {
-return `---
-schema: ptspace.learning-landscape/v1
-title: ${name}
-structure: linear
----
-
-# Lernlandschaft
-
-## Lernmomente
-
-Noch keine Lernmomente festgehalten. Lernmomente entstehen im Gespräch. Ein
-vollständig beschreibbarer vorläufiger Lernmoment wird als draft, ein von der
-Lehrkraft erkennbar übernommener Lernmoment als stable gekennzeichnet.
-
-## Übergänge
-
-Keine Übergänge festgelegt.
-`;
+/** Minimal LearningMoment domain store: canonical, empty (moments emerge in dialogue). */
+function learningMomentsTemplate() {
+return JSON.stringify({ schema: 'ptspace.learning-moments/v1', moments: [] }, null, 2) + '\n';
 }
 
 /** Minimal temporal-plan.yml per specs/TEMPORAL_PLAN_SCHEMA.md. */
 function temporalPlanTemplate(name) {
 return `schema: ptspace.temporal-plan/v1
 title: ${name}
-landscape: learning-landscape.md
+source: learning-moments.json
 windows: []
 placements: []
 `;
@@ -303,7 +286,7 @@ export function apply(ctx) {
 		const date = todayIso();
 		await fsp.mkdir(target, { recursive: true });
 		await fsp.writeFile(path.join(target, 'learning-design.md'), learningDesignTemplate(name, slug, date), 'utf8');
-		await fsp.writeFile(path.join(target, 'learning-landscape.md'), learningLandscapeTemplate(name), 'utf8');
+		await fsp.writeFile(path.join(target, 'learning-moments.json'), learningMomentsTemplate(), 'utf8');
 		await fsp.writeFile(path.join(target, 'teaching-product.json'), JSON.stringify(emptyProduct(name), null, 2) + '\n', 'utf8');
 		await fsp.writeFile(path.join(target, 'planning-board.yml'), PLANNING_BOARD_TEMPLATE, 'utf8');
 		await fsp.writeFile(path.join(target, 'decisions.yml'), DECISIONS_TEMPLATE, 'utf8');

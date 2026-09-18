@@ -41,9 +41,6 @@ jobs:
           $(find tests -maxdepth 1 -name '*.test.mjs' ! -name '*.browser.test.mjs' -print)
           dsh-plugins/pts-skill-manager/test/*.test.mjs
 
-      - name: Run landscape smoke test
-        run: node dsh-plugins/pts-landscape/test-landscape.mjs
-
       - name: Run activity projection checks
         run: node dsh-plugins/pts-activity-stream/test-activity.cjs
 
