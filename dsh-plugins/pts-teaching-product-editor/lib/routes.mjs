@@ -12,10 +12,9 @@ import { fileURLToPath } from 'node:url';
 
 import { loadProduct, saveProduct, saveBlockEdit, StoreError } from '../../../plugins/pts-teaching-product/lib/store.mjs';
 import { editorStateToDomainMutation, domainBlockToEditorState } from '../../../plugins/pts-teaching-product/lib/quill-adapter.mjs';
-import { buildDemoProduct, buildDemoSnapshot } from '../../../plugins/pts-teaching-product/lib/demo.mjs';
+import { buildDemoProduct } from '../../../plugins/pts-teaching-product/lib/demo.mjs';
 import { createProductSnapshot } from '../../../plugins/pts-teaching-product/lib/snapshot.mjs';
-import { parseLandscape } from '../../../dsh-presets/pts-companion/workspace-parsers.mjs';
-import { extractNamedMoments } from './learning-design-moments.mjs';
+import { listLearningMoments } from '../../../plugins/pts-learning-moment-binding/lib/domain.mjs';
 import {
 	createProposalFromSnapshot,
 	acceptProposal,
@@ -36,50 +35,21 @@ import {
 export const PREFIX = '/pts-teaching-product';
 
 const DENKSTAND_FILE = '.pts/denkstand-state.json';
-const LEDGER_FILE = 'learning-moment-bindings.json';
-const LANDSCAPE_FILE = 'learning-landscape.md';
-const LEARNING_DESIGN_FILE = 'learning-design.md';
 
 // Build the Product Snapshot for a Denkraum from its real current state — the
-// confirmed Denkstand and the LearningMoment ledger. Selection is deliberately
-// fail-closed by construction: only teacher_confirmed decisions and teacher_open
-// questions are named, so the snapshot's own guard can never be tripped. When a
-// Denkraum has no structured Denkstand yet (fresh workspace, harness), the demo
-// snapshot stands in so the flow stays runnable.
+// confirmed Denkstand and the canonical LearningMoment domain store, read only
+// through the domain façade (listLearningMoments). There is exactly ONE moment
+// source: the domain. No learning-landscape.md, no learning-design.md heading
+// parser, no binding-ledger fallback and no demo fallback. When the domain is
+// empty, the snapshot honestly carries zero learning moments.
 async function buildSnapshotForSession(root) {
 	let state;
-	let ledger;
-	let landscape;
 	try {
 		state = JSON.parse(await fs.readFile(path.join(root, DENKSTAND_FILE), 'utf8'));
 	} catch { state = null; }
-	try {
-		ledger = JSON.parse(await fs.readFile(path.join(root, LEDGER_FILE), 'utf8'));
-	} catch { ledger = null; }
-	try {
-		landscape = parseLandscape(await fs.readFile(path.join(root, LANDSCAPE_FILE), 'utf8'));
-	} catch { landscape = null; }
-	let designRaw = null;
-	try {
-		designRaw = await fs.readFile(path.join(root, LEARNING_DESIGN_FILE), 'utf8');
-	} catch { designRaw = null; }
 
 	const entries = Array.isArray(state?.entries) ? state.entries : [];
-	const ledgerMoments = Array.isArray(ledger?.moments) ? ledger.moments : [];
-	const landscapeMoments = Array.isArray(landscape?.moments) ? landscape.moments : [];
-
-	// Moment sources, in order of structural strength: the structured landscape
-	// (with ledger versions), then the binding ledger, then — for a Denkraum that
-	// only captured moments as prose — the NAMED moments in learning-design.md.
-	// The last is tentative and feeds only the (non-binding) proposal draft.
-	const versionOf = new Map(ledgerMoments.map((m) => [m.domainId, m.version]));
-	let moments = landscapeMoments
-		.filter((m) => m && typeof m.id === 'string' && m.id.trim() !== '')
-		.map((m) => ({ domainId: m.id, version: versionOf.get(m.id) ?? 1, ...(m.title ? { title: m.title } : {}) }));
-	if (moments.length === 0 && ledgerMoments.length) moments = ledgerMoments.map((m) => ({ domainId: m.domainId, version: m.version }));
-	if (moments.length === 0 && designRaw) moments = extractNamedMoments(designRaw);
-
-	if (entries.length === 0 && moments.length === 0) return buildDemoSnapshot();
+	const moments = await listLearningMoments(root);
 
 	const confirmed = entries.filter((e) => e && e.status === 'teacher_confirmed');
 	const decisionIds = confirmed.filter((e) => e.kind !== 'moment').map((e) => e.id);
@@ -88,7 +58,7 @@ async function buildSnapshotForSession(root) {
 
 	return createProductSnapshot({
 		denkstandEntries: entries,
-		momentLedger: { schema: 'ptspace.learning-moment-bindings/v1', moments },
+		momentLedger: moments,
 		sourceRevision: state?.revision ?? null,
 		selection: { learningMomentIds, decisionIds, openQuestionIds },
 	});
@@ -168,6 +138,9 @@ export function createTeachingProductHandler({ resolveRoot, collab } = {}) {
 				let proposal = await loadProposal(root);
 				if (!proposal) {
 					const snapshot = await buildSnapshotForSession(root);
+					// Honest empty state: with no canonical LearningMoments there is
+					// nothing to synthesise. Never fall back to markdown or demo.
+					if (snapshot.learningMoments.length === 0) return json(res, 200, { empty: true });
 					await saveSnapshot(root, snapshot);
 					proposal = createProposalFromSnapshot(snapshot, { title: args.title ?? '' });
 					await saveProposal(root, proposal);

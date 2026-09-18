@@ -2,11 +2,10 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { resolveDenkraumRoot } from '../../../dsh-presets/pts-companion/teaching-product.mjs';
 import { readProduct } from '../../../dsh-presets/pts-companion/teaching-product.mjs';
-import { parseLandscape } from '../../../dsh-presets/pts-companion/workspace-parsers.mjs';
 import { buildMomentImpact } from '../../../dsh-presets/pts-companion/moment-impact.mjs';
 import { resolveShapeReference, RenderPlanError } from '../../pts-whiteboard-renderer/lib/render-plan.mjs';
-import { captureLearningMoment, bumpVersion, deleteLearningMoment, findMoment, parseLedger, serializeLedger, emptyLedger } from './domain.mjs';
-import { bindProjection, moveProjection, detachProjection, projectionsFor, findProjection, isStaleProjection, syncProjections } from './bindings.mjs';
+import { getLearningMoment, listLearningMoments, createLearningMoment, updateLearningMoment, deleteLearningMoment, PEDAGOGICAL_FIELDS } from './domain.mjs';
+import { bindProjection, moveProjection, detachProjection, projectionsFor, findProjection, isStaleProjection, syncProjections, parseLedger, serializeLedger, emptyLedger, ledgerMoment } from './bindings.mjs';
 import { classifyReaction, usagesFromImpact } from './reactions.mjs';
 
 export const name = 'pts-learning-moment-binding';
@@ -45,21 +44,29 @@ async function writeLedger(root, ledger) {
 	await fs.writeFile(path.join(root, LEDGER_FILE), serializeLedger(ledger), 'utf8');
 }
 
-async function landscapeMoment(root, domainId) {
-	try {
-		const landscape = parseLandscape(await fs.readFile(path.join(root, 'learning-landscape.md'), 'utf8'));
-		return landscape.moments.find((entry) => entry.id === domainId) ?? null;
-	} catch (error) {
-		if (error?.code === 'ENOENT') return null;
-		throw error;
+// buildMomentImpact and the reaction model read `moment.id` and the pedagogical
+// fields; the domain store keys identity as `domainId`. Adapt without copying.
+function impactMoment(moment) {
+	return moment ? { ...moment, id: moment.domainId } : null;
+}
+
+// Collect the pedagogical content fields a create/update body may carry, from a
+// nested `fields` object or the top level.
+function pickContent(body = {}) {
+	const fields = body.fields && typeof body.fields === 'object' ? body.fields : {};
+	const out = {};
+	for (const key of ['title', 'content', 'status', ...PEDAGOGICAL_FIELDS]) {
+		if (Object.hasOwn(fields, key)) out[key] = fields[key];
+		else if (Object.hasOwn(body, key)) out[key] = body[key];
 	}
+	return out;
 }
 
 // The Denkraum root is the session working directory; resolveDenkraumRoot
 // (shared with the host/preset) prefers the strict scaffolded layout and falls
 // back to the live Denkraum cwd itself, failing closed on anything that is not
-// a real Denkraum. This does NOT relax the domain contract:
-// learning-landscape.md stays required and fail-closed.
+// a real Denkraum. The canonical LearningMoment content lives in the domain
+// store (learning-moments.json); the ledger stays a pure projection sidecar.
 async function rootFor(ctx, sessionId) {
 	const session = ctx.get('sessions')?.get?.(sessionId);
 	if (!session?.header?.cwd) return null;
@@ -67,28 +74,27 @@ async function rootFor(ctx, sessionId) {
 }
 
 // Domain-Write-Seam: every mutation goes through one of these handlers. The
-// renderer never touches the ledger; this is the only path that creates a
-// canonical LearningMoment, binds a projection or bumps a version.
+// renderer never touches the store or ledger; this is the only path that
+// creates a canonical LearningMoment, binds a projection or bumps a version.
 const HANDLERS = {
-	// Capture gate. The teacher deliberately holds a moment as canonical. The
-	// moment must already exist in the landscape; a bare card role never
-	// reaches here.
-	async capture(root, body) {
-		const moment = await landscapeMoment(root, body.domainId);
-		if (!moment) return { status: 404, value: { ok: false, error: 'landscape-moment-required', domainId: body.domainId } };
-		const ledger = await readLedger(root);
-		const result = captureLearningMoment(ledger, {
+	// The ONLY birth path for a canonical LearningMoment. Never a side effect of
+	// a raw whiteboard card; a title is required. Idempotent by domainId.
+	async create(root, body) {
+		const result = await createLearningMoment(root, {
 			domainId: body.domainId,
+			title: body.title,
 			createdFrom: body.createdFrom,
 			confirmedAt: new Date().toISOString(),
+			...pickContent(body),
 		});
-		if (result.created) await writeLedger(root, result.ledger);
 		return { status: 200, value: { ok: true, created: result.created, moment: result.moment } };
 	},
 
 	async bind(root, body) {
+		const moment = await getLearningMoment(root, body.domainId);
+		if (!moment) return { status: 404, value: { ok: false, error: 'moment-required', domainId: body.domainId } };
 		const ledger = await readLedger(root);
-		const result = bindProjection(ledger, { domainId: body.domainId, projectionId: body.projectionId, projectionType: body.projectionType, page: body.page });
+		const result = bindProjection(ledger, { domainId: body.domainId, projectionId: body.projectionId, projectionType: body.projectionType, page: body.page, version: moment.version });
 		await writeLedger(root, result.ledger);
 		return { status: 200, value: { ok: true, projection: result.projection } };
 	},
@@ -104,19 +110,18 @@ const HANDLERS = {
 		const ledger = await readLedger(root);
 		const result = detachProjection(ledger, { domainId: body.domainId, projectionId: body.projectionId });
 		await writeLedger(root, result.ledger);
-		return { status: 200, value: { ok: true, domainRetained: result.domainRetained, orphanedDomain: result.orphanedDomain } };
+		return { status: 200, value: { ok: true, domainRetained: result.domainRetained, orphanedProjections: result.orphanedProjections } };
 	},
 
 	// Record a canonical content change and classify the reaction. This never
 	// rewrites a dependent artefact; a confirm/clarify follow-up stays with the
 	// teacher and Companion.
 	async update(root, body) {
-		const moment = await landscapeMoment(root, body.domainId);
-		if (!moment) return { status: 404, value: { ok: false, error: 'landscape-moment-required', domainId: body.domainId } };
-		const ledger = await readLedger(root);
-		const bump = bumpVersion(ledger, { domainId: body.domainId, expectedVersion: body.expectedVersion });
+		const moment = await getLearningMoment(root, body.domainId);
+		if (!moment) return { status: 404, value: { ok: false, error: 'moment-required', domainId: body.domainId } };
+		const impact = buildMomentImpact({ moment: impactMoment(moment), fields: body.fields || {}, product: await readProduct(root).catch(() => null) });
+		const bump = await updateLearningMoment(root, body.domainId, body.fields || {}, body.expectedVersion);
 		if (!bump.ok) return { status: 409, value: { ok: false, error: 'stale-version', currentVersion: bump.currentVersion } };
-		const impact = buildMomentImpact({ moment, fields: body.fields || {}, product: await readProduct(root).catch(() => null) });
 		const reaction = classifyReaction({
 			domainId: body.domainId,
 			versionBefore: bump.versionBefore,
@@ -126,18 +131,19 @@ const HANDLERS = {
 			scope: body.scope === 'redesign' ? 'redesign' : 'local',
 			usages: usagesFromImpact(impact),
 		});
-		let ledgerAfter = bump.ledger;
-		// Only an automatic reaction re-syncs projections to the new version.
-		if (reaction.reaction === 'automatic') ledgerAfter = syncProjections(ledgerAfter, body.domainId).ledger;
-		await writeLedger(root, ledgerAfter);
+		// Only an automatic reaction re-syncs projections to the new canonical
+		// version; confirm/clarify leave the projection stale until the teacher acts.
+		if (reaction.reaction === 'automatic') {
+			const ledger = await readLedger(root);
+			await writeLedger(root, syncProjections(ledger, body.domainId, bump.versionAfter).ledger);
+		}
 		return { status: 200, value: { ok: true, version: bump.versionAfter, impact: reaction } };
 	},
 
 	// Explicit, deliberate domain deletion — never a side effect of a board action.
 	async delete(root, body) {
-		const ledger = await readLedger(root);
-		const result = deleteLearningMoment(ledger, { domainId: body.domainId });
-		await writeLedger(root, result.ledger);
+		const result = await deleteLearningMoment(root, body.domainId, body.expectedVersion);
+		if (!result.ok) return { status: 409, value: { ok: false, error: 'stale-version', currentVersion: result.currentVersion } };
 		return { status: 200, value: { ok: true, removed: result.removed.domainId } };
 	},
 };
@@ -315,9 +321,9 @@ async function runDomainOperation(ctx, tools, root, args, exec) {
 	const domainId = args?.domainId;
 
 	if (operation === 'impact') {
-		const moment = await landscapeMoment(root, domainId);
-		if (!moment) return { ok: false, status: 'blocked', error: { code: 'landscape-moment-required', domainId } };
-		const impact = buildMomentImpact({ moment, fields: args.fields || {}, product: await readProduct(root).catch(() => null) });
+		const moment = await getLearningMoment(root, domainId);
+		if (!moment) return { ok: false, status: 'blocked', error: { code: 'moment-required', domainId } };
+		const impact = buildMomentImpact({ moment: impactMoment(moment), fields: args.fields || {}, product: await readProduct(root).catch(() => null) });
 		return { ok: true, operation, impact };
 	}
 
@@ -327,27 +333,25 @@ async function runDomainOperation(ctx, tools, root, args, exec) {
 	}
 
 	if (operation === 'bind' || operation === 'create_projection') {
-		const moment = await landscapeMoment(root, domainId);
-		if (!moment) return { ok: false, status: 'blocked', error: { code: 'landscape-moment-required', domainId } };
+		const moment = await getLearningMoment(root, domainId);
+		if (!moment) return { ok: false, status: 'blocked', error: { code: 'moment-required', domainId } };
 		const live = await liveSnapshot(tools, exec);
 		if (!live.ok) return { ok: false, status: 'blocked', error: { code: live.code } };
 		// Fails closed on an ambiguous or missing reference (RenderPlanError).
 		const shape = resolveShapeReference(args.ref ?? {}, live.snapshot);
-		let ledger = await readLedger(root);
-		if (operation === 'create_projection' && !findMoment(ledger, domainId)) {
-			return { ok: false, status: 'blocked', error: { code: 'capture-required', message: 'Für eine zusätzliche Projektion muss der Lernmoment bereits gebunden sein.' } };
+		const ledger = await readLedger(root);
+		if (operation === 'create_projection' && projectionsFor(ledger, domainId).length === 0) {
+			return { ok: false, status: 'blocked', error: { code: 'first-projection-required', message: 'Für eine zusätzliche Projektion muss der Lernmoment bereits eine Darstellung haben.' } };
 		}
-		const captured = captureLearningMoment(ledger, { domainId, createdFrom: { type: 'whiteboard', sourceId: String(shape.id) }, confirmedAt: new Date().toISOString() });
-		ledger = captured.ledger;
 		const projectionId = nextProjectionId(ledger, domainId);
-		const bound = bindProjection(ledger, { domainId, projectionId, shapeId: String(shape.id), page: typeof args.page === 'string' ? args.page : (live.snapshot.page?.name ?? null) });
+		const bound = bindProjection(ledger, { domainId, projectionId, shapeId: String(shape.id), page: typeof args.page === 'string' ? args.page : (live.snapshot.page?.name ?? null), version: moment.version });
 		await writeLedger(root, bound.ledger);
-		return { ok: true, operation, domainId, capturedNow: captured.created, projection: bound.projection };
+		return { ok: true, operation, domainId, projection: bound.projection };
 	}
 
 	if (operation === 'move_projection') {
 		const ledger = await readLedger(root);
-		const moment = findMoment(ledger, domainId);
+		const moment = ledgerMoment(ledger, domainId);
 		if (!moment) return { ok: false, status: 'blocked', error: { code: 'unknown-domain-id', domainId } };
 		const projection = moment.projections.find((p) => p.projectionId === args.projectionId);
 		if (!projection) return { ok: false, status: 'blocked', error: { code: 'unknown-projection', projectionId: args.projectionId } };
@@ -402,7 +406,8 @@ export function apply(ctx) {
 	});
 
 	// Read-only debug view: domainId/projectionId/version are developer data,
-	// not part of the normal teacher interface.
+	// not part of the normal teacher interface. Content comes from the domain
+	// store, projections from the ledger; the two are merged for inspection only.
 	const disposeView = webServer.register({
 		kind: 'exact', path: '/api/pts-learning-moment',
 		handler: async (req, res) => {
@@ -412,10 +417,16 @@ export function apply(ctx) {
 				const root = await rootFor(ctx, args.sessionId);
 				if (!root) return send(res, 404, { error: 'session not found' });
 				const ledger = await readLedger(root);
-				const moments = ledger.moments.map((moment) => ({
-					...moment,
-					staleProjections: moment.projections.filter((p) => isStaleProjection(ledger, moment.domainId, p.projectionId)).map((p) => p.projectionId),
-				}));
+				const domainMoments = await listLearningMoments(root);
+				const versionOf = new Map(domainMoments.map((m) => [m.domainId, m.version]));
+				const moments = domainMoments.map((moment) => {
+					const projections = projectionsFor(ledger, moment.domainId);
+					return {
+						...moment,
+						projections,
+						staleProjections: projections.filter((p) => isStaleProjection(ledger, moment.domainId, p.projectionId, versionOf.get(moment.domainId))).map((p) => p.projectionId),
+					};
+				});
 				return send(res, 200, { ok: true, moments });
 			} catch (error) {
 				return send(res, 400, { error: error.message });
@@ -426,4 +437,4 @@ export function apply(ctx) {
 	ctx.effect(() => () => { disposeMutations(); disposeView(); }, 'pts-learning-moment-binding: domain write-seam and debug view');
 }
 
-export { findMoment, projectionsFor, runDomainOperation, nextProjectionId, TOOL_NAME };
+export { projectionsFor, runDomainOperation, nextProjectionId, TOOL_NAME };

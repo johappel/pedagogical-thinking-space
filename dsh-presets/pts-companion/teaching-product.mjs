@@ -85,7 +85,10 @@ export async function workspaceRoot(candidate) {
 
 // A canonical PTS artefact that identifies a directory as a real Denkraum. Used
 // only to validate the live-cwd fallback below; never a new marker of its own.
-const DENKRAUM_MARKERS = ['learning-landscape.md', 'learning-design.md'];
+// learning-landscape.md is intentionally NOT a marker anymore — it is removed
+// from the active architecture; the canonical LearningMoment store and the
+// human-readable design doc mark a Denkraum.
+const DENKRAUM_MARKERS = ['learning-design.md', 'learning-moments.json'];
 
 // The live Denkraum root. Prefer the strict scaffolded `<base>/workspace/<name>`
 // layout (repo Denkräume) for its realpath escape checks; otherwise accept the
