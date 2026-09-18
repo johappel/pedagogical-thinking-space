@@ -20,22 +20,21 @@ import path from 'node:path';
 
 import { resolveDenkraumRoot, workspaceRoot, readProduct, emptyProduct } from '../dsh-presets/pts-companion/teaching-product.mjs';
 
-const LANDSCAPE = `---\nschema: ptspace.learning-landscape/v1\ntitle: Root Test\nstructure: hybrid\n---\n\n# Lernlandschaft\n\n## Lernmomente\n\nNoch keine.\n\n## Übergänge\n\nKeine.\n`;
-
 // The strict scaffolded layout: <base>/AGENTS.md + <base>/workspace/<name>.
 async function scaffolded() {
 	const base = await mkdtemp(path.join(tmpdir(), 'pts-scaffold-'));
 	await writeFile(path.join(base, 'AGENTS.md'), '# marker\n', 'utf8');
 	const cwd = path.join(base, 'workspace', 'Demo');
 	await mkdir(cwd, { recursive: true });
-	await writeFile(path.join(cwd, 'learning-landscape.md'), LANDSCAPE, 'utf8');
+	await writeFile(path.join(cwd, 'learning-moments.json'), '{"schema":"ptspace.learning-moments/v1","moments":[]}\n', 'utf8');
 	return { base, cwd };
 }
 
 // A raw live Denkraum: a bare folder that only carries a canonical PTS artefact.
-async function rawDenkraum(marker = 'learning-landscape.md') {
+async function rawDenkraum(marker = 'learning-moments.json') {
 	const cwd = await mkdtemp(path.join(tmpdir(), 'pts-raw-'));
-	await writeFile(path.join(cwd, marker), marker === 'learning-landscape.md' ? LANDSCAPE : '# Learning Design\n', 'utf8');
+	const body = marker === 'learning-moments.json' ? '{"schema":"ptspace.learning-moments/v1","moments":[]}\n' : '# Learning Design\n';
+	await writeFile(path.join(cwd, marker), body, 'utf8');
 	return cwd;
 }
 
@@ -49,10 +48,10 @@ test('the strict scaffolded workspace layout still resolves (workspaceRoot contr
 });
 
 test('a raw live Denkraum cwd resolves via its canonical PTS marker', async () => {
-	const cwd = await rawDenkraum('learning-landscape.md');
+	const cwd = await rawDenkraum('learning-moments.json');
 	try {
 		const resolved = await resolveDenkraumRoot(cwd);
-		assert.ok(resolved, 'a raw Denkraum with learning-landscape.md resolves');
+		assert.ok(resolved, 'a raw Denkraum with learning-moments.json resolves');
 		// The strict gate must reject the same folder (no workspace/ parent).
 		await assert.rejects(workspaceRoot(cwd), /current PTS Denkraum required/);
 	} finally { await rm(cwd, { recursive: true, force: true }); }
@@ -81,7 +80,7 @@ test('a missing or relative cwd fails closed', async () => {
 });
 
 test('readProduct reads a product from a raw live Denkraum (tolerant resolution)', async () => {
-	const cwd = await rawDenkraum('learning-landscape.md');
+	const cwd = await rawDenkraum('learning-moments.json');
 	try {
 		assert.equal(await readProduct(cwd), null, 'no product file → null, not a throw');
 		await writeFile(path.join(cwd, 'teaching-product.json'), JSON.stringify(emptyProduct('Root Test')), 'utf8');

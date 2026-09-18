@@ -129,7 +129,9 @@ Everything else is derived from it.
 
 The canonical workspace artefacts have distinct responsibilities:
 `learning-design.md` holds the overarching pedagogical understanding;
-`learning-landscape.md` holds learning moments and transitions;
+`learning-moments.json` is the canonical LearningMoment domain store (the single
+structured source of truth for learning moments), with
+`learning-moment-bindings.json` as its pure whiteboard-projection ledger;
 `temporal-plan.yml` holds teaching windows and temporal placements;
 `planning-board.yml` holds planning work; `decisions.yml` holds reasoned
 decisions; and `materials/` holds drafts and reviewed materials with

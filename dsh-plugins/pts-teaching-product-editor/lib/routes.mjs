@@ -42,7 +42,7 @@ const DENKSTAND_FILE = '.pts/denkstand-state.json';
 // source: the domain. No learning-landscape.md, no learning-design.md heading
 // parser, no binding-ledger fallback and no demo fallback. When the domain is
 // empty, the snapshot honestly carries zero learning moments.
-async function buildSnapshotForSession(root) {
+export async function buildSnapshotForSession(root) {
 	let state;
 	try {
 		state = JSON.parse(await fs.readFile(path.join(root, DENKSTAND_FILE), 'utf8'));

@@ -50,7 +50,6 @@ export const MAX_READ_BYTES = 65536;
 /** Canonical Denkstand files of a Denkraum (specs/LEARNING_DESIGN_SCHEMA.md). */
 export const DENKSTAND_FILES = Object.freeze([
 	'learning-design.md',
-	'learning-landscape.md',
 	'planning-board.yml',
 	'decisions.yml',
 	'temporal-plan.yml',

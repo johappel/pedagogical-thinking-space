@@ -31,20 +31,26 @@ Fehlend: grafische Lernlandschaft, Artefakt-Editor, Material↔Moment-Zuordnung,
 interaktive Stunden-Zuordnung (Drag&Drop), „Stundenverlauf vorschlagen“,
 Offene-Fragen-Panel und prominente Dokument-Buttons.
 
-## 2. Datenfluss (kanonisch, unverändert)
+## 2. Datenfluss (kanonisch)
 
 ```text
-learning-landscape.md   # Lernmomente (draft|stable|needs_review) + Übergänge
-learning-landscape.layout.json  # nur Positionen/Gruppen (keine Semantik)
+learning-moments.json   # KANONISCHE LearningMoment-Domäne (einzige strukturierte Quelle):
+                        #   domainId, title, content, status, version, provenance, timestamps
+learning-moment-bindings.json  # reiner Projektions-Ledger (domainId → Whiteboard-Projektionen)
+learning-design.md      # menschenlesbarer Denkstand (Prosa) — KEINE strukturierte Momentquelle
 temporal-plan.yml       # windows = Stunden/Fenster; placements = Moment↔Fenster
 planning-board.yml      # Lehrer-Arbeit (Klären→Vorbereiten→Auswerten→Bereit)
 decisions.yml           # erkennbare Lehrkraft-Entscheidungen
 materials/              # reviewte Material-Drafts (Material-IDs)
 ```
 
-Jede UI-Interaktion unten schreibt ausschließlich in diese Dateien —
-atomar, pfad-geprüft (Vorbild `pts-workspaces`), ohne semantische Dateien zu
-streifen (Layout-Änderungen berühren nie die Landscape).
+`learning-landscape.md` ist aus der Architektur entfernt. Das Whiteboard ist nur
+eine Projektion der LearningMoment-Domäne; die Produktwerkstatt ist ein Consumer
+dieser Domäne. Beide lesen LearningMoments ausschließlich über die Domain-Fassade
+(`listLearningMoments` / `getLearningMoment`). Jede UI-Interaktion unten schreibt
+atomar und pfad-geprüft (Vorbild `pts-workspaces`); ein Board-Edit darf einen
+Domain-Update auslösen, die sichtbare Projektion wird danach aus dem Domainobjekt
+synchronisiert.
 
 ## 3. Schritt 1 — Lernlandschaft grafisch
 

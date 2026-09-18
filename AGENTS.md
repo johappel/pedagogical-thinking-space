@@ -96,10 +96,18 @@ change once and Do not ask "Soll ich anfangen?" for a bounded order.
 ## Denkraum and reference documents
 
 A Denkraum is a directory under `<dataRoot>/denkraeume/` holding the Learning
-Design and its artefacts (`learning-design.md`, `learning-landscape.md`,
-`planning-board.yml`, `decisions.yml`, `temporal-plan.yml`, `drafts/`,
-`materials/`, `rendered/`). Conversation history comes from the DSH session; the
-Denkraum files are the shared current state.
+Design and its artefacts (`learning-design.md`, `learning-moments.json`,
+`learning-moment-bindings.json`, `planning-board.yml`, `decisions.yml`,
+`temporal-plan.yml`, `drafts/`, `materials/`, `rendered/`). Conversation history
+comes from the DSH session; the Denkraum files are the shared current state.
+
+The **canonical structured source of truth for LearningMoments is
+`learning-moments.json`** (the LearningMoment domain store): id, title, content,
+status, version, provenance, timestamps. The whiteboard is only a *projection*
+of that domain and `learning-moment-bindings.json` is a pure projection ledger
+(domainId → projections). `learning-design.md` stays a human-readable Denkstand
+and may describe moments in prose, but is **never** a structured moment source.
+`learning-landscape.md` has been removed from the architecture.
 
 Reference documents live in the repository root and are read **on demand by
 absolute path**, never preloaded: `CRITICAL_FRIEND.md`, `SYSTEMIC_STANCE.md`,

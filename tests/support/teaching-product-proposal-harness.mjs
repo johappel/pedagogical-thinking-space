@@ -18,6 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createTeachingProductHandler, PREFIX } from '../../dsh-plugins/pts-teaching-product-editor/lib/routes.mjs';
+import { createLearningMoment } from '../../plugins/pts-learning-moment-binding/lib/domain.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
@@ -83,6 +84,16 @@ const PAGE = `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>
 
 export async function startProposalHarness() {
 	const root = await mkdtemp(path.join(tmpdir(), 'pts-tp-proposal-'));
+	// Seed the canonical LearningMoment domain store — the ONE moment source the
+	// Produktwerkstatt reads. No learning-landscape.md, no demo fallback.
+	const SEED = [
+		['lm-01', 'Gottesbild als Denkhebel'],
+		['lm-02', 'Zwei Darstellungen vergleichen'],
+		['lm-03', 'Eigene Deutung formulieren'],
+		['lm-04', 'Grenzen der Bilder erkennen'],
+		['lm-05', 'Weiterdenken: eigenes Bild'],
+	];
+	for (const [domainId, title] of SEED) await createLearningMoment(root, { domainId, title });
 	const handler = createTeachingProductHandler({ resolveRoot: () => root });
 
 	const server = http.createServer(async (req, res) => {
