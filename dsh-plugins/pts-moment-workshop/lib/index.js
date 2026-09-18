@@ -3,7 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveDenkraumRoot } from '../../../dsh-presets/pts-companion/teaching-product.mjs';
 import { readProduct } from '../../../dsh-presets/pts-companion/teaching-product.mjs';
-import { parseLandscape } from '../../../dsh-presets/pts-companion/workspace-parsers.mjs';
+import { getLearningMoment } from '../../../plugins/pts-learning-moment-binding/lib/domain.mjs';
+import { momentToLandscapeShape } from '../../../dsh-presets/pts-companion/moment-domain-source.mjs';
 import { buildMomentImpact } from '../../../dsh-presets/pts-companion/moment-impact.mjs';
 
 export const inject = ['webServer'];
@@ -54,9 +55,9 @@ export function apply(ctx) {
       if (!session?.header?.cwd) return send(res, 404, { error: 'session not found' });
       const root = await resolveDenkraumRoot(session.header.cwd);
       if (!root) return send(res, 404, { error: 'session not found' });
-      const landscape = parseLandscape(await fs.readFile(path.join(root, 'learning-landscape.md'), 'utf8'));
-      const moment = landscape.moments.find((entry) => entry.id === args.momentId);
-      if (!moment) return send(res, 404, { error: 'moment not found' });
+      const domainMoment = await getLearningMoment(root, args.momentId);
+      if (!domainMoment) return send(res, 404, { error: 'moment not found' });
+      const moment = momentToLandscapeShape(domainMoment);
       return send(res, 200, { ok: true, impact: buildMomentImpact({ moment, fields: args.fields || {}, product: await readProduct(root) }) });
     } catch (error) { return send(res, 400, { error: error.message }); }
   } });

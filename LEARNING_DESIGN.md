@@ -25,7 +25,9 @@ The Learning Design remains the same.
 ## Relationship to the other canonical artefacts
 
 `learning-design.md` is the overarching pedagogical understanding.
-`learning-landscape.md` records learning moments and transitions;
+`learning-moments.json` is the canonical LearningMoment domain store (learning
+moments; the single structured source of truth), with
+`learning-moment-bindings.json` as its pure whiteboard-projection ledger;
 `temporal-plan.yml` records teaching windows and their placements;
 `planning-board.yml` records work items; `decisions.yml` records reasoned
 decisions; and `materials/` records drafts and reviewed outputs. An

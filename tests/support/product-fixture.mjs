@@ -29,6 +29,31 @@ title: Perspektiven
 - Herkunft: Lehrkraftgespräch
 ## Übergänge
 `;
+
+// The canonical domain store the whole stack now reads from. `activity` lets a
+// test change one moment's learning activity to exercise source-change detection.
+export function momentStoreJson(activity = 'Zwei Aussagen vergleichen') {
+  return JSON.stringify({
+    schema: 'ptspace.learning-moments/v1',
+    moments: [{
+      domainId: 'lm-perspektive',
+      title: 'Perspektiven vergleichen',
+      content: '',
+      status: 'draft',
+      version: 1,
+      provenance: { confirmedBy: 'teacher', confirmedAt: '1970-01-01T00:00:00.000Z' },
+      createdAt: '1970-01-01T00:00:00.000Z',
+      updatedAt: '1970-01-01T00:00:00.000Z',
+      type: 'inquiry',
+      function: 'Unterschiedliche Sichtweisen erkennen',
+      learning_activity: activity,
+      expected_experience: 'Sichtweisen unterscheiden',
+      material_needs: ['Impulsblatt'],
+      materials: ['materials/impuls.md'],
+      open_questions: ['Wie sichern wir die Ergebnisse?'],
+    }],
+  }, null, 2) + '\n';
+}
 export function candidateSeries() {
   return { id: 'series', title: 'Perspektiven', intention: 'Sichtweisen begruendet vergleichen', notes: '', lessons: [{ id: 'lesson-1', title: 'Perspektiven erproben', kind: 'lesson', intention: 'Sichtweisen unterscheiden', notes: '', durationMinutes: 45, phases: [{ id: 'phase-1', title: 'Vergleich', intention: 'Begruendungen unterscheiden', activity: 'Zwei Aussagen vergleichen und begruenden', notes: '', durationMinutes: 15, startMinute: 0, role: 'exploration', mode: 'group', momentIds: ['lm-perspektive'], materials: ['materials/impuls.md'], openQuestions: ['Ergebnissicherung noch entwickeln'], sourceHashes: {} }] }] };
 }
@@ -37,7 +62,7 @@ export async function fixture(t, options = {}) {
   const root = path.join(dir, 'workspace', 'demo');
   await mkdir(path.join(root, 'materials'), { recursive: true });
   await writeFile(path.join(dir, 'AGENTS.md'), '# Isolated test PTS\n');
-  await writeFile(path.join(root, 'learning-landscape.md'), momentText);
+  await writeFile(path.join(root, 'learning-moments.json'), momentStoreJson());
   await writeFile(path.join(root, 'learning-design.md'), '# Learning Design\n## Educational Intention\nPerspektiven vergleichen\n');
   await writeFile(path.join(root, 'planning-board.yml'), 'schema: ptspace.planning-board/v1\nitems:\n  - id: question-1\n    title: Welche Sicherung?\n    kind: clarify\n    status: proposed\n');
   await writeFile(path.join(root, 'decisions.yml'), 'schema: ptspace.decisions/v1\ndecisions:\n');

@@ -257,10 +257,11 @@ kuratieren. Bei unklarer Evidenz bleiben Dateien unverändert, bis die Lehrkraft
 oder der Companion geklärt hat.
 
 Verwende die kanonischen Zuständigkeiten: `learning-design.md` für das
-übergreifende Verständnis, `learning-landscape.md` für Lernmomente und
-Übergänge, `temporal-plan.yml` für Platzierungen, `planning-board.yml` für
-Arbeitsaufträge, `decisions.yml` für erkennbar von der Lehrkraft getroffene
-pädagogische Entscheidungen und `materials/` für Artefakte. Erzeuge niemals
+übergreifende Verständnis, `learning-moments.json` für Lernmomente (der
+kanonische Domain-Store), `temporal-plan.yml` für Platzierungen,
+`planning-board.yml` für Arbeitsaufträge, `decisions.yml` für erkennbar von der
+Lehrkraft getroffene pädagogische Entscheidungen und `materials/` für Artefakte.
+Erzeuge niemals
 eine parallele `decisions.md`.
 
 Ein Entwurf ist keine Festlegung. Setze einen Lernmoment erst nach einer

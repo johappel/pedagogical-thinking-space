@@ -6,7 +6,8 @@
 import { readFileSync, readdirSync, statSync, realpathSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { validateProduct, projectStatus, digest, PRODUCT_FILE, readableOpenQuestion, isLegacyPlacementQuestion } from './teaching-product.mjs';
-import { parseLandscape, parseYaml } from './workspace-parsers.mjs';
+import { parseYaml } from './workspace-parsers.mjs';
+import { momentsFromStoreRaw } from './moment-domain-source.mjs';
 import { getFocus, clearFocus } from './focus-context.mjs';
 import { findConversationBindingBySessionSync } from './conversation-bindings.mjs';
 
@@ -135,9 +136,9 @@ function overview(root, state, ld) {
 }
 
 export function buildSnapshot(root, sessionId = '') {
-  const sources = Object.fromEntries(['learning-design.md', 'learning-landscape.md', 'planning-board.yml', 'temporal-plan.yml', 'decisions.yml'].map((f) => [f, safeFile(root, f)]));
+  const sources = Object.fromEntries(['learning-design.md', 'learning-moments.json', 'planning-board.yml', 'temporal-plan.yml', 'decisions.yml'].map((f) => [f, safeFile(root, f)]));
   const ld = sources['learning-design.md'];
-  const moments = parseLandscape(sources['learning-landscape.md']).moments;
+  const moments = momentsFromStoreRaw(sources['learning-moments.json']);
   const board = parseBoard(sources['planning-board.yml']);
   const decisions = parseDecisionObjects(sources['decisions.yml']);
   const materials = [...relFiles(root, 'materials'), ...relFiles(root, 'rendered')];

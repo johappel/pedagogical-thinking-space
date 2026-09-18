@@ -52,16 +52,16 @@ atomar und pfad-geprüft (Vorbild `pts-workspaces`); ein Board-Edit darf einen
 Domain-Update auslösen, die sichtbare Projektion wird danach aus dem Domainobjekt
 synchronisiert.
 
-## 3. Schritt 1 — Lernlandschaft grafisch
+## 3. Schritt 1 — Lernmomente grafisch
 
-- **Neu:** View „Lernlandschaft“ (eigener Tab oder Teil des Denkstand-Tabs):
-  Moment-Karten aus `learning-landscape.md` (Titel, Typ, Funktion,
-  Lernaktivität, Status-Badge, Offene Fragen) positioniert über
-  `learning-landscape.layout.json`; Übergänge als Pfeile.
-- Klick auf eine Karte öffnet die Details (rechte Spalte) mit den
-  Pflichtfeldern + Offenen Fragen + „Bearbeiten“.
-- Vorschlags-Zustände sichtbar: `draft` (Begleiter/Documentarian) vs. `stable`
-  (Lehrkraft übernommen) vs. `needs_review` — Badge wie im Board.
+- **Neu:** View „Lernmomente“ (eigener Tab oder Teil des Denkstand-Tabs):
+  Moment-Karten aus der LearningMoment-Domäne (`learning-moments.json` über
+  `listLearningMoments`: Titel, Inhalt, Status, Version) — Kartenpositionen
+  kommen aus der Whiteboard-Projektion (Projektions-Ledger), nicht aus einer
+  eigenen Semantikdatei.
+- Klick auf eine Karte öffnet die Details (rechte Spalte) mit Titel/Inhalt +
+  Status + „Bearbeiten“ (schreibt über die Domain-Fassade `updateLearningMoment`).
+- Status sichtbar: `draft` vs. `stable` vs. `needs_review` — Badge wie im Board.
 
 ## 4. Schritt 2 — Ausarbeitung im Editor (ohne DSH zu verlassen)
 
@@ -83,7 +83,8 @@ synchronisiert.
 - Im Moment-Kärtchen: „Materialbedarfe“ (offene Bedarfe) und „Materialien“
   (vergebene Material-IDs).
 - **Zuordnung:** Auswahl aus der Artefakt-Galerie (`materials/`, `rendered/`)
-  → schreibt die Material-ID in den Moment-Block (`- Materialien: [mat-x]`).
+  → schreibt die Material-ID über die Domain-Fassade (`updateLearningMoment`)
+  in das LearningMoment-Objekt (`material_needs`/Materialien-Feld).
 - Änderungen an `materials/` selbst (neue Drafts) bleiben Worker-/Lehrkraft-
   Ablage wie bisher; das Kärtchen referenziert nur.
 
@@ -114,8 +115,8 @@ synchronisiert.
   Chat-Composer, z. B.:
   
   > „Erstelle einen Verlaufsplan für tw-01 (Stunde 1 – …): Lernmomente
-  > lm-a (0–18′, irritation) und lm-b (18–52′, deepening) gemäß
-  > learning-landscape.md und temporal-plan.yml, angepasst an die
+  > lm-a (0–18′, irritation) und lm-b (18–52′, deepening) gemäß der
+  > LearningMoment-Domäne und `temporal-plan.yml`, angepasst an die
   > Entscheidungen in decisions.yml. Ziel: konkrete Unterrichtsplanung in
   > 45 Minuten.“
   > Die Lehrkraft schickt ab → der Companion delegiert an `pts_material`
@@ -139,7 +140,7 @@ synchronisiert.
     passenden Aktions-Button („Öffnen“, „Zuordnen“, „Vorschlagen“).
   - **Dokument-Buttons:** Nach jedem Worker-Ergebnis und Documentarian-Check zeigt
     die Antwort prominente „Öffnen“-Buttons auf die berührten Dokumente
-    (Lernlandschaft, Timeline, Planungsboard, Entscheidungen, Material) —
+    (Lernmomente, Timeline, Planungsboard, Entscheidungen, Material) —
     sie öffnen die Artefakt-/Denkstand-Ansicht direkt. Immer wenn sich etwas
     ändert (Snapshot/Activity-Stream als Auslöser für einen dezenten Hinweis).
 

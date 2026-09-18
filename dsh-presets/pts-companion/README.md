@@ -27,7 +27,7 @@ visible in the schema while the guard still blocks execution — the persona and
 the guard message therefore both mandate delegation.
 
 The same guard **structurally blocks `pts_edit` calls that target the
-canonical design** (`learning-design.md`, `learning-landscape.md`, `materials/`
+canonical design** (`learning-design.md`, `learning-moments.json`, `materials/`
 — by path or by a write-intent on "learning design") during the
 clarifying/planning phase. The Learning Design is co-authored with the teacher;
 the Companion may record agreed points in `planning-board.yml` / `decisions.yml`

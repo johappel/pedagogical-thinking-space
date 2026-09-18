@@ -1,11 +1,11 @@
 # Temporal Plan Schema
 
-> Canonical temporal realisation of `learning-landscape.md`.
+> Canonical temporal realisation of the LearningMoment domain (`learning-moments.json`).
 
 ```yaml
 schema: ptspace.temporal-plan/v1
 title: Standardplanung
-landscape: learning-landscape.md
+source: learning-moments.json
 
 windows:
   - id: tw-01

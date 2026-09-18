@@ -1,5 +1,12 @@
 # Learning Landscape Schema
 
+> **Abgelöst / historisch.** Die kanonische strukturierte LearningMoment-Quelle
+> ist die LearningMoment-Domäne (`learning-moments.json`, siehe
+> `specs/PEDAGOGICAL_MODEL.md`). `learning-landscape.md` ist aus dem `pts`-Track
+> (Whiteboard-Domäne, Produktwerkstatt) entfernt. Dieses Schema beschreibt nur
+> noch das ältere `pts-web`-UI (`dsh-plugins/pts-landscape`), das als eigener
+> Schritt zurückgebaut wird.
+
 > Canonical didactic topology for a planning space. See `specs/PEDAGOGICAL_MODEL.md` for the binding terms.
 
 ## Responsibility

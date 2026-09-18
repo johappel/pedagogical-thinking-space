@@ -6,7 +6,9 @@
 
 `learning-design.md` expresses the overarching pedagogical understanding.
 
-`learning-landscape.md` expresses the didactic topology.
+`learning-moments.json` is the canonical LearningMoment domain store (the single
+structured source of truth for learning moments); `learning-moment-bindings.json`
+is its pure whiteboard-projection ledger.
 
 `temporal-plan.yml` expresses its temporal realisation.
 

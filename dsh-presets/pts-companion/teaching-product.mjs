@@ -3,12 +3,13 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import { parseLandscape, parseTemporal, parseYaml } from './workspace-parsers.mjs';
+import { parseTemporal, parseYaml } from './workspace-parsers.mjs';
+import { momentsFromStoreRaw } from './moment-domain-source.mjs';
 
 export const PRODUCT_FILE = 'teaching-product.json';
 export const PRODUCT_SCHEMA = 'ptspace.teaching-product/v1';
 const LIMIT = 512 * 1024;
-const SOURCES = ['learning-design.md', 'learning-landscape.md', 'planning-board.yml', 'temporal-plan.yml'];
+const SOURCES = ['learning-design.md', 'learning-moments.json', 'planning-board.yml', 'temporal-plan.yml'];
 export const digest = (value) => createHash('sha256').update(typeof value === 'string' ? value : JSON.stringify(value)).digest('hex');
 const clone = (value) => structuredClone(value);
 function check(ok, message) { if (!ok) throw new Error(message); }
@@ -126,8 +127,8 @@ async function atomic(root, file, value) {
 }
 export async function readThinking(root) {
   const sources = Object.fromEntries(await Promise.all(SOURCES.map(async (f) => [f, await safeRead(root, f)])));
-  const landscape = parseLandscape(sources['learning-landscape.md']);
-  return { sources, moments: landscape.moments, title: landscape.front.title || path.basename(root), sourceRevision: digest(sources) };
+  const moments = momentsFromStoreRaw(sources['learning-moments.json']);
+  return { sources, moments, title: path.basename(root), sourceRevision: digest(sources) };
 }
 export async function readProduct(root) {
   const resolved = await resolveDenkraumRoot(root);

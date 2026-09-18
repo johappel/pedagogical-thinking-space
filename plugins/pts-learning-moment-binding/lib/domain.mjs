@@ -32,10 +32,12 @@ const DEFAULT_STATUS = 'draft';
 // Optional pedagogical fields preserved from the earlier landscape model so the
 // reaction/impact model keeps working. They are content, not identity.
 export const PEDAGOGICAL_FIELDS = Object.freeze([
-	'type', 'function', 'learning_activity', 'expected_experience', 'material_needs', 'open_questions',
+	'type', 'function', 'learning_activity', 'expected_experience', 'material_needs', 'materials', 'open_questions',
 ]);
+// Numeric optional fields (e.g. the teacher's per-moment time estimate).
+export const NUMERIC_FIELDS = Object.freeze(['time_estimate']);
 // Every field a patch/create may set as content (title/description included).
-export const CONTENT_FIELDS = Object.freeze(['title', 'content', 'status', ...PEDAGOGICAL_FIELDS]);
+export const CONTENT_FIELDS = Object.freeze(['title', 'content', 'status', ...PEDAGOGICAL_FIELDS, ...NUMERIC_FIELDS]);
 
 export function isDomainId(value) {
 	return typeof value === 'string' && DOMAIN_ID.test(value);
@@ -91,6 +93,9 @@ function normMoment(m) {
 	for (const field of PEDAGOGICAL_FIELDS) {
 		if (Object.hasOwn(m, field)) moment[field] = normStringField(m[field]);
 	}
+	for (const field of NUMERIC_FIELDS) {
+		if (Object.hasOwn(m, field)) moment[field] = Number.isFinite(m[field]) ? m[field] : null;
+	}
 	return moment;
 }
 
@@ -129,6 +134,9 @@ export function serializeStore(store) {
 				updatedAt: m.updatedAt,
 			};
 			for (const field of PEDAGOGICAL_FIELDS) {
+				if (Object.hasOwn(m, field)) out[field] = m[field];
+			}
+			for (const field of NUMERIC_FIELDS) {
 				if (Object.hasOwn(m, field)) out[field] = m[field];
 			}
 			return out;
@@ -183,6 +191,7 @@ export function createMoment(store, input = {}, options = {}) {
 		createdAt: ts,
 		updatedAt: ts,
 		...Object.fromEntries(PEDAGOGICAL_FIELDS.filter((f) => Object.hasOwn(input, f)).map((f) => [f, input[f]])),
+		...Object.fromEntries(NUMERIC_FIELDS.filter((f) => Object.hasOwn(input, f)).map((f) => [f, input[f]])),
 	});
 	return { ok: true, created: true, store: { ...store, moments: [...store.moments, moment] }, moment };
 }
@@ -211,6 +220,7 @@ export function updateMoment(store, domainId, patch = {}, options = {}) {
 	const next = { ...moment };
 	for (const field of changedFields) {
 		if (field === 'status') next.status = normStatus(patch.status);
+		else if (NUMERIC_FIELDS.includes(field)) next[field] = Number.isFinite(patch[field]) ? patch[field] : null;
 		else if (PEDAGOGICAL_FIELDS.includes(field)) next[field] = normStringField(patch[field]);
 		else next[field] = typeof patch[field] === 'string' ? patch[field] : String(patch[field] ?? '');
 	}

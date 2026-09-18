@@ -31,8 +31,7 @@ export const inject = ['webServer'];
 
 const ALLOWED_SAVE_EXT = new Set(['.md', '.yml', '.yaml', '.json', '.txt', '.html', '.htm']);
 const MAX_SAVE_BYTES = 512 * 1024;
-const LANDSCAPE_FILE = 'learning-landscape.md';
-const LAYOUT_FILE = 'learning-landscape.layout.json';
+const LAYOUT_FILE = 'learning-moments.layout.json';
 const TEMPORAL_FILE = 'temporal-plan.yml';
 const DECISIONS_FILE = 'decisions.yml';
 
@@ -40,8 +39,11 @@ const DECISIONS_FILE = 'decisions.yml';
 // Minimal YAML parser (PTS subset; identical contract to pts-denkstand)
 // ————————————————————————————————————————————————
 
-import { parseYaml, parseLandscape, parseLayout, parseTemporal, parseDecisions, parseMaterialMeta, serializeTemporal, validateTemporalInput, setMomentEstimate, addTransition, removeTransition, updateMoment, setMomentMaterials } from '../../../dsh-presets/pts-companion/workspace-parsers.mjs';
-export { parseYaml, parseLandscape, parseLayout, parseTemporal, parseDecisions, parseMaterialMeta, serializeTemporal, validateTemporalInput, setMomentEstimate, addTransition, removeTransition, updateMoment, setMomentMaterials };
+import { parseYaml, parseLayout, parseTemporal, parseDecisions, parseMaterialMeta, serializeTemporal, validateTemporalInput } from '../../../dsh-presets/pts-companion/workspace-parsers.mjs';
+import { getLearningMoment, updateLearningMoment, listLearningMoments } from '../../../plugins/pts-learning-moment-binding/lib/domain.mjs';
+import { momentToLandscapeShape } from '../../../dsh-presets/pts-companion/moment-domain-source.mjs';
+import { parseTransitions, serializeTransitions, addTransition as addMomentTransition, removeTransition as removeMomentTransition, TRANSITIONS_FILE } from '../../../dsh-presets/pts-companion/moment-transitions.mjs';
+export { parseYaml, parseLayout, parseTemporal, parseDecisions, parseMaterialMeta, serializeTemporal, validateTemporalInput };
 
 function toPosix(p) {
 	return String(p).split(path.sep).join('/');
@@ -67,6 +69,18 @@ export async function atomicWriteFile(dir, name, content) {
 		await fsp.rename(tmp, path.join(dir, name));
 	} catch (error) {
 		await fsp.unlink(tmp).catch(() => {});
+		throw error;
+	}
+}
+
+// Patch one canonical moment through the domain façade. Returns false when the
+// moment does not exist (so the route answers 400), true on success.
+async function updateMomentField(base, momentId, patch) {
+	try {
+		await updateLearningMoment(base, momentId, patch);
+		return true;
+	} catch (error) {
+		if (error?.code === 'unknown-domain-id' || error?.code === 'invalid-domain-id') return false;
 		throw error;
 	}
 }
@@ -171,19 +185,18 @@ export function apply(ctx) {
 					errors: [],
 				};
 
-				const landscape = await readWorkspaceFile(base, LANDSCAPE_FILE);
-				if (landscape.ok) {
-					try {
-						const parsed = parseLandscape(landscape.raw);
-						result.title = typeof parsed.front.title === 'string' ? parsed.front.title : '';
-						result.structure = typeof parsed.front.structure === 'string' ? parsed.front.structure : '';
-						result.moments = parsed.moments;
-						result.transitions = parsed.transitions;
-					} catch (e) {
-						result.errors.push({ file: LANDSCAPE_FILE, message: 'Landscape-Parsing fehlgeschlagen: ' + String(e && e.message ? e.message : e) });
-					}
-				} else if (landscape.missing) {
-					result.errors.push({ file: LANDSCAPE_FILE, message: 'learning-landscape.md fehlt im Denkraum.' });
+				// Moments come from the canonical LearningMoment domain store; there is
+				// no learning-landscape.md anymore. Transitions live in a content-free
+				// sidecar (edges between domainIds).
+				try {
+					result.moments = (await listLearningMoments(base)).map(momentToLandscapeShape);
+				} catch (e) {
+					result.errors.push({ file: 'learning-moments.json', message: 'LearningMoment-Store nicht lesbar: ' + String(e && e.message ? e.message : e) });
+				}
+				const transitionsRaw = await readWorkspaceFile(base, TRANSITIONS_FILE);
+				if (transitionsRaw.ok) {
+					try { result.transitions = parseTransitions(transitionsRaw.raw).transitions; }
+					catch { result.transitions = []; }
 				}
 
 				const layout = await readWorkspaceFile(base, LAYOUT_FILE);

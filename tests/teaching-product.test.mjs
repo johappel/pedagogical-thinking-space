@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile, writeFile, symlink } from 'node:fs/promises';
 import path from 'node:path';
-import { fixture, candidateSeries, momentText } from './support/product-fixture.mjs';
+import { fixture, candidateSeries, momentStoreJson } from './support/product-fixture.mjs';
 import { validateSeries, readProduct, approvalToken, digest } from '../dsh-presets/pts-companion/teaching-product.mjs';
 import { buildSnapshot } from '../dsh-presets/pts-companion/workspace-snapshot.mjs';
 
@@ -89,7 +89,7 @@ test('targeted lesson intention proposal preserves the rest of the product', asy
 test('source changes invalidate proposals, preserve adopted phases and surface gaps', async (t) => {
   const f = await fixture(t);
   let proposed = await f.execute({ operation: 'propose_product', expectedRevision: 0, series: candidateSeries(), reason: 'Pruefen' });
-  await writeFile(path.join(f.root, 'learning-landscape.md'), momentText.replace('Zwei Aussagen vergleichen', 'Drei Aussagen vergleichen'));
+  await writeFile(path.join(f.root, 'learning-moments.json'), momentStoreJson('Drei Aussagen vergleichen'));
   let response = await f.request('/api/pts-product', { operation: 'confirm_proposal', expectedRevision: 1, proposalId: proposed.id });
   assert.equal(response.status, 409);
   assert.equal((await readProduct(f.root)).series.lessons.length, 0);
@@ -97,7 +97,7 @@ test('source changes invalidate proposals, preserve adopted phases and surface g
   response = await f.request('/api/pts-product', { operation: 'confirm_proposal', expectedRevision: 2, proposalId: proposed.id });
   assert.equal(response.status, 200);
   const before = response.body.product.series;
-  await writeFile(path.join(f.root, 'learning-landscape.md'), momentText.replace('Zwei Aussagen vergleichen', 'Vier Aussagen vergleichen'));
+  await writeFile(path.join(f.root, 'learning-moments.json'), momentStoreJson('Vier Aussagen vergleichen'));
   response = await f.request('/api/pts-product');
   assert.deepEqual(response.body.product.series, before);
   assert.match(response.body.status.lessons[0].gaps.join(), /weiterentwickelt/);

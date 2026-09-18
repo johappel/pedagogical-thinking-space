@@ -256,7 +256,7 @@ it.
 
 Use the canonical files according to their responsibilities:
 `learning-design.md` for the overarching understanding,
-`learning-landscape.md` for moments and transitions,
+`learning-moments.json` for learning moments (the canonical domain store),
 `temporal-plan.yml` for placements, `planning-board.yml` for work,
 `decisions.yml` for recognisably teacher-made pedagogical decisions, and
 `materials/` for artefacts. Never create a parallel `decisions.md`.
