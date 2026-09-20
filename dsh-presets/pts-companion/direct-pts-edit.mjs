@@ -22,7 +22,6 @@ const DESIGN_OPERATIONS = ['record_denkstand', 'record_learning_journey'];
 const OPERATIONS = Object.freeze(['add_open_question', 'record_decision', ...DESIGN_OPERATIONS, ...PRODUCT_OPERATIONS]);
 const DESIGN_SECTIONS = Object.freeze({
 	'learning-design.md': new Set(['Metadata', 'Current Status', 'Short Summary', 'Context', 'Learners', 'Educational Intention', 'Learning Journey', 'Key Learning Moments', 'Design Decisions', 'Open Questions', 'Activities', 'Materials and Sources', 'Differentiation and Inclusion', 'Assessment and Evidence of Learning', 'Reflection', 'Worker Tasks', 'Rendering Targets', 'Change Log']),
-	'learning-landscape.md': new Set(['Lernmomente', 'Übergänge']),
 });
 
 function isSubagent(agent) {
@@ -222,7 +221,7 @@ export async function applyDirectEdit(agent, args) {
 export function directTool() {
 	return {
 		name: 'pts_edit',
-		description: 'Structured PTS editing. read_product returns the current product, revision, pending proposals and migration status. propose_product stores a reviewable series, never adopts it. Preserve all unchanged lessons/phases and use stable IDs. accept_product requires a matching decisions.yml confirmed decision containing the exact proposal approval token [PTS product PROPOSAL_ID HASH], recorded only after explicit teacher agreement. assess_product is a Companion opinion, never teacher readiness. record_denkstand writes a bounded, explicitly named section in learning-design.md or learning-landscape.md; arbitrary paths and unrestricted rewrites remain unavailable.',
+		description: 'Structured PTS editing. read_product returns the current product, revision, pending proposals and migration status. propose_product stores a reviewable series, never adopts it. Preserve all unchanged lessons/phases and use stable IDs. accept_product requires a matching decisions.yml confirmed decision containing the exact proposal approval token [PTS product PROPOSAL_ID HASH], recorded only after explicit teacher agreement. assess_product is a Companion opinion, never teacher readiness. record_denkstand writes a bounded, explicitly named section in learning-design.md; arbitrary paths and unrestricted rewrites remain unavailable.',
 		parameters: {
 			type: 'object',
 			properties: {
@@ -234,7 +233,7 @@ export function directTool() {
 				teacher_confirmed: { type: 'boolean', description: 'Must be true only when the teacher explicitly confirmed the decision.' },
 				expectedRevision: { type: 'integer', description: 'Current product revision from read_product; required for writes.' },
 				series: { type: 'object', description: 'Complete structured series: id,title,intention,notes,lessons[]. Lesson: id,title,intention,notes,durationMinutes(number|null),phases[]. Phase: id,title,intention,activity,notes,durationMinutes,startMinute(number|null),role,mode,momentIds[],materials[](relative materials/ or rendered/ paths),openQuestions[],sourceHashes:{} (server fills hashes). Never invent adoption of moments.' },
-				reason: { type: 'string' }, intention: { type: 'string', description: 'Complete intention text for propose_lesson_intention.' }, target: { type: 'string', enum: ['learning-design.md', 'learning-landscape.md'] }, section: { type: 'string', description: 'Named Markdown section in the selected Denkstand document.' }, content: { type: 'string', description: 'Bounded replacement content for record_denkstand.' }, proposalId: { type: 'string' }, decisionId: { type: 'string' }, lessonId: { type: 'string' },
+				reason: { type: 'string' }, intention: { type: 'string', description: 'Complete intention text for propose_lesson_intention.' }, target: { type: 'string', enum: ['learning-design.md'] }, section: { type: 'string', description: 'Named Markdown section in the selected Denkstand document.' }, content: { type: 'string', description: 'Bounded replacement content for record_denkstand.' }, proposalId: { type: 'string' }, decisionId: { type: 'string' }, lessonId: { type: 'string' },
 				assessment: { type: 'string', enum: ['idea', 'developing', 'ready_candidate'] }, note: { type: 'string' }, ready: { type: 'boolean' },
 			},
 			required: ['operation'],

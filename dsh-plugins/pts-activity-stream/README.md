@@ -203,8 +203,12 @@ trennt, stille Steps nicht; isError; pwsh → generic.
 * Nachher: eine laufende Zeile mit Puls-Punkt pro Bewegung, danach matte
   Abschlusszeile; Details hinter dem Aufklapper.
 * **Realtest nach Neustart (diese Installation):**
-  - Roster/Boot: `GET /plugins/pts-activity-stream/client.js` → HTTP 200;
-    Boot-Payload listet die Loader-Row neben `artifact-panel`.
+  - Roster/Boot: der Client-Module-Graph (`GET /plugins/events`, SSE) listet
+    `pts-activity-stream`; die **combo-URL** aus diesem Graphen
+    (`/plugins/??pts-activity-stream/client.js&rev=<rev>`) liefert HTTP 200.
+    **Nicht** die flache Form `/plugins/<id>/client.js` prüfen — die ist
+    konstruktionsbedingt 404 (`dsh-client-modules.bundleResource` bedient nur
+    die exakten, gehashten Graph-URLs). Gilt genauso für `dsh-whiteboard`.
   - Bewegung 1 (echt): `glob workspace/dsh-native-smoke/**` +
     2×`read` + `grep` am Stück → erwartbar **eine** Review-Einheit
     („Ich prüfe den bisherigen Denkstand …“ → „Denkstand geprüft“).

@@ -126,3 +126,10 @@
     - id: pts-teaching-product-editor
       name: pts-teaching-product-editor
       inject: [webServer]
+
+    # pts-activity-stream - pure client UI takeover of conversation.chat.node
+    # (keys tool-call + context @ priority -1). Resolved by bare name through
+    # the profile node_modules junction; no HTTP route, no service, no state.
+    - id: pts-activity-stream
+      name: pts-activity-stream
+

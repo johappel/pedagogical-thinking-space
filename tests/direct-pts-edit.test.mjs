@@ -14,7 +14,6 @@ async function fixture() {
 	await writeFile(path.join(denkraum, 'planning-board.yml'), 'schema: ptspace.planning-board/v1\nitems:\n', 'utf8');
 	await writeFile(path.join(denkraum, 'decisions.yml'), 'schema: ptspace.decisions/v1\ndecisions:\n', 'utf8');
 	await writeFile(path.join(denkraum, 'learning-design.md'), '# Learning Design\n\n## Current Status\n\nNoch offen.\n\n## Learning Journey\n\nBisher ungeklärt.\n\n## Open Questions\n\n- Eine Frage.\n', 'utf8');
-	await writeFile(path.join(denkraum, 'learning-landscape.md'), '# Lernlandschaft\n\n## Lernmomente\n\nNoch keine.\n\n## Übergänge\n\nNoch keine.\n', 'utf8');
 	return { root, denkraum, agent: { session: { header: { cwd: denkraum } } } };
 }
 
