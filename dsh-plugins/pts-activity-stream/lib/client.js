@@ -52,11 +52,18 @@ window.__ModuleLoader__.load({
 .ptsx-label-tech { font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace; font-size:11.5px; color:var(--dsw-alias-label-tertiary); }
 `;
 		const STYLE_TAG_ID = "pts-activity-stream-css";
-		if (typeof document !== "undefined" && document.getElementById(STYLE_TAG_ID) === null) {
+		// Idempotent: returns a disposer that removes only the tag this call
+		// created. Owned by the fiber through ctx.effect in apply().
+		function insertStyles() {
+			if (typeof document === "undefined") return function () {};
+			if (document.getElementById(STYLE_TAG_ID) !== null) return function () {};
 			const tag = document.createElement("style");
 			tag.id = STYLE_TAG_ID;
 			tag.textContent = CSS;
 			document.head.appendChild(tag);
+			return function () {
+				if (tag.parentNode !== null) tag.parentNode.removeChild(tag);
+			};
 		}
 
 		// ------------------------------------------------------------------
@@ -572,12 +579,78 @@ window.__ModuleLoader__.load({
 		}
 
 		// ------------------------------------------------------------------
+		// German language pack for the shipped `chat` namespace.
+		//
+		// Why a language pack and not a patched dictionary: the namespace
+		// "chat" has exactly one owner per (namespace, locale) pair, so a
+		// second register("chat", "de", …) is legal — a different locale key.
+		// Lookup walks the ACTIVE language's fallback chain (["de","en"]), so
+		// every key we do not translate keeps its shipped English text, and
+		// the shipped zh/en dictionaries stay untouched. No shipped file is
+		// edited. Verified against dsh-client-locale: addLanguage() requires a
+		// BCP 47-style id plus a fallback that is already registered and whose
+		// own chain reaches "en"; register(ns, locale, dict) throws only on a
+		// duplicate (namespace, locale) pair.
+		//
+		// Scope: the three nodes that carry the loud technical vocabulary —
+		// the reasoning disclosure ("Think"), the compaction row ("Context
+		// compacted") and the folded turn process ("n tool calls"). Their
+		// sibling keys are included so no row mixes German and English.
+		// ------------------------------------------------------------------
+		// The id is "de-pts", not "de": addLanguage throws on an occupied id and
+		// register throws on an occupied (namespace, locale) pair, and an
+		// exception inside apply would take the whole entry down — including
+		// the slot takeover. A private id cannot collide with another pack.
+		// Its primary subtag is still "de", so a German browser auto-selects it
+		// through the locale service's own navigator matching.
+		const LOCALE_ID = "de-pts";
+		const LOCALE_LABEL = "Deutsch (PTS)";
+		const CHAT_DE = {
+			// reasoning disclosure — was "Think"
+			"message.think": "Intern analysieren",
+			// compaction row — was "Context compacted"
+			"message.compaction": "Kontexte zusammenfassen",
+			"message.compaction.running": "Kontexte werden zusammengefasst …",
+			"message.compaction.completed": "{items} Verlaufseinträge zusammengefasst (~{tokens} Tokens)",
+			"message.compaction.expand": "Zusammenfassung ansehen",
+			"message.compaction.unavailable": "Zusammenfassung nicht verfügbar",
+			// folded turn process — was "n tool calls"
+			"message.turnProcess.toolCalls.one": "{count} interne Arbeit",
+			"message.turnProcess.toolCalls.other": "{count} interne Arbeiten",
+			"message.turnProcess.messages.one": "{count} Nachricht",
+			"message.turnProcess.messages.other": "{count} Nachrichten",
+			"message.turnProcess.subagents.one": "{count} Hintergrundauftrag",
+			"message.turnProcess.subagents.other": "{count} Hintergrundaufträge",
+			"message.turnProcess.thoughtForAWhile": "Eine Weile intern gearbeitet",
+		};
+
+		// Registration must never throw: a locale failure is a cosmetic loss,
+		// a failed apply is a lost takeover. Each effect therefore degrades to
+		// a warning plus a no-op disposer.
+		function guarded(label, fn) {
+			return function () {
+				try {
+					const dispose = fn();
+					return typeof dispose === "function" ? dispose : function () {};
+				} catch (error) {
+					console.warn("[pts-activity-stream] " + label + " fehlgeschlagen: " + (error && error.message ? error.message : String(error)));
+					return function () {};
+				}
+			};
+		}
+
+		// ------------------------------------------------------------------
 		// Registration: takeover of the keyed chat-node seat for tool calls.
 		// priority -1 shadows the shipped ToolCallTree (priority 0); ties would
 		// be a boot error, so the value matters. No children declared, no
-		// renderSlot dispatch, no locale seat (copy is intentionally German).
+		// renderSlot dispatch.
+		//
+		// `locale` is a hard dependency (declared in the returned inject), so
+		// apply is sequenced after the service; the guard is defensive only.
 		// ------------------------------------------------------------------
 		function apply(ctx) {
+			ctx.effect(insertStyles, "pts-activity-stream: css");
+
 			ctx.slots.inject("conversation.chat.node", function () {
 				ctx.slots.register(
 					{ name: "conversation.chat.node", key: "tool-call", priority: -1 },
@@ -590,13 +663,33 @@ window.__ModuleLoader__.load({
 					function (props) { return React.createElement(PtsContextNode, props); },
 				);
 			});
+
+			const locale = ctx.get("locale");
+			if (locale === undefined) {
+				console.warn("[pts-activity-stream] locale service fehlt — deutsche Beschriftung inaktiv");
+				return;
+			}
+			ctx.effect(guarded("Sprachpaket", function () {
+				return locale.addLanguage({ id: LOCALE_ID, label: LOCALE_LABEL, fallback: "en" });
+			}), "pts-activity-stream: language");
+			ctx.effect(guarded("chat-Wörterbuch", function () {
+				return locale.register("chat", LOCALE_ID, CHAT_DE);
+			}), "pts-activity-stream: chat dictionary");
+			// Activate once, on mount. setLocale is the only preference write
+			// entry and persists durably (loopback), so the choice survives a
+			// restart even when this row is later removed. Nothing re-selects
+			// the language afterwards: a manual switch back to English in
+			// Settings → General stays in effect for this page.
+			ctx.effect(guarded("Sprachwahl", function () {
+				if (locale.getLocale().active !== LOCALE_ID) locale.setLocale(LOCALE_ID);
+			}), "pts-activity-stream: locale preference");
 		}
 
 		// Test hook (read-only; used by the plugin-local logic smoke test).
 		if (typeof window !== "undefined" && window !== null) {
-			window.__ptsActivityStream = { describeKey, classifyRoot, contextHeadline, contextMetaLine, headlineFor };
+			window.__ptsActivityStream = { describeKey, classifyRoot, contextHeadline, contextMetaLine, headlineFor, CHAT_DE };
 		}
 
-		return { inject: ["slots"], apply: apply };
+		return { inject: ["slots", "locale"], apply: apply };
 	},
 });

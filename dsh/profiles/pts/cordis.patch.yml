@@ -11,17 +11,20 @@
 #
 # What belongs here (host plane): the registry rows and anything shared across
 # sessions — the roster default, the port, the fallback workspace root, and
-# installed capabilities. What belongs in the preset
-# (<repo>/dsh/presets/pts-companion/agent.cordis.yml): everything one session
-# contributes — persona, prompt sections, tools, worker roles.
+# installed capabilities. What the SESSION contributes — persona, prompt
+# sections, tools, worker roles — stays in one place as well, because dsh 0.2
+# declares a preset as an ordinary row: the `preset-pts-companion` block below
+# is the whole per-session composition, taken verbatim from
+# <repo>/dsh/presets/pts-companion/agent.cordis.yml (the legacy 0.1.7 form,
+# still rendered into $DSH_HOME/.agent-presets by the installer for rollback).
+# Keep the two in sync when the composition changes; only the declaration row
+# is mounted by dsh 0.2.
 #
-# This row is a STARTUP artifact: `agent-presets` publishes a service, and the
-# standing preset mounts hang off that service's own context. Changing the row's
-# config while an instance runs therefore re-instantiates the roster and leaves
-# every running session without its preset layer until it is created again
-# (observed 2026-09-11). The preset itself is NOT referenced from here: the
-# installer renders it into $DSH_HOME/.agent-presets, which the roster re-reads
-# on every call, so a rendered preset needs no roster change at all.
+# dsh 0.2 path rule: the declaration is mounted from the RENDERED patch, so a
+# preset-local `./module.mjs` or `baseUrl`-relative asset would resolve beside
+# $DSH_HOME/profiles/pts instead of the preset directory. Every module and
+# asset path therefore uses the installer-substituted `@PTS_ROOT@`, exactly
+# like the host rows above.
 
 # Port 3030 is this profile's fallback; the app argument --port still wins.
 - id: webserver
@@ -46,26 +49,47 @@
     mode: !!js process.env.DSH_PERMISSION_MODE ?? 'workspace-write'
     workspaceRoot: '@PTS_DATA_ROOT@/denkraeume'
 
-# The roster default. `default` is required and fails loud when the id is not in
-# the roster, so the preset must be rendered before the first boot. No `roots`
-# here: the rendered user root (<DSH_HOME>/.agent-presets) already carries the
-# preset, and includeShippedRoot/includeUserRoot keep their schema defaults
-# (true/true), so the shipped presets and ad-hoc local ones stay available.
-- id: agent-presets
-  name: '@deepseek-ai/dsh-agent-presets'
+# dsh 0.2: the roster moved. `@deepseek-ai/dsh-agent-presets` (the directory
+# scan of <DSH_HOME>/.agent-presets, driven by this row's `default`) is retired;
+# `agent-preset-registry` names a DECLARED preset id and the declaration itself
+# is the `preset-pts-companion` row below. `default` fails loud when the id is
+# not declared, so both rows belong together in this patch.
+- id: agent-preset-registry
+  name: '@deepseek-ai/dsh-agent-preset-registry'
   config:
     default: pts-companion
 
-# The OAuth bundle's own patch registers this row without an injection.  In a
-# web profile that lets Cordis activate it before the `webServer` service has
-# mounted, leaving the entire profile stuck at `pending`.  Make the dependency
-# explicit in the consuming profile so every CLI and web boot has the same
-# order.
-- id: llm-grok-build-oauth
-  name: dsh-coding-subscription-oauth
-  inject: [webServer]
-
 - insert:
+    # ── the PTS agent preset as a dsh 0.2 declaration ──────────────────────
+    # Registry row + this row replace the retired roster: the registry mounts
+    # presets only from declarations, never from .agent-presets directories.
+    # `plugins` stays a single source: the native `cordis:include` carrier
+    # loads the composition file (an entry list) instead of inlining it. The
+    # path is RELATIVE because two rules pin the target inside the profile
+    # tree: (1) the Include constructor resolves `new URL(path, baseUrl)`, so a
+    # bare `F:/...` would parse as scheme `f:` and fail with "The URL must be
+    # of scheme file" (observed 2026-09-29); (2) bare package names are only
+    # intercepted for files under the profiles tree, so including the repo copy
+    # directly fails with ERR_MODULE_NOT_FOUND for every @deepseek-ai package
+    # (same date). The installer copies the validated rendering to
+    # $DSH_HOME/profiles/pts/pts-companion/, which this relative path reaches
+    # from this patch file's base URL.
+    - id: preset-pts-companion
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: pts-companion
+        name: PTS Companion
+        description: >-
+          Pädagogischer Companion des Denkraums: kritischer Freund und Berater
+          der Lehrkraft, mit den sieben spezialisierten PTS-Rollen (research,
+          edit, document, documentarian, material, review, renderer) als native
+          DSH-Subagenten.
+        plugins:
+          - id: pts-companion-composition
+            name: cordis:include
+            config:
+              path: 'pts-companion/agent.cordis.yml'
+
     # Optional capability, installed independently of PTS Core. Flip `disabled`
     # to false to prove additivity: the Companion sees the extra tool in the
     # next session, and PTS Core needs no change either way.
@@ -132,4 +156,45 @@
     # the profile node_modules junction; no HTTP route, no service, no state.
     - id: pts-activity-stream
       name: pts-activity-stream
+
+# ── instance defaults: model route and welcome notice ────────────────────────
+# These three rows lived only in the rendered pts-017 patch (hand-added on
+# 2026-09-11) and are canonicalized here so every render reproduces them. They
+# patch existing dsh-base/dsh-web-app rows; verified present in dsh 0.2.0-rc.1.
+- id: ui-settings-general
+  name: "@deepseek-ai/dsh-client-ui-settings-general"
+  config:
+    welcomeNoticeVersion: 2026-08-13.1
+- id: agent-default-model
+  name: "@deepseek-ai/dsh-agent-default-model"
+  config:
+    provider: bai
+    model: deepseek-v4.1-flash
+    reasoningEffort: high
+- id: llm-pi-ai
+  name: "@deepseek-ai/dsh-llm-pi-ai"
+  config:
+    providers:
+      bai:
+        displayName: b.ai
+        apiKeyEnv: BAI_API_KEY
+        api: anthropic-messages
+        baseURL: https://api.b.ai
+        models:
+          - id: deepseek-v4.1-flash
+            name: deepseek-v4.1-flash
+            reasoningEfforts:
+              off: null
+              low: low
+              high: high
+              max: max
+          - id: gemini-3.8-flash
+            name: gemini-3.8-flash
+            reasoningEfforts:
+              off: null
+              low: low
+              high: high
+              max: max
+      openrouter:
+        apiKeyEnv: OPENROUTER_API_KEY
 

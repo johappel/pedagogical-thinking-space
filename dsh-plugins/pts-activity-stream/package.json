@@ -12,7 +12,9 @@
   },
   "dsh": {
     "client": {
-      "inject": [],
+      "inject": [
+        "@deepseek-ai/dsh-client-locale"
+      ],
       "platform": "web"
     }
   },

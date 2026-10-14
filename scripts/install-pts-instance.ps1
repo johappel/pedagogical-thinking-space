@@ -132,10 +132,15 @@ function Set-PtsSettingLine([string[]] $Lines, [string] $Key, [string] $Value) {
             return $copy
         }
     }
+    # Insert right below the `pts:` line and keep EVERY remaining line. The
+    # previous version built `head` up to the `pts:` line and `tail` from the
+    # end of the section, so inserting a key that was not there yet dropped all
+    # sibling keys - writing repoRoot and then dataRoot left only dataRoot, while
+    # the log claimed both (observed 2026-10-03 on pts-021).
     $head = @($Lines[0..$index])
-    $tail = @()
-    if ($end -le $Lines.Count - 1) { $tail = @($Lines[$end..($Lines.Count - 1)]) }
-    return @($head) + @($line) + @($tail)
+    $rest = @()
+    if ($index + 1 -le $Lines.Count - 1) { $rest = @($Lines[($index + 1)..($Lines.Count - 1)]) }
+    return @($head) + @($line) + @($rest)
 }
 
 $settingRepo = Get-PtsSettingValue $settingsPath 'repoRoot'
@@ -258,6 +263,21 @@ if ($renderedText -notmatch [regex]::Escape("'$dataRootForYaml/skills'")) {
     throw "Preset-Skillverzeichnis zeigt nicht auf die Datenwurzel: $renderedComposition"
 }
 Write-Note "Referenzwurzel $rootForYaml und Skillwurzeln (Repo + $dataRootForYaml) im Preset gesetzt"
+
+# dsh 0.2 mounts the preset through `cordis:include`, and the loader resolves
+# bare package names against the INCLUDE FILE's directory. The interception
+# layer only exists inside the profiles tree (findInterceptionLayer): a file
+# under <repo>/dsh/presets/... gets plain Node resolution, which fails there
+# with ERR_MODULE_NOT_FOUND for every @deepseek-ai package (observed
+# 2026-09-29), and the repository carries no harness closure. The validated
+# rendering is therefore copied INTO the profile tree, next to cordis.patch.yml
+# — the very file whose rows already resolve every package — and the patch
+# includes it from there by relative path. The .agent-presets copy above stays
+# (legacy roster rollback for a 0.1.7 instance).
+$profilePresetDir = Join-Path $profileDir $DefaultPreset
+if (Test-Path -LiteralPath $profilePresetDir) { Remove-Item -LiteralPath $profilePresetDir -Recurse -Force }
+Copy-Item -LiteralPath (Join-Path $presetTargetRoot $DefaultPreset) -Destination $profilePresetDir -Recurse -Force
+Write-Note "$DefaultPreset -> $profilePresetDir (Include-Ziel im Profilbaum)"
 
 # Align the user settings document. It is hot-reloaded, so the change takes
 # effect without a restart; unknown surrounding content is preserved verbatim.

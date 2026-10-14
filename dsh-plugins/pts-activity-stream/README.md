@@ -39,7 +39,65 @@ Bewusst **nicht** verwendet:
 * kein `renderSlot`/`renderSlotChain` (entry-gebundene Ownership);
 * kein Zugriff auf den Chat-Store (nicht einmal lesend nötig — die Daten
   kommen über den Standard-Kit-Hook `useSession`);
-* keine Host-Routen, kein `webServer`, keine Services (Host-Hälfte ist leer).
+* keine Host-Routen, kein `webServer` (Host-Hälfte ist leer); die
+  Client-Hälfte nutzt allein den `locale`-Service.
+
+## Deutsche Beschriftung (Sprachpaket)
+
+Das Plugin bringt eine eigene Sprache `de-pts` („Deutsch (PTS)“) mit und
+schaltet sie beim Mounten einmalig aktiv. Übersetzt wird das **shipped**
+Namespace `chat` — der Eigentümer der Zeilen, die im Stream am lautesten
+technisch klingen:
+
+| Key | shipped (en) | hier |
+|---|---|---|
+| `message.think` | Think | **Intern analysieren** |
+| `message.compaction` | Context compacted | **Kontexte zusammenfassen** |
+| `message.compaction.running` | Compacting context… | Kontexte werden zusammengefasst … |
+| `message.compaction.completed` | Compacted {items} history items (~{tokens} tokens) | {items} Verlaufseinträge zusammengefasst (~{tokens} Tokens) |
+| `message.compaction.expand` | View compaction summary | Zusammenfassung ansehen |
+| `message.compaction.unavailable` | Compaction summary unavailable | Zusammenfassung nicht verfügbar |
+| `message.turnProcess.toolCalls.one/.other` | {count} tool call(s) | **{count} interne Arbeit / interne Arbeiten** |
+| `message.turnProcess.messages.one/.other` | {count} message(s) | {count} Nachricht / Nachrichten |
+| `message.turnProcess.subagents.one/.other` | {count} subagent(s) | {count} Hintergrundauftrag / Hintergrundaufträge |
+| `message.turnProcess.thoughtForAWhile` | Thought for a while | Eine Weile intern gearbeitet |
+
+Die Nachbar-Keys sind absichtlich mit dabei: die Turn-Process-Zeile setzt ihre
+Segmente mit `" · "` zusammen — ohne sie stünde dort „3 interne Arbeiten ·
+2 messages“.
+
+Warum das ohne Eingriff in shipped Dateien geht:
+
+* `register(ns, locale, dict)` schlüsselt auf das Paar *(Namespace, Sprache)*.
+  `("chat", "de-pts")` ist frei, `("chat", "en")` bleibt unangetastet.
+* Die Auflösung läuft über die **Fallback-Kette der aktiven Sprache**
+  (`["de-pts", "en"]`): jeder nicht übersetzte Key fällt auf den shipped
+  englischen Text zurück. Es wird also nie etwas „leer“.
+* Die Sprache wird über den `locale`-Service registriert
+  (`addLanguage` + `register`), nicht durch Patchen der UI.
+
+Absicherungen, die in der Praxis nötig sind:
+
+* **Eigene Sprach-ID `de-pts` statt `de`.** `addLanguage` wirft bei belegter
+  ID, `register` bei belegtem Paar — und eine Ausnahme in `apply` reißt den
+  ganzen Entry mit, also auch den Slot-Takeover. Eine private ID kann nicht
+  kollidieren. Die Primärsprache bleibt `de`, ein deutscher Browser wählt sie
+  über das eigene `navigator`-Matching trotzdem automatisch.
+* **Jeder Locale-Effekt ist gekapselt** (`guarded(...)`): ein Fehler wird zu
+  einer Warnung plus No-op-Disposer. Ein kosmetischer Verlust darf nie den
+  Takeover kosten.
+* **`inject: ["slots", "locale"]`** — harte Abhängigkeit, damit `apply` erst
+  nach dem Service läuft.
+* **Bundle-Reihenfolge**: `package.json` → `dsh.client.inject` nennt
+  `@deepseek-ai/dsh-client-locale`, damit die Locale-Kante im
+  Client-Module-Graph **vor** diesem Bundle materialisiert wird.
+
+Rückgängig machen: Zeile aus `cordis.patch.yml` entfernen und neu starten.
+Die *Auswahl* „Deutsch (PTS)“ bleibt dann in `settings.yaml` gespeichert, die
+Sprache ist aber nicht mehr registriert — die UI fällt auf Englisch zurück.
+Manuelles Umschalten unter **Einstellungen → Allgemein** wird nicht
+überschrieben; das Plugin wählt nur beim Mounten, wenn noch nicht `de-pts`
+aktiv ist.
 
 ## Verwendete Runtime-Signale (alle gegen 0.1.1-rc.2 verifiziert)
 

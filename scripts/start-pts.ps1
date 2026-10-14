@@ -17,7 +17,7 @@
 .EXAMPLE
     powershell -File scripts/start-pts.ps1
 .EXAMPLE
-    powershell -File scripts/start-pts.ps1 -Sync -Denkraum F:\dsh-instances\pts\denkraeume\ki-und-religion
+    powershell -File scripts/start-pts.ps1 -Sync -Denkraum F:\dsh-instances\pts-021\denkraeume\KI und Gott
 .EXAMPLE
     powershell -File scripts/start-pts.ps1 -Open
     Opens the local DSH URL deliberately. The default avoids a second tldraw
@@ -27,7 +27,11 @@
 param(
     [string] $RepoRoot = '',
     [string] $DataRoot = '',
-    [string] $DshHome = $(if ($env:DSH_HOME) { $env:DSH_HOME } else { 'F:\dsh-instances\pts\.dsh' }),
+    # The production instance. Renamed on 2026-10-03 (cutover from pts to
+    # pts-021, dsh 0.2.1-alpha.1): only this default changed, and the previous
+    # folder F:\dsh-instances\pts stays untouched as the rollback. Pass -DshHome
+    # to boot a different instance.
+    [string] $DshHome = $(if ($env:DSH_HOME) { $env:DSH_HOME } else { 'F:\dsh-instances\pts-021\.dsh' }),
     [string] $ProfileName = 'pts',
     [string] $Denkraum,
     [int] $Port = 3030,

@@ -192,7 +192,11 @@ test('designer resolves non-note shapes from the complete snapshot element list'
 test('the root-scoped opener follows the active session for automatic opening', async (t) => {
 	if (!tldrawAvailable) return t.skip('dsh-tldraw repository not available');
 	const source = await readTldrawClient();
-	assert.match(source, /var rootSessionId = props && typeof props\.useSessions === 'function'[\s\S]*state && state\.current[\s\S]*var sessionId[\s\S]*rootSessionId/);
+	assert.match(source, /var listSessionId = mainViewSessionIdFromList\(listState\)/);
+	// The DSH 0.1.7 Main View is an explicit session reference
+	// (`retainedBy.mainView > 0`); the former global `state.current` is gone.
+	assert.match(source, /var sessionId = props && props\.sessionId \? String\(props\.sessionId\) : \(hookSessionId \|\| listSessionId\)/);
+	assert.doesNotMatch(source, /state && state\.current/);
 	assert.match(source, /function openBoard\(targetSessionId\)[\s\S]*if \(!targetSessionId \|\| opening \|\| !sidebarRef\.open\) return false/);
 	assert.match(source, /function retryUntilBoardBodyBinds\(targetSessionId, attempts, onBound\)[\s\S]*requestedSessionId === targetSessionId[\s\S]*retryUntilBoardBodyBinds\(targetSessionId \|\| activeSessionRef\.current/);
 	assert.match(source, /retryUntilBoardBodyBinds\(targetSessionId, 0, function \(\) \{[\s\S]*apiCall\('wb-open-ack', \{ sessionId: targetSessionId \}\)/);
